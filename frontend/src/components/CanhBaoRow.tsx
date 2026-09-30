@@ -27,7 +27,17 @@ export interface CanhBaoChiTiet {
   thoi_gian: string | null;
   kind: "chuyen_kho" | "giao_nhan" | "xu_ly" | "tai_san" | "vat_tu";
   ref: string;
+  /** Ma rieng cua muc - chi co o loai bo qua duoc (don gia bat thuong, sap het bao hanh). */
+  khoa?: string;
+  // Don gia bat thuong: so lieu + de xuat xu ly (backend deXuatDonGia).
+  vt_id?: string;
+  don_gia?: number;
+  don_gia_tham_khao?: number;
+  de_xuat?: { kieu: "sua_tham_khao" | "kiem_tra_phieu" | "khong_ro"; gia_de_xuat?: number; ly_do: string };
 }
+
+/** Loai canh bao "theo doi" duoc danh dau bo qua (loai can hanh dong that tu het khi duoc xu ly). */
+export const LOAI_BO_QUA_DUOC: LoaiCanhBao[] = ["don-gia-bat-thuong", "sap-het-bao-hanh"];
 
 const KIEU: Record<LoaiCanhBao, { icon: typeof Clock; nen: string; mau: string }> = {
   "cho-ban-giao": { icon: Clock, nen: "bg-orange-light", mau: "text-orange" },

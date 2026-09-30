@@ -1,5 +1,9 @@
 # DEPLOY.md — Checklist triển khai lần đầu (CCDC 3T)
 
+> **Xử lý cảnh báo (2026-09-30, migration `0010_canh_bao_xu_ly.sql`)** — chỉ THÊM 2 bảng (`canh_bao_bo_qua`,
+> `vt_gia_log`), an toàn dữ liệu thật. Áp cùng lúc với 0009: `npm run db:migrate:remote` sau khi backup. Thiếu
+> 0010 thì màn Cảnh báo lỗi (truy vấn đơn giá bất thường / sắp hết bảo hành tham chiếu `canh_bao_bo_qua`).
+
 > **Ghép nhân sự dữ liệu cũ vào hồ sơ ETX (2026-09-30)** — NÊN chạy TRƯỚC khi deploy bản 0009 (đồng
 > bộ hằng ngày có thể tự thêm hồ sơ NS-… làm lệch snapshot → file SQL tự rollback, phải sinh lại):
 > 1. Xuất JSON production mới (`nv.json`, `tentudo.json`, `kho.json`, `etx_full.json`) vào

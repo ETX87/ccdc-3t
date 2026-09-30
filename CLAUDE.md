@@ -95,6 +95,11 @@ state đang dùng.
   dùng `useTrangServer(khoaLoc)`; không gửi `page` = hành vi cũ (xuất Excel, ô chọn trong form). Bảng nhỏ/đã
   tổng hợp dùng `useTrangKhach(rows, khoaLoc)`. Ô chọn nhân viên trong form dùng `/nhan-vien?gon=1` (chỉ mã +
   tên) — KHÔNG gọi `/nhan-vien` đầy đủ (mỗi dòng 2 truy vấn con đếm).
+- Xử lý cảnh báo (2026-09-30, migration 0010): loại "theo dõi" (`don-gia-bat-thuong`, `sap-het-bao-hanh`) bỏ
+  qua được từng mục (`canh_bao_bo_qua`, loại trừ ngay trong SQL nên số đếm/badge khớp; có hoàn tác) — loại cần
+  hành động thật (quá hạn, tồn âm…) KHÔNG bỏ qua được. Đơn giá bất thường kèm đề xuất so với giá ĐA SỐ các lần
+  nhập mua: giá tham khảo sai → nút sửa (ghi `vt_gia_log`); đơn giá phiếu sai → chỉ mở phiếu, KHÔNG tự sửa
+  chứng từ đã duyệt. Quyền: Admin/HCNS/Kế toán.
 - PWA (2026-09-30): `frontend/public/manifest.webmanifest` (`display: standalone`) + `sw.js` (không cache
   `/api`, chỉ giữ khung trang `/` khi mất mạng; chỉ đăng ký ở bản build) + nút "Cài đặt ứng dụng" cuối
   sidebar (`CaiDatAppButton`, `lib/caiDatApp.ts`). Logo/icon sinh từ `logo.png` gốc (nền trắng) bằng

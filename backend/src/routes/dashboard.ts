@@ -3,6 +3,7 @@ import type { AppUser, Env } from "../types";
 import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { nowVN } from "../lib/vnTime";
+import { requireRole } from "../middleware/requireRole";
 import { dkCotKho, dkPhieuKho, dkTaiSan, layPhamVi, locTheoKho, type PhamVi } from "../lib/phamVi";
 import { chupNeuChuaCo, soLieuDaChup, tinhChiSo } from "../lib/thongKe";
 
@@ -499,9 +500,11 @@ function cauLenhCanhBao(db: D1Database, pv: PhamVi) {
       .bind(...ts.binds),
     "sap-het-bao-hanh": db
       .prepare(
-        `SELECT c.id AS ma, c.ten_ccdc AS ten, 'Hết bảo hành ' || c.han_bao_hanh AS chi_tiet, c.han_bao_hanh AS thoi_gian, 'tai_san' AS kind, c.id AS ref
+        `SELECT c.id AS ma, c.ten_ccdc AS ten, 'Hết bảo hành ' || c.han_bao_hanh AS chi_tiet, c.han_bao_hanh AS thoi_gian, 'tai_san' AS kind, c.id AS ref,
+                c.id || '@' || c.han_bao_hanh AS khoa
          FROM ccdc c WHERE c.vo_hieu_hoa = 0 AND c.trang_thai_hien_tai NOT IN ('Da thanh ly', 'Da tieu huy') AND c.han_bao_hanh IS NOT NULL
            AND date(c.han_bao_hanh) BETWEEN date(?) AND date(?, '+30 days') AND ${ts.sql}
+           AND NOT EXISTS (SELECT 1 FROM canh_bao_bo_qua b WHERE b.loai = 'sap-het-bao-hanh' AND b.khoa = c.id || '@' || c.han_bao_hanh)
          ORDER BY c.han_bao_hanh`,
       )
       .bind(homNay, homNay, ...ts.binds),
@@ -509,9 +512,11 @@ function cauLenhCanhBao(db: D1Database, pv: PhamVi) {
       .prepare(
         `SELECT p.ma_phieu AS ma, v.ten_vt AS ten,
                 'Đơn giá ' || printf('%,d', CAST(ct.don_gia AS INTEGER)) || 'đ, tham khảo ' || printf('%,d', CAST(v.don_gia_tham_khao AS INTEGER)) || 'đ' AS chi_tiet,
-                p.created_at AS thoi_gian, 'chuyen_kho' AS kind, p.id AS ref
+                p.created_at AS thoi_gian, 'chuyen_kho' AS kind, p.id AS ref,
+                CAST(ct.id AS TEXT) AS khoa, ct.vt_id, ct.don_gia, v.don_gia_tham_khao
          FROM phieu_chuyen_kho_ct ct JOIN phieu_chuyen_kho p ON p.id = ct.phieu_id JOIN vt_tieu_hao v ON v.id = ct.vt_id
          WHERE v.don_gia_tham_khao > 0 AND ct.don_gia > 0 AND (ct.don_gia > 5 * v.don_gia_tham_khao OR ct.don_gia * 5 < v.don_gia_tham_khao) AND ${pk.sql}
+           AND NOT EXISTS (SELECT 1 FROM canh_bao_bo_qua b WHERE b.loai = 'don-gia-bat-thuong' AND b.khoa = CAST(ct.id AS TEXT))
          ORDER BY p.created_at DESC`,
       )
       .bind(...pk.binds),
@@ -601,8 +606,109 @@ dashboard.get("/canh-bao", async (c) => {
     const lenh = cauLenhCanhBao(db, pv);
     if (!(loai in lenh)) return c.json({ error: "LOAI_KHONG_HOP_LE" }, 400);
     chiTiet = (await lenh[loai].all()).results.slice(0, 500);
+    if (loai === "don-gia-bat-thuong") chiTiet = await deXuatDonGia(db, chiTiet as DongDonGia[]);
   }
   return c.json({ cap_nhat_luc: nowVN(), nguong_gio: QUA_HAN_GIO, rows: ds, chi_tiet: chiTiet });
+});
+
+// ======================================================================================
+// Xu ly canh bao ngay tren man Canh bao (2026-09-30): bo qua / hoan tac + de xuat & tu sua don gia
+// tham khao. Chi cac loai "theo doi" moi bo qua duoc - loai can hanh dong that (qua han, ton am...) tu
+// het khi duoc xu ly.
+// ======================================================================================
+const BO_QUA_DUOC = new Set<LoaiCanhBao>(["don-gia-bat-thuong", "sap-het-bao-hanh"]);
+const XU_LY_CANH_BAO = requireRole("Admin", "HCNS", "Ke toan");
+
+interface DongDonGia {
+  vt_id: string;
+  don_gia: number;
+  don_gia_tham_khao: number;
+  [k: string]: unknown;
+}
+
+const gan = (a: number, b: number) => a <= 2 * b && a * 2 >= b;
+
+function trungVi(ds: number[]) {
+  const x = [...ds].sort((a, b) => a - b);
+  const g = Math.floor(x.length / 2);
+  return x.length % 2 ? x[g] : (x[g - 1] + x[g]) / 2;
+}
+
+/**
+ * Doi chieu tung dong lech gia voi TRUNG VI gia cac lan nhap mua thuc te cua vat tu (bo phieu bi tu
+ * choi): don gia phieu khop gia nhap ma gia tham khao lech -> de xuat SUA GIA THAM KHAO (bam la sua);
+ * gia tham khao khop ma don gia phieu lech -> nghi nhap sai / khac don vi tinh, chi mo phieu kiem tra
+ * (phieu da duoc Ke toan duyet nen KHONG tu sua chung tu).
+ */
+async function deXuatDonGia(db: D1Database, rows: DongDonGia[]) {
+  const vtIds = [...new Set(rows.map((r) => r.vt_id))];
+  if (!vtIds.length) return rows;
+  const { results } = await db
+    .prepare(
+      `SELECT ct.vt_id, ct.don_gia FROM phieu_chuyen_kho_ct ct JOIN phieu_chuyen_kho p ON p.id = ct.phieu_id
+       WHERE p.loai = 'Nhap mua' AND p.trang_thai NOT IN ('Ke toan tu choi', 'Bi tu choi') AND ct.don_gia > 0
+         AND ct.vt_id IN (SELECT value FROM json_each(?))`,
+    )
+    .bind(JSON.stringify(vtIds))
+    .all<{ vt_id: string; don_gia: number }>();
+  const giaNhap = new Map<string, number[]>();
+  for (const r of results) giaNhap.set(r.vt_id, [...(giaNhap.get(r.vt_id) ?? []), r.don_gia]);
+  const fmt = (n: number) => Math.round(n).toLocaleString("vi-VN");
+  return rows.map((r) => {
+    const ds = giaNhap.get(r.vt_id) ?? [];
+    if (!ds.length) return { ...r, de_xuat: { kieu: "khong_ro", ly_do: "Chưa có phiếu nhập mua nào để đối chiếu giá" } };
+    // Chi ket luan khi DA SO lan nhap dong y 1 muc gia (2 lan nhap 20.000 / 200.000 -> khong ro).
+    const hopPhieu = ds.filter((x) => gan(x, r.don_gia));
+    const hopThamKhao = ds.filter((x) => gan(x, r.don_gia_tham_khao));
+    const nguon = (xs: number[]) => `giá nhập thực tế ${fmt(trungVi(xs))}đ (${xs.length}/${ds.length} lần nhập)`;
+    if (hopPhieu.length * 2 > ds.length)
+      return { ...r, de_xuat: { kieu: "sua_tham_khao", gia_de_xuat: Math.round(trungVi(hopPhieu)), ly_do: `Giá tham khảo sai - khớp ${nguon(hopPhieu)}` } };
+    if (hopThamKhao.length * 2 > ds.length)
+      return { ...r, de_xuat: { kieu: "kiem_tra_phieu", ly_do: `Giá tham khảo khớp ${nguon(hopThamKhao)} - đơn giá trên phiếu nghi nhập sai hoặc khác đơn vị tính` } };
+    return { ...r, de_xuat: { kieu: "khong_ro", ly_do: `Giá ${ds.length} lần nhập không thống nhất (${fmt(Math.min(...ds))}đ - ${fmt(Math.max(...ds))}đ)` } };
+  });
+}
+
+// POST /canh-bao/bo-qua { loai, khoa: string[] } - an cac muc (cho moi nguoi). /hoan-tac: hien lai.
+dashboard.post("/canh-bao/bo-qua", XU_LY_CANH_BAO, async (c) => {
+  const body = await c.req.json<{ loai?: LoaiCanhBao; khoa?: string[] }>().catch(() => null);
+  const khoa = [...new Set((body?.khoa ?? []).filter((k) => typeof k === "string" && k))].slice(0, 500);
+  if (!body?.loai || !BO_QUA_DUOC.has(body.loai) || !khoa.length) return c.json({ error: "KHONG_BO_QUA_DUOC" }, 400);
+  const db = c.env.DB;
+  const email = c.get("user").email;
+  await db.batch(khoa.map((k) => db.prepare("INSERT OR IGNORE INTO canh_bao_bo_qua (loai, khoa, nguoi, created_at) VALUES (?, ?, ?, ?)").bind(body.loai, k, email, nowVN())));
+  return c.json({ ok: true, so_luong: khoa.length });
+});
+
+dashboard.post("/canh-bao/hoan-tac", XU_LY_CANH_BAO, async (c) => {
+  const body = await c.req.json<{ loai?: LoaiCanhBao; khoa?: string[] }>().catch(() => null);
+  const khoa = (body?.khoa ?? []).filter((k) => typeof k === "string" && k).slice(0, 500);
+  if (!body?.loai || !khoa.length) return c.json({ error: "MISSING_FIELDS" }, 400);
+  const db = c.env.DB;
+  await db.batch(khoa.map((k) => db.prepare("DELETE FROM canh_bao_bo_qua WHERE loai = ? AND khoa = ?").bind(body.loai, k)));
+  return c.json({ ok: true });
+});
+
+// POST /canh-bao/sua-gia-tham-khao { items: [{ vt_id, don_gia }] } - ap de xuat: cap nhat
+// vt_tieu_hao.don_gia_tham_khao + ghi vt_gia_log (gia cu/moi, nguoi sua) trong CUNG 1 batch.
+dashboard.post("/canh-bao/sua-gia-tham-khao", XU_LY_CANH_BAO, async (c) => {
+  const body = await c.req.json<{ items?: { vt_id?: string; don_gia?: number }[] }>().catch(() => null);
+  const items = (body?.items ?? []).filter((i) => i.vt_id && Number.isFinite(i.don_gia) && (i.don_gia as number) > 0).slice(0, 500);
+  if (!items.length) return c.json({ error: "MISSING_FIELDS" }, 400);
+  const db = c.env.DB;
+  const email = c.get("user").email;
+  const now = nowVN();
+  const stmts = items.flatMap((i) => [
+    db
+      .prepare(
+        `INSERT INTO vt_gia_log (vt_id, gia_cu, gia_moi, nguoi, ly_do, created_at)
+         SELECT id, don_gia_tham_khao, ?, ?, 'Sửa theo đề xuất cảnh báo đơn giá bất thường', ? FROM vt_tieu_hao WHERE id = ?`,
+      )
+      .bind(i.don_gia, email, now, i.vt_id),
+    db.prepare("UPDATE vt_tieu_hao SET don_gia_tham_khao = ?, updated_at = ? WHERE id = ?").bind(i.don_gia, now, i.vt_id),
+  ]);
+  await db.batch(stmts);
+  return c.json({ ok: true, so_luong: items.length });
 });
 
 // GET /tim-kiem?q= - tai san, vat tu, nhan vien, phieu (theo ma_phieu) trong pham vi, moi nhom <= 6.

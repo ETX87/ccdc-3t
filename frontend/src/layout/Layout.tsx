@@ -11,6 +11,7 @@ import { GlobalSearch } from "../components/GlobalSearch";
 import { QrScanButton } from "../components/QrScanner";
 import { NotificationBell } from "../components/NotificationBell";
 import { BottomNav } from "./BottomNav";
+import { CaiDatAppButton } from "../components/CaiDatAppButton";
 
 function SidebarItem({
   item,
@@ -115,6 +116,7 @@ export function Layout({ children }: { children: ReactNode }) {
           {menu.map((item) => (
             <SidebarItem key={item.key} item={item} badges={badges} onPicked={() => setDrawer(false)} />
           ))}
+          <CaiDatAppButton onDone={() => setDrawer(false)} />
         </nav>
 
         <div className="sidebar-footer">

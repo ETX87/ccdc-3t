@@ -88,6 +88,10 @@ state đang dùng.
   màn đang mở tải lại sau khi ghi). Component: `PageHeader`, `KpiCard`, `FilterTabs`, `KhoFilter`,
   `DateRangeFilter`, `ViecTable`, `CanhBaoRow`, `QrScanner` (camera cần HTTPS — chỉ test được trên
   thiết bị thật; luôn có ô nhập mã tay).
+- PWA (2026-09-30): `frontend/public/manifest.webmanifest` (`display: standalone`) + `sw.js` (không cache
+  `/api`, chỉ giữ khung trang `/` khi mất mạng; chỉ đăng ký ở bản build) + nút "Cài đặt ứng dụng" cuối
+  sidebar (`CaiDatAppButton`, `lib/caiDatApp.ts`). Logo/icon sinh từ `logo.png` gốc (nền trắng) bằng
+  `python scripts/tao_icon_pwa.py` — KHÔNG dùng thẳng `logo.png` gốc trên nền teal (lộ viền trắng).
 - Tìm kiếm LIKE của SQLite chỉ không phân biệt hoa/thường với ký tự ASCII — chữ có dấu (Đ/đ, Ă/ă…)
   vẫn phân biệt hoa/thường.
 

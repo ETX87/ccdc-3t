@@ -72,9 +72,9 @@ html, body {
 .brand-logo {
   width: 46px;
   height: 46px;
-  border-radius: 12px;
-  object-fit: cover;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  object-fit: contain;
+  /* logo.png nen trong suot, o bo goc khong vuong -> bong theo alpha thay vi box-shadow (lo khung vuong) */
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
 }
 
 .brand-text {
@@ -1329,7 +1329,7 @@ table.data-table tbody tr:hover td, .task-table tbody tr:hover td { background: 
   text-align: center;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
-.login-logo { width: 64px; height: 64px; border-radius: 14px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); }
+.login-logo { width: 64px; height: 64px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.2)); }
 .login-brand { font-size: 13px; font-weight: 600; color: #007482; margin-top: 10px; }
 .login-title { font-size: 21px; font-weight: 700; color: #0f172a; margin-top: 4px; }
 .login-sub { color: #64748b; font-size: 13px; margin: 6px 0 20px; line-height: 1.45; }
@@ -1403,6 +1403,12 @@ select.chart-dropdown {
 .sidebar-subnav-item.active::before { background: #5eead4; }
 .sidebar-nav { overflow-y: auto; }
 .sidebar-backdrop { display: none; }
+
+/* Huong dan cai dat app (CaiDatAppButton) */
+.cai-dat-huong-dan { display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: #334155; }
+.cai-dat-huong-dan p { margin: 0; }
+.cai-dat-buoc { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; background: #f7fbfe; border: 1px solid #f1f5f9; }
+.cai-dat-buoc.active { background: #e4fafb; border-color: #b2ebf2; }
 .topbar-menu-btn { display: none; }
 
 /* Menu nguoi dung */

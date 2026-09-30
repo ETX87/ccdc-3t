@@ -13,6 +13,7 @@ import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTri, fmtGiaTriDong, fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { LOAI_XU_LY, TRANG_THAI_TS, TRANG_THAI_XU_LY, isHcns, thongBaoLoi } from "../lib/nhan";
+import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
 interface PhieuRow {
   id: string;
@@ -92,6 +93,8 @@ export function XuLyTaiSanScreen() {
   const dem = (tt: string) => all.filter((r) => r.trang_thai === tt);
   const tong = (ds: PhieuRow[], k: "so_luong_ccdc" | "nguyen_gia" | "gia_tri_thu_hoi") => ds.reduce((s, r) => s + (r[k] ?? 0), 0);
   const hienThi = tabTT ? all.filter((r) => r.trang_thai === tabTT) : all;
+  const tXl = useTrangKhach(hienThi, [tabTT]);
+  const tHong = useTrangKhach(tsHong);
 
   async function xacNhanSuaXong(c: CcdcRow) {
     setSuaXong(null);
@@ -264,7 +267,7 @@ export function XuLyTaiSanScreen() {
                 </tr>
               </thead>
               <tbody>
-                {tsHong.map((c) => (
+                {tHong.dongTrang.map((c) => (
                   <tr key={c.id}>
                     <td data-label="Mã tài sản">
                       <span className="code-link" onClick={() => moTaiSan(c.id)}>
@@ -293,6 +296,7 @@ export function XuLyTaiSanScreen() {
               </tbody>
             </table>
           </div>
+          <PhanTrang trang={tHong.trang} tong={tHong.tong} onDoi={tHong.setTrang} donVi="tài sản" />
         </div>
       )}
 
@@ -342,7 +346,7 @@ export function XuLyTaiSanScreen() {
                   </td>
                 </tr>
               )}
-              {hienThi.map((p) => (
+              {tXl.dongTrang.map((p) => (
                 <tr key={p.id}>
                   <td data-label="Mã phiếu">
                     <span className="code-link" role="button" tabIndex={0} onClick={() => moPhieu("xu_ly", p.id)}>
@@ -371,6 +375,7 @@ export function XuLyTaiSanScreen() {
             </tbody>
           </table>
         </div>
+        <PhanTrang trang={tXl.trang} tong={tXl.tong} onDoi={tXl.setTrang} donVi="phiếu" />
       </div>
 
       {form && (

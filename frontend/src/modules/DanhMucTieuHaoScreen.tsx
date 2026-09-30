@@ -9,6 +9,7 @@ import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtSo } from "../lib/format";
 import { isHcns, thongBaoLoi } from "../lib/nhan";
+import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
 interface NhomCcdc {
   id: number;
@@ -76,6 +77,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       (!nhomLoc || (nhomLoc === "none" ? r.nhom_id == null : String(r.nhom_id) === nhomLoc)) &&
       (!chiThieuGia || !r.don_gia_tham_khao),
   );
+  const tVt = useTrangKhach(hienThi, [tu, nhomLoc, chiThieuGia]);
   const tk = useMemo(() => {
     const all = rows ?? [];
     return {
@@ -258,7 +260,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
                   </td>
                 </tr>
               )}
-              {hienThi.map((r) => (
+              {tVt.dongTrang.map((r) => (
                 <tr key={r.id}>
                   <td data-label="Mã">{r.id}</td>
                   <td data-label="Tên vật tư" className="strong">
@@ -293,6 +295,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
             </tbody>
           </table>
         </div>
+        <PhanTrang trang={tVt.trang} tong={tVt.tong} onDoi={tVt.setTrang} donVi="vật tư" />
       </div>
 
       {showForm && (

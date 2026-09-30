@@ -88,6 +88,13 @@ state đang dùng.
   màn đang mở tải lại sau khi ghi). Component: `PageHeader`, `KpiCard`, `FilterTabs`, `KhoFilter`,
   `DateRangeFilter`, `ViecTable`, `CanhBaoRow`, `QrScanner` (camera cần HTTPS — chỉ test được trên
   thiết bị thật; luôn có ô nhập mã tay).
+- **Mọi bảng phải phân trang** (2026-09-30), cố định 50 dòng/trang, component `PhanTrang`
+  (`components/PhanTrang.tsx`). Bảng lớn/tăng dần (phiếu tiêu hao, danh mục tài sản, nhân viên) phân trang Ở
+  SERVER: route nhận `?page=N` → `{ rows, total, page, page_size }` qua `lib/phanTrang.ts` (`docTrang` +
+  `layTrang`: COUNT + LIMIT/OFFSET trong 1 `db.batch`), KPI/số đếm tab lấy từ route `/thong-ke` riêng, màn
+  dùng `useTrangServer(khoaLoc)`; không gửi `page` = hành vi cũ (xuất Excel, ô chọn trong form). Bảng nhỏ/đã
+  tổng hợp dùng `useTrangKhach(rows, khoaLoc)`. Ô chọn nhân viên trong form dùng `/nhan-vien?gon=1` (chỉ mã +
+  tên) — KHÔNG gọi `/nhan-vien` đầy đủ (mỗi dòng 2 truy vấn con đếm).
 - PWA (2026-09-30): `frontend/public/manifest.webmanifest` (`display: standalone`) + `sw.js` (không cache
   `/api`, chỉ giữ khung trang `/` khi mất mạng; chỉ đăng ký ở bản build) + nút "Cài đặt ứng dụng" cuối
   sidebar (`CaiDatAppButton`, `lib/caiDatApp.ts`). Logo/icon sinh từ `logo.png` gốc (nền trắng) bằng

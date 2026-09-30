@@ -11,6 +11,7 @@ import { useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTri, fmtGiaTriDong, fmtSo, homNayVN } from "../lib/format";
 import { LOAI_KHO, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
+import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
 interface KhoRow {
   id: number;
@@ -83,6 +84,7 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       (!chiAm || r.ton < 0 || (r.so_kho_am ?? 0) > 0) &&
       (!tu || r.id.toLowerCase().includes(tu) || r.ten_vt.toLowerCase().includes(tu)),
   );
+  const tTon = useTrangKhach(hienThi, [tu, anHet, chiAm, khoId]);
   const tk = useMemo(() => {
     const all = rows ?? [];
     return {
@@ -238,7 +240,7 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
                   </td>
                 </tr>
               )}
-              {hienThi.map((r) => (
+              {tTon.dongTrang.map((r) => (
                 <tr key={r.id}>
                   <td data-label="Mã">{r.id}</td>
                   <td data-label="Tên vật tư" className="strong">
@@ -271,6 +273,7 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
             </tbody>
           </table>
         </div>
+        <PhanTrang trang={tTon.trang} tong={tTon.tong} onDoi={tTon.setTrang} donVi="vật tư" />
       </div>
     </div>
   );

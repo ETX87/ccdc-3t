@@ -4,33 +4,96 @@ import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { requireRole } from "../middleware/requireRole";
 import { nowVN } from "../lib/vnTime";
+import { docTrang, layTrang } from "../lib/phanTrang";
 
 const nhanVien = new Hono<{ Bindings: Env }>();
 nhanVien.use("*", verifySessionMiddleware, loadUser);
 
-// GET /?search=&trang_thai=nghi|tat-ca - mac dinh chi NV dang lam viec; kem so TS dang giu.
+const TS_DANG_GIU = `SELECT 1 FROM ccdc c WHERE c.nguoi_dang_giu = n.ma_nv AND c.vo_hieu_hoa = 0
+               AND c.trang_thai_hien_tai NOT IN ('Da thanh ly', 'Da tieu huy')`;
+const CAP_DUOI = "SELECT 1 FROM nhan_vien x WHERE x.quan_ly_id = n.ma_nv AND x.dang_lam_viec = 1";
+
+function dkTrangThai(tt: string | undefined) {
+  return tt === "tat-ca" ? "1=1" : tt === "nghi" ? "n.dang_lam_viec = 0" : "n.dang_lam_viec = 1";
+}
+
+// GET /?trang_thai=nghi|tat-ca&search=&bo_phan=&loc=quan-ly|chua-co-ql|giu-ts&quan_ly_id=&page=&gon=1
+// Mac dinh chi NV dang lam viec. ?page=N -> 1 trang { rows, total } (bang man Nhan vien - truoc day tai
+// ca ~1.800 ho so, moi dong 2 truy van con dem). ?gon=1 -> chi ma + ten (o chon nhan vien trong form).
 nhanVien.get("/", async (c) => {
-  const search = c.req.query("search")?.trim();
-  const tt = c.req.query("trang_thai");
-  const conditions = [tt === "tat-ca" ? "1=1" : tt === "nghi" ? "n.dang_lam_viec = 0" : "n.dang_lam_viec = 1"];
+  const q = (k: string) => c.req.query(k)?.trim() || undefined;
+  const conditions = [dkTrangThai(q("trang_thai"))];
   const binds: unknown[] = [];
+  const search = q("search");
   if (search) {
-    conditions.push("(LOWER(n.ma_nv) LIKE LOWER(?) OR LOWER(n.ten_nv) LIKE LOWER(?) OR LOWER(COALESCE(n.bo_phan,'')) LIKE LOWER(?))");
-    binds.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    const cot = ["n.ma_nv", "n.ten_nv", "COALESCE(n.bo_phan,'')", "COALESCE(n.chuc_vu,'')", "COALESCE(n.email_dang_nhap,'')"];
+    conditions.push(`(${cot.map((x) => `LOWER(${x}) LIKE LOWER(?)`).join(" OR ")})`);
+    binds.push(...cot.map(() => `%${search}%`));
   }
-  const { results } = await c.env.DB.prepare(
-    `SELECT n.ma_nv, n.ten_nv, n.bo_phan, n.chuc_vu, n.sdt, n.email_dang_nhap, n.dang_lam_viec,
+  if (q("bo_phan")) {
+    conditions.push("n.bo_phan = ?");
+    binds.push(q("bo_phan"));
+  }
+  if (q("quan_ly_id")) {
+    conditions.push("n.quan_ly_id = ?");
+    binds.push(q("quan_ly_id"));
+  }
+  const loc = q("loc");
+  if (loc === "quan-ly") conditions.push(`EXISTS (${CAP_DUOI})`);
+  else if (loc === "chua-co-ql") conditions.push("n.quan_ly_id IS NULL");
+  else if (loc === "giu-ts") conditions.push(`EXISTS (${TS_DANG_GIU})`);
+  const where = conditions.join(" AND ");
+
+  if (q("gon") === "1") {
+    const { results } = await c.env.DB.prepare(`SELECT n.ma_nv, n.ten_nv FROM nhan_vien n WHERE ${where} ORDER BY n.ten_nv`)
+      .bind(...binds)
+      .all();
+    return c.json({ rows: results });
+  }
+
+  const sql = `SELECT n.ma_nv, n.ten_nv, n.bo_phan, n.chuc_vu, n.sdt, n.email_dang_nhap, n.dang_lam_viec,
             n.quan_ly_id, ql.ten_nv AS quan_ly_ten,
             (SELECT COUNT(*) FROM nhan_vien x WHERE x.quan_ly_id = n.ma_nv AND x.dang_lam_viec = 1) AS so_cap_duoi,
             (SELECT COUNT(*) FROM ccdc c WHERE c.nguoi_dang_giu = n.ma_nv AND c.vo_hieu_hoa = 0
                AND c.trang_thai_hien_tai NOT IN ('Da thanh ly', 'Da tieu huy')) AS so_ts_dang_giu,
             n.updated_at
      FROM nhan_vien n LEFT JOIN nhan_vien ql ON ql.ma_nv = n.quan_ly_id
-     WHERE ${conditions.join(" AND ")} ORDER BY n.ten_nv`,
-  )
+     WHERE ${where} ORDER BY n.ten_nv`;
+  const trang = docTrang(c);
+  if (trang) return c.json(await layTrang(c.env.DB, trang, { sql: `SELECT COUNT(*) AS n FROM nhan_vien n WHERE ${where}`, binds }, { sql, binds }));
+  const { results } = await c.env.DB.prepare(sql)
     .bind(...binds)
     .all();
   return c.json({ rows: results });
+});
+
+// GET /thong-ke?trang_thai= - KPI + so dem tab + danh sach bo phan cho man Nhan vien (thay cho viec
+// tai ca danh sach ve trinh duyet de dem).
+nhanVien.get("/thong-ke", async (c) => {
+  const dk = dkTrangThai(c.req.query("trang_thai"));
+  const [tk, bp] = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `SELECT COUNT(*) AS tong,
+              SUM(CASE WHEN EXISTS (${CAP_DUOI}) THEN 1 ELSE 0 END) AS quan_ly,
+              SUM(CASE WHEN n.quan_ly_id IS NULL THEN 1 ELSE 0 END) AS chua_co_ql,
+              SUM(CASE WHEN EXISTS (${TS_DANG_GIU}) THEN 1 ELSE 0 END) AS giu_ts,
+              SUM(CASE WHEN n.email_dang_nhap IS NOT NULL THEN 1 ELSE 0 END) AS co_tk,
+              (SELECT COUNT(*) FROM ccdc c JOIN nhan_vien n ON n.ma_nv = c.nguoi_dang_giu WHERE ${dk} AND c.vo_hieu_hoa = 0
+                 AND c.trang_thai_hien_tai NOT IN ('Da thanh ly', 'Da tieu huy')) AS so_ts_giu
+       FROM nhan_vien n WHERE ${dk}`,
+    ),
+    c.env.DB.prepare(`SELECT DISTINCT n.bo_phan FROM nhan_vien n WHERE ${dk} AND n.bo_phan IS NOT NULL AND n.bo_phan != '' ORDER BY n.bo_phan`),
+  ]);
+  const r = (tk.results[0] ?? {}) as Record<string, number | null>;
+  return c.json({
+    tong: r.tong ?? 0,
+    quan_ly: r.quan_ly ?? 0,
+    chua_co_ql: r.chua_co_ql ?? 0,
+    giu_ts: r.giu_ts ?? 0,
+    co_tk: r.co_tk ?? 0,
+    so_ts_giu: r.so_ts_giu ?? 0,
+    bo_phan: (bp.results as { bo_phan: string }[]).map((x) => x.bo_phan),
+  });
 });
 
 // GET /cap-duoi?ql=<ma_nv> - nhom cap duoi truc tiep. Mac dinh la nhom cua CHINH user dang dang

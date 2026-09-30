@@ -12,6 +12,7 @@ import { fmtGiaTri, fmtGiaTriDong, fmtNgay, fmtNgayGio, fmtSo, homNayVN } from "
 import { useNav } from "../lib/navigation";
 import { useKhiThayDoi } from "../lib/suKien";
 import { thongBaoLoi, TINH_TRANG_KIEM_KE, TRANG_THAI_TS } from "../lib/nhan";
+import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
 type SubTab = "tong-quan" | "theo-nhan-vien" | "theo-bo-phan" | "sap-het-bao-hanh" | "kiem-ke-chenh-lech" | "da-thanh-ly";
 const SUB_TABS: { key: SubTab; label: string }[] = [
@@ -290,6 +291,11 @@ export function BaoCaoScreen() {
   const dsBh = useMemo(() => (d?.tab === "sap-het-bao-hanh" ? d.res.rows.filter((r) => coChua(tim, r.id, r.ten_ccdc, r.nha_cung_cap)) : []), [d, tim]);
   const dsCl = useMemo(() => (d?.tab === "kiem-ke-chenh-lech" ? d.rows.filter((r) => coChua(tim, r.ccdc_id, r.ten_ccdc)) : []), [d, tim]);
   const dsTl = useMemo(() => (d?.tab === "da-thanh-ly" ? d.rows.filter((r) => coChua(tim, r.ma_phieu, r.tom_tat, r.ly_do)) : []), [d, tim]);
+  const tNv = useTrangKhach(dsNv, [tim, chiNghi]);
+  const tBp = useTrangKhach(dsBp, [tim]);
+  const tBh = useTrangKhach(dsBh, [tim]);
+  const tCl = useTrangKhach(dsCl, [tim]);
+  const tTl = useTrangKhach(dsTl, [tim]);
 
   // ---------------------------------------------------------------- Bo loc rieng tung bao cao
   const locRieng =
@@ -580,7 +586,7 @@ export function BaoCaoScreen() {
                     </thead>
                     <tbody>
                       {dsNv.length === 0 && <Rong cot={6}>{tim ? "Không tìm thấy nhân viên phù hợp." : "Không có nhân viên nào đang giữ tài sản trong phạm vi."}</Rong>}
-                      {dsNv.map((r) => (
+                      {tNv.dongTrang.map((r) => (
                         <tr key={r.ma_nv} className="row-clickable" onClick={() => navigate("tai-san", { nguoi_dang_giu: r.ma_nv, ten: r.ten_nv })}>
                           <td data-label="Mã NV" className="code-text">
                             {r.ma_nv}
@@ -606,6 +612,7 @@ export function BaoCaoScreen() {
                     </tbody>
                   </table>
                 </div>
+                <PhanTrang trang={tNv.trang} tong={tNv.tong} onDoi={tNv.setTrang} donVi="nhân viên" />
               </div>
             </>
           );
@@ -668,7 +675,7 @@ export function BaoCaoScreen() {
                     </thead>
                     <tbody>
                       {dsBp.length === 0 && <Rong cot={5}>Không có dữ liệu.</Rong>}
-                      {dsBp.map((r) => (
+                      {tBp.dongTrang.map((r) => (
                         <tr
                           key={r.bo_phan}
                           className="row-clickable"
@@ -698,6 +705,7 @@ export function BaoCaoScreen() {
                     </tbody>
                   </table>
                 </div>
+                <PhanTrang trang={tBp.trang} tong={tBp.tong} onDoi={tBp.setTrang} donVi="bộ phận" />
               </div>
             </>
           );
@@ -778,7 +786,7 @@ export function BaoCaoScreen() {
                             : `Không có tài sản nào hết bảo hành trong ${d.res.so_ngay} ngày tới.`}
                         </Rong>
                       )}
-                      {dsBh.map((r) => (
+                      {tBh.dongTrang.map((r) => (
                         <tr key={r.id} className={r.con_lai <= 7 ? "row-overdue" : undefined}>
                           <td data-label="Mã tài sản">
                             <span className="code-link" onClick={() => moTaiSan(r.id)}>
@@ -799,6 +807,7 @@ export function BaoCaoScreen() {
                     </tbody>
                   </table>
                 </div>
+                <PhanTrang trang={tBh.trang} tong={tBh.tong} onDoi={tBh.setTrang} donVi="tài sản" />
               </div>
             </>
           );
@@ -871,7 +880,7 @@ export function BaoCaoScreen() {
                     </thead>
                     <tbody>
                       {dsCl.length === 0 && <Rong cot={7}>Không có chênh lệch nào được ghi nhận.</Rong>}
-                      {dsCl.map((r) => {
+                      {tCl.dongTrang.map((r) => {
                         const tt = TINH_TRANG_KIEM_KE[r.tinh_trang_thuc_te];
                         return (
                           <tr key={r.id}>
@@ -905,6 +914,7 @@ export function BaoCaoScreen() {
                     </tbody>
                   </table>
                 </div>
+                <PhanTrang trang={tCl.trang} tong={tCl.tong} onDoi={tCl.setTrang} donVi="tài sản" />
               </div>
             </>
           );
@@ -973,7 +983,7 @@ export function BaoCaoScreen() {
                     </thead>
                     <tbody>
                       {dsTl.length === 0 && <Rong cot={6}>Chưa có tài sản nào đã thanh lý / tiêu hủy{nam ? ` trong năm ${nam}` : ""}.</Rong>}
-                      {dsTl.map((r) => (
+                      {tTl.dongTrang.map((r) => (
                         <tr key={r.id}>
                           <td data-label="Mã phiếu">
                             <span className="code-link" onClick={() => moPhieu("xu_ly", r.id)}>
@@ -1003,6 +1013,7 @@ export function BaoCaoScreen() {
                     </tbody>
                   </table>
                 </div>
+                <PhanTrang trang={tTl.trang} tong={tTl.tong} onDoi={tTl.setTrang} donVi="phiếu" />
               </div>
             </>
           );

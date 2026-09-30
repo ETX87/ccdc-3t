@@ -1534,6 +1534,19 @@ button.card-header-link { background: none; border: none; font-family: inherit; 
 .topbar-search.filter-search { width: 280px; height: 36px; }
 .icon-text { display: inline-flex; align-items: center; gap: 5px; }
 .table-footer-between { justify-content: space-between; align-items: center; }
+
+/* Phan trang dung chung (components/PhanTrang.tsx) */
+.phan-trang { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.phan-trang-nut { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.phan-trang-btn {
+  min-width: 28px; height: 28px; padding: 0 8px; border-radius: 8px; border: 1px solid #e2e8f0; background: #ffffff;
+  color: #475569; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; transition: all 0.1s ease;
+}
+.phan-trang-btn:hover:not(:disabled) { border-color: #99d5cf; color: #007482; background: #e6fbfb; }
+.phan-trang-btn.active { background: #007482; border-color: #007482; color: #ffffff; }
+.phan-trang-btn:disabled { opacity: 0.4; cursor: default; }
+.phan-trang-gap { color: #94a3b8; font-size: 12px; padding: 0 2px; }
 .dong-hang { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
 .dong-hang-vt { flex: 3; min-width: 0; }
 .dong-hang > input { flex: 1; min-width: 70px; }

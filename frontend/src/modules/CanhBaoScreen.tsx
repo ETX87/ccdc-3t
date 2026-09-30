@@ -10,6 +10,7 @@ import { useNav } from "../lib/navigation";
 import { useKhiThayDoi } from "../lib/suKien";
 import { fmtNgayGio, fmtSo } from "../lib/format";
 import { thongBaoLoi } from "../lib/nhan";
+import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
 interface CanhBaoResp {
   cap_nhat_luc: string;
@@ -27,6 +28,7 @@ export function CanhBaoScreen() {
   const [loai, setLoai] = useState<LoaiCanhBao | null>((params.loai as LoaiCanhBao) ?? null);
   const [data, setData] = useState<CanhBaoResp | null>(null);
   const [chiTiet, setChiTiet] = useState<CanhBaoChiTiet[] | null>(null);
+  const tCb = useTrangKhach(chiTiet);
   const [dangTai, setDangTai] = useState(false);
   const [loi, setLoi] = useState<string | null>(null);
 
@@ -150,7 +152,7 @@ export function CanhBaoScreen() {
                   </tr>
                 </thead>
                 <tbody>
-                  {chiTiet.map((d, i) => (
+                  {tCb.dongTrang.map((d, i) => (
                     <tr key={`${d.ref}:${i}`}>
                       <td data-label="Mã">
                         <span className="code-link" role="button" tabIndex={0} onClick={() => moDong(d)}>
@@ -168,6 +170,7 @@ export function CanhBaoScreen() {
                   ))}
                 </tbody>
               </table>
+              <PhanTrang trang={tCb.trang} tong={tCb.tong} onDoi={tCb.setTrang} donVi="mục" />
               {dangChon && dangChon.so_luong > chiTiet.length && (
                 <p className="muted small" style={{ padding: "8px 4px" }}>
                   Đang hiển thị {chiTiet.length}/{dangChon.so_luong} mục đầu tiên.

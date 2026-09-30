@@ -7,6 +7,7 @@ import { SearchSelect } from "../components/SearchSelect";
 import { PageHeader } from "../components/PageHeader";
 import { KpiCard } from "../components/KpiCard";
 import { FilterTabs } from "../components/FilterTabs";
+import { PhanTrang, useTrangServer } from "../components/PhanTrang";
 import { exportRowsToExcel } from "../lib/exportExcel";
 import { fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { useNav } from "../lib/navigation";
@@ -34,7 +35,15 @@ interface EtxStatus {
   last_error: string | null;
 }
 type Loc = "tat-ca" | "quan-ly" | "chua-co-ql" | "giu-ts";
-const TRANG = 100;
+interface ThongKeNv {
+  tong: number;
+  quan_ly: number;
+  chua_co_ql: number;
+  giu_ts: number;
+  co_tk: number;
+  so_ts_giu: number;
+  bo_phan: string[];
+}
 
 function emptyForm() {
   return { ma_nv: "", ten_nv: "", bo_phan: "", chuc_vu: "", sdt: "", email_dang_nhap: "", quan_ly_id: "" };
@@ -59,7 +68,10 @@ export function NhanVienScreen() {
   const [boPhan, setBoPhan] = useState("");
   const [loc, setLoc] = useState<Loc>("tat-ca");
   const [capDuoiCua, setCapDuoiCua] = useState<NhanVienRow | null>(null);
-  const [soDong, setSoDong] = useState(TRANG);
+  const [tuKhoa, setTuKhoa] = useState(params.q ?? ""); // `tim` sau debounce - moi goi API
+  const [tong, setTong] = useState(0);
+  const [thongKe, setThongKe] = useState<ThongKeNv | null>(null);
+  const [dsQuanLy, setDsQuanLy] = useState<{ ma_nv: string; ten_nv: string }[]>([]);
   const [dangTai, setDangTai] = useState(false);
   const [capNhatLuc, setCapNhatLuc] = useState<string | null>(null);
   const [loi, setLoi] = useState<string | null>(null);
@@ -75,12 +87,29 @@ export function NhanVienScreen() {
   const [etx, setEtx] = useState<EtxStatus | null>(null);
   const [dongBo, setDongBo] = useState(false);
 
-  const load = useCallback(async () => {
+  // Bang phan trang o SERVER (50 NV/trang, loc + tim o server); KPI / so dem tab / bo phan lay tu
+  // /nhan-vien/thong-ke thay vi tai ca ~1.800 ho so ve trinh duyet.
+  useEffect(() => {
+    const t = window.setTimeout(() => setTuKhoa(tim.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [tim]);
+  const qsLoc = useMemo(() => {
+    const p = new URLSearchParams({ trang_thai: trangThai === "nghi" ? "nghi" : "" });
+    if (tuKhoa) p.set("search", tuKhoa);
+    if (boPhan) p.set("bo_phan", boPhan);
+    if (loc !== "tat-ca") p.set("loc", loc);
+    if (capDuoiCua) p.set("quan_ly_id", capDuoiCua.ma_nv);
+    return p.toString();
+  }, [trangThai, tuKhoa, boPhan, loc, capDuoiCua]);
+  const { trang, setTrang } = useTrangServer(qsLoc);
+
+  const loadTrang = useCallback(async () => {
     setDangTai(true);
     setLoi(null);
     try {
-      const res = await api.get<{ rows: NhanVienRow[] }>(`/nhan-vien?trang_thai=${trangThai === "nghi" ? "nghi" : ""}`);
+      const res = await api.get<{ rows: NhanVienRow[]; total: number }>(`/nhan-vien?${qsLoc}&page=${trang}`);
       setRows(res.rows);
+      setTong(res.total);
       setCapNhatLuc(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
     } catch (e) {
       setLoi(thongBaoLoi(e, "Không tải được danh sách nhân viên."));
@@ -88,16 +117,30 @@ export function NhanVienScreen() {
     } finally {
       setDangTai(false);
     }
+  }, [qsLoc, trang]);
+
+  const loadThongKe = useCallback(async () => {
+    try {
+      setThongKe(await api.get<ThongKeNv>(`/nhan-vien/thong-ke?trang_thai=${trangThai === "nghi" ? "nghi" : ""}`));
+    } catch (e) {
+      setLoi(thongBaoLoi(e, "Không tải được số liệu nhân viên."));
+    }
   }, [trangThai]);
 
+  const load = useCallback(async () => {
+    await Promise.all([loadTrang(), loadThongKe()]);
+  }, [loadTrang, loadThongKe]);
+
   useEffect(() => {
-    load();
-  }, [load]);
+    loadTrang();
+  }, [loadTrang]);
+  useEffect(() => {
+    loadThongKe();
+  }, [loadThongKe]);
   useKhiThayDoi(load);
   useEffect(() => {
     if (canEdit) api.get<EtxStatus>("/etx-sync/status").then(setEtx).catch(() => undefined);
   }, [canEdit]);
-  useEffect(() => setSoDong(TRANG), [tim, boPhan, loc, capDuoiCua, trangThai]);
 
   async function chayDongBo() {
     setDongBo(true);
@@ -114,24 +157,17 @@ export function NhanVienScreen() {
     }
   }
 
-  const dsBoPhan = useMemo(() => [...new Set((rows ?? []).map((r) => r.bo_phan).filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b, "vi")), [rows]);
+  const dsBoPhan = thongKe?.bo_phan ?? [];
+  const tk = thongKe ?? { tong: 0, quan_ly: 0, chua_co_ql: 0, giu_ts: 0, co_tk: 0, so_ts_giu: 0, bo_phan: [] };
 
-  const dsLoc = useMemo(() => {
-    const t = tim.trim().toLowerCase();
-    return (rows ?? []).filter((r) => {
-      if (boPhan && r.bo_phan !== boPhan) return false;
-      if (capDuoiCua && r.quan_ly_id !== capDuoiCua.ma_nv) return false;
-      if (loc === "quan-ly" && !r.so_cap_duoi) return false;
-      if (loc === "chua-co-ql" && r.quan_ly_id) return false;
-      if (loc === "giu-ts" && !r.so_ts_dang_giu) return false;
-      return !t || `${r.ma_nv} ${r.ten_nv} ${r.bo_phan ?? ""} ${r.chuc_vu ?? ""} ${r.email_dang_nhap ?? ""}`.toLowerCase().includes(t);
-    });
-  }, [rows, tim, boPhan, loc, capDuoiCua]);
-
-  const r0 = rows ?? [];
-  const soQl = r0.filter((r) => r.so_cap_duoi > 0).length;
-  const giuTs = r0.filter((r) => r.so_ts_dang_giu > 0);
-  const coTk = r0.filter((r) => r.email_dang_nhap).length;
+  // O chon "Quan ly truc tiep" trong form can DU nhan vien dang lam -> tai ban gon (ma + ten) khi mo form.
+  useEffect(() => {
+    if (!showForm) return;
+    api
+      .get<{ rows: { ma_nv: string; ten_nv: string }[] }>("/nhan-vien?gon=1")
+      .then((r) => setDsQuanLy(r.rows))
+      .catch(() => setDsQuanLy([]));
+  }, [showForm]);
 
   function openAdd() {
     setEditingMaNv(null);
@@ -201,8 +237,14 @@ export function NhanVienScreen() {
   }
 
   async function xuatExcel() {
+    let tatCa: NhanVienRow[];
+    try {
+      tatCa = (await api.get<{ rows: NhanVienRow[] }>(`/nhan-vien?${qsLoc}`)).rows;
+    } catch (e) {
+      return setLoi(thongBaoLoi(e, "Không tải được dữ liệu xuất Excel."));
+    }
     await exportRowsToExcel(
-      dsLoc.map((r) => ({
+      tatCa.map((r) => ({
         ma_nv: r.ma_nv,
         ten_nv: r.ten_nv,
         bo_phan: r.bo_phan ?? "",
@@ -236,7 +278,7 @@ export function NhanVienScreen() {
         }
         actions={
           <>
-            <button className="btn btn-outline" onClick={xuatExcel} disabled={!dsLoc.length}>
+            <button className="btn btn-outline" onClick={xuatExcel} disabled={!tong}>
               <Download size={14} /> Xuất Excel
             </button>
             {canEdit && (
@@ -264,9 +306,9 @@ export function NhanVienScreen() {
           icon={<Users size={20} className="text-white" />}
           watermark={<Users size={52} />}
           label={trangThai === "nghi" ? "Nhân viên đã nghỉ" : "Nhân viên đang làm việc"}
-          value={fmtSo(r0.length)}
+          value={fmtSo(tk.tong)}
           trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(dsBoPhan.length)} bộ phận</span></div>}
-          subtext={`${fmtSo(coTk)} người đã liên kết tài khoản đăng nhập`}
+          subtext={`${fmtSo(tk.co_tk)} người đã liên kết tài khoản đăng nhập`}
           onClick={() => setLoc("tat-ca")}
         />
         <KpiCard
@@ -274,8 +316,8 @@ export function NhanVienScreen() {
           icon={<Network size={20} className="text-white" />}
           watermark={<Network size={52} />}
           label="Quản lý có cấp dưới"
-          value={fmtSo(soQl)}
-          trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(r0.filter((r) => !r.quan_ly_id).length)} NV chưa gán quản lý</span></div>}
+          value={fmtSo(tk.quan_ly)}
+          trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(tk.chua_co_ql)} NV chưa gán quản lý</span></div>}
           onClick={() => setLoc("quan-ly")}
         />
         <KpiCard
@@ -283,8 +325,8 @@ export function NhanVienScreen() {
           icon={<Package size={20} className="text-white" />}
           watermark={<Package size={52} />}
           label="Đang giữ tài sản"
-          value={fmtSo(giuTs.length)}
-          trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(giuTs.reduce((s, r) => s + r.so_ts_dang_giu, 0))} tài sản</span></div>}
+          value={fmtSo(tk.giu_ts)}
+          trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(tk.so_ts_giu)} tài sản</span></div>}
           onClick={() => setLoc("giu-ts")}
         />
         {canEdit ? (
@@ -312,7 +354,7 @@ export function NhanVienScreen() {
             icon={<UserCheck size={20} className="text-white" />}
             watermark={<UserCheck size={52} />}
             label="Có tài khoản hệ thống"
-            value={fmtSo(coTk)}
+            value={fmtSo(tk.co_tk)}
           />
         )}
       </div>
@@ -323,10 +365,10 @@ export function NhanVienScreen() {
             value={loc}
             onChange={setLoc}
             tabs={[
-              { key: "tat-ca", label: "Tất cả", count: r0.length },
-              { key: "quan-ly", label: "Quản lý", count: soQl },
-              { key: "chua-co-ql", label: "Chưa có quản lý", count: r0.filter((r) => !r.quan_ly_id).length },
-              { key: "giu-ts", label: "Đang giữ tài sản", count: giuTs.length },
+              { key: "tat-ca", label: "Tất cả", count: tk.tong },
+              { key: "quan-ly", label: "Quản lý", count: tk.quan_ly },
+              { key: "chua-co-ql", label: "Chưa có quản lý", count: tk.chua_co_ql },
+              { key: "giu-ts", label: "Đang giữ tài sản", count: tk.giu_ts },
             ]}
           />
           <div className="icon-text">
@@ -377,14 +419,14 @@ export function NhanVienScreen() {
                   </td>
                 </tr>
               )}
-              {rows !== null && dsLoc.length === 0 && (
+              {rows !== null && rows.length === 0 && (
                 <tr>
                   <td colSpan={8} className="task-empty">
                     Không có nhân viên phù hợp.
                   </td>
                 </tr>
               )}
-              {dsLoc.slice(0, soDong).map((r) => (
+              {rows?.map((r) => (
                 <tr key={r.ma_nv}>
                   <td data-label="Mã NV" className="code-text">
                     {r.ma_nv}
@@ -405,7 +447,7 @@ export function NhanVienScreen() {
                         className="code-link"
                         title="Xem nhóm của quản lý này"
                         onClick={() => {
-                          const ql = r0.find((x) => x.ma_nv === r.quan_ly_id);
+                          const ql = rows?.find((x) => x.ma_nv === r.quan_ly_id);
                           setCapDuoiCua(ql ?? { ...r, ma_nv: r.quan_ly_id!, ten_nv: r.quan_ly_ten ?? r.quan_ly_id! });
                           setLoc("tat-ca");
                         }}
@@ -463,17 +505,13 @@ export function NhanVienScreen() {
             </tbody>
           </table>
         </div>
-        <div className="table-footer-between">
-          <span className="muted small">
-            Hiển thị {fmtSo(Math.min(soDong, dsLoc.length))}/{fmtSo(dsLoc.length)} nhân viên
-            {trangThai === "dang-lam" && " · Gán quản lý trực tiếp sẽ tự tạo kho quản lý cho người đó"}
-          </span>
-          {dsLoc.length > soDong && (
-            <button className="btn btn-outline btn-sm" onClick={() => setSoDong(soDong + TRANG)}>
-              Xem thêm
-            </button>
-          )}
-        </div>
+        <PhanTrang
+          trang={trang}
+          tong={tong}
+          onDoi={setTrang}
+          donVi="nhân viên"
+          ghiChu={trangThai === "dang-lam" ? " · Gán quản lý trực tiếp sẽ tự tạo kho quản lý cho người đó" : null}
+        />
       </div>
 
       {showForm && (
@@ -516,7 +554,7 @@ export function NhanVienScreen() {
             <SearchSelect
               options={[
                 { value: "", label: "-- Không có --" },
-                ...(trangThai === "dang-lam" ? r0 : []).filter((n) => n.ma_nv !== form.ma_nv).map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` })),
+                ...dsQuanLy.filter((n) => n.ma_nv !== form.ma_nv).map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` })),
               ]}
               value={form.quan_ly_id}
               onChange={(v) => setForm({ ...form, quan_ly_id: v })}

@@ -16,6 +16,7 @@ import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtNgay, fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { isHcns, thongBaoLoi, TINH_TRANG_KIEM_KE, TRANG_THAI_TS } from "../lib/nhan";
+import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
 interface DotRow {
   id: string;
@@ -99,6 +100,7 @@ export function KiemKeScreen() {
   }, [loadDots]);
   useKhiThayDoi(loadDots);
 
+  const tDot = useTrangKhach(dots);
   const activeDot = dots?.find((d) => d.id === activeDotId) ?? null;
   if (activeDot) return <ChiTietDot dot={activeDot} onBack={() => setActiveDotId(null)} onDoi={loadDots} />;
 
@@ -202,7 +204,7 @@ export function KiemKeScreen() {
                   </td>
                 </tr>
               )}
-              {dots?.map((d) => (
+              {tDot.dongTrang.map((d) => (
                 <tr key={d.id}>
                   <td data-label="Mã đợt">
                     <span className="code-link" role="button" tabIndex={0} onClick={() => setActiveDotId(d.id)}>
@@ -226,6 +228,7 @@ export function KiemKeScreen() {
             </tbody>
           </table>
         </div>
+        <PhanTrang trang={tDot.trang} tong={tDot.tong} onDoi={tDot.setTrang} donVi="đợt" />
       </div>
 
       {showNew && (
@@ -321,7 +324,7 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
 
   useEffect(() => {
     loadItems();
-    Promise.all([api.get<{ rows: CcdcRow[] }>("/ccdc"), api.get<{ rows: NhanVienRow[] }>("/nhan-vien")])
+    Promise.all([api.get<{ rows: CcdcRow[] }>("/ccdc"), api.get<{ rows: NhanVienRow[] }>("/nhan-vien?gon=1")])
       .then(([cc, nv]) => {
         setCcdcs(cc.rows.filter(CAN_KIEM));
         setNhanViens(nv.rows);
@@ -401,6 +404,8 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
   const loc = <T extends { ccdc_id?: string; id?: string | number; ten_ccdc: string }>(ds: T[]) =>
     t ? ds.filter((x) => `${x.ccdc_id ?? x.id} ${x.ten_ccdc}`.toLowerCase().includes(t)) : ds;
   const tong = ccdcs.length;
+  const tKq = useTrangKhach(loc(tab === "chenh-lech" ? chenhLech : (items ?? [])), [t, tab]);
+  const tChua = useTrangKhach(loc(chuaKiem), [t]);
 
   return (
     <div className="dashboard-container">
@@ -580,7 +585,7 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
                     </td>
                   </tr>
                 )}
-                {loc(tab === "chenh-lech" ? chenhLech : items ?? []).map((it) => {
+                {tKq.dongTrang.map((it) => {
                   const tt = TINH_TRANG_KIEM_KE[it.tinh_trang_thuc_te];
                   return (
                     <tr key={it.id}>
@@ -625,9 +630,7 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
                     </td>
                   </tr>
                 )}
-                {loc(chuaKiem)
-                  .slice(0, 300)
-                  .map((c) => (
+                {tChua.dongTrang.map((c) => (
                     <tr key={c.id}>
                       <td data-label="Mã tài sản">
                         <span className="code-link" onClick={() => moTaiSan(c.id)}>
@@ -659,7 +662,11 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
             </table>
           )}
         </div>
-        {tab === "chua-kiem" && loc(chuaKiem).length > 300 && <p className="muted small">Hiện 300/{fmtSo(loc(chuaKiem).length)} - dùng ô tìm kiếm để lọc.</p>}
+        {tab === "chua-kiem" ? (
+          <PhanTrang trang={tChua.trang} tong={tChua.tong} onDoi={tChua.setTrang} donVi="tài sản" />
+        ) : (
+          <PhanTrang trang={tKq.trang} tong={tKq.tong} onDoi={tKq.setTrang} donVi="tài sản" />
+        )}
       </div>
 
       {quet && (

@@ -12,6 +12,7 @@ import { useDuLieuChung } from "../lib/duLieuChung";
 import { fmtGiaTri, fmtGiaTriDong, fmtNgay, fmtNgayGio, fmtSo } from "../lib/format";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { LOAI_KHO, TRANG_THAI_TS, tenVaiTro, thongBaoLoi } from "../lib/nhan";
+import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
 interface CcdcRow {
   id: string;
@@ -132,6 +133,10 @@ export function XacNhanNhanScreen() {
   const dsTs = useMemo(() => (ccdcs ?? []).filter((c) => !t || `${c.id} ${c.ten_ccdc} ${c.so_seri ?? ""}`.toLowerCase().includes(t)), [ccdcs, t]);
   const dsTh = useMemo(() => tieuHao.filter((p) => !t || `${p.ma_phieu ?? ""} ${p.tom_tat ?? ""}`.toLowerCase().includes(t)), [tieuHao, t]);
   const dsGn = useMemo(() => gn.filter((p) => !t || `${p.ma_phieu ?? ""} ${p.tom_tat ?? ""}`.toLowerCase().includes(t)), [gn, t]);
+  const tCho = useTrangKhach([...gnCho.map((p) => ({ k: "gn" as const, p })), ...thCho.map((p) => ({ k: "th" as const, p }))]);
+  const tTs = useTrangKhach(dsTs, [t]);
+  const tTh = useTrangKhach(dsTh, [t]);
+  const tLs = useTrangKhach(dsGn, [t]);
 
   if (!user) return null;
   const khoInfo = user.kho_phu_trach.filter((k) => k.loai !== "Mua hang");
@@ -229,7 +234,7 @@ export function XacNhanNhanScreen() {
                 </tr>
               </thead>
               <tbody>
-                {gnCho.map((p) => (
+                {tCho.dongTrang.flatMap((x) => (x.k === "gn" ? [x.p] : [])).map((p) => (
                   <tr key={p.id}>
                     <td data-label="Mã phiếu">
                       <span className="code-link" onClick={() => moPhieu("giao_nhan", p.id)}>
@@ -253,7 +258,7 @@ export function XacNhanNhanScreen() {
                     </td>
                   </tr>
                 ))}
-                {thCho.map((p) => (
+                {tCho.dongTrang.flatMap((x) => (x.k === "th" ? [x.p] : [])).map((p) => (
                   <tr key={p.id}>
                     <td data-label="Mã phiếu">
                       <span className="code-link" onClick={() => moPhieu("chuyen_kho", p.id)}>
@@ -278,6 +283,7 @@ export function XacNhanNhanScreen() {
               </tbody>
             </table>
           </div>
+          <PhanTrang trang={tCho.trang} tong={tCho.tong} onDoi={tCho.setTrang} donVi="phiếu" />
         </div>
       )}
 
@@ -325,7 +331,7 @@ export function XacNhanNhanScreen() {
                     </td>
                   </tr>
                 )}
-                {dsTs.map((c) => (
+                {tTs.dongTrang.map((c) => (
                   <tr key={c.id}>
                     <td data-label="Mã tài sản">
                       <span className="code-link" onClick={() => moTaiSan(c.id)}>
@@ -384,7 +390,7 @@ export function XacNhanNhanScreen() {
                     </td>
                   </tr>
                 )}
-                {dsTh.map((p) => (
+                {tTh.dongTrang.map((p) => (
                   <tr key={p.id}>
                     <td data-label="Mã phiếu">
                       <span className="code-link" onClick={() => moPhieu("chuyen_kho", p.id)}>
@@ -426,7 +432,7 @@ export function XacNhanNhanScreen() {
                     </td>
                   </tr>
                 )}
-                {dsGn.map((p) => (
+                {tLs.dongTrang.map((p) => (
                   <tr key={p.id}>
                     <td data-label="Mã phiếu">
                       <span className="code-link" onClick={() => moPhieu("giao_nhan", p.id)}>
@@ -456,6 +462,9 @@ export function XacNhanNhanScreen() {
             </table>
           )}
         </div>
+        {tab === "tscd" && <PhanTrang trang={tTs.trang} tong={tTs.tong} onDoi={tTs.setTrang} donVi="tài sản" />}
+        {tab === "tieu-hao" && <PhanTrang trang={tTh.trang} tong={tTh.tong} onDoi={tTh.setTrang} donVi="phiếu" />}
+        {tab === "lich-su" && <PhanTrang trang={tLs.trang} tong={tLs.tong} onDoi={tLs.setTrang} donVi="phiếu" />}
       </div>
     </div>
   );

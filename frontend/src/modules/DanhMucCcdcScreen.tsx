@@ -8,6 +8,7 @@ import { KpiCard } from "../components/KpiCard";
 import { FilterTabs } from "../components/FilterTabs";
 import { StatusBadge } from "../components/StatusBadge";
 import { useChiTiet } from "../components/ChiTiet";
+import { PhanTrang, useTrangKhach, useTrangServer } from "../components/PhanTrang";
 import { exportRowsToExcel } from "../lib/exportExcel";
 import { inTemQr } from "../lib/inTem";
 import { useNav } from "../lib/navigation";
@@ -74,7 +75,6 @@ interface KhoRow {
   bat_tat: number;
 }
 
-const TRANG = 100;
 const NHOM_XU_LY = ["Hong", "Cho duyet bao hong", "Cho thanh ly", "Cho tieu huy"];
 
 function emptyForm() {
@@ -111,7 +111,9 @@ export function DanhMucCcdcScreen() {
   const [trangThai, setTrangThai] = useState(params.trang_thai ?? "");
   // Loc theo nguoi dang giu (tu bao cao "Theo nhan vien" / "Tai san cua nhom") - hien dang chip bo duoc.
   const [nguoiGiu, setNguoiGiu] = useState(params.nguoi_dang_giu ?? "");
-  const [soDong, setSoDong] = useState(TRANG);
+  // Bang phan trang o server (50 TS/trang); doi bo loc -> tu ve trang 1.
+  const { trang, setTrang } = useTrangServer([tuKhoa, nhomFilter, khoFilter, trangThai, nguoiGiu]);
+  const [tong, setTong] = useState(0);
   const [chon, setChon] = useState<Set<string>>(new Set());
   const [dangTai, setDangTai] = useState(false);
   const [capNhatLuc, setCapNhatLuc] = useState<string | null>(null);
@@ -144,21 +146,28 @@ export function DanhMucCcdcScreen() {
       .catch(() => setKhos([]));
   }, [loadNhoms]);
 
-  const load = useCallback(async () => {
-    setDangTai(true);
-    setLoi(null);
+  // Tham so loc chung (thong-ke bo qua trang_thai de dem du cac tab); danh sach them trang_thai.
+  const pLoc = useMemo(() => {
     const p = new URLSearchParams();
     if (tuKhoa) p.set("q", tuKhoa);
     if (nhomFilter) p.set("nhom_id", nhomFilter);
     if (khoFilter) p.set("kho_id", khoFilter);
     if (nguoiGiu) p.set("nguoi_dang_giu", nguoiGiu);
-    const pDs = new URLSearchParams(p);
-    if (trangThai) pDs.set("trang_thai", trangThai);
+    return p.toString();
+  }, [tuKhoa, nhomFilter, khoFilter, nguoiGiu]);
+  const pDs = useMemo(() => {
+    const p = new URLSearchParams(pLoc);
+    if (trangThai) p.set("trang_thai", trangThai);
+    return p.toString();
+  }, [pLoc, trangThai]);
+
+  const loadTrang = useCallback(async () => {
+    setDangTai(true);
+    setLoi(null);
     try {
-      const [ds, tk] = await Promise.all([api.get<{ rows: CcdcRow[] }>(`/ccdc?${pDs}`), api.get<ThongKe>(`/ccdc/thong-ke?${p}`)]);
+      const ds = await api.get<{ rows: CcdcRow[]; total: number }>(`/ccdc?${pDs}&page=${trang}`);
       setRows(ds.rows);
-      setThongKe(tk);
-      setSoDong(TRANG);
+      setTong(ds.total);
       setChon(new Set());
       setCapNhatLuc(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
     } catch (e) {
@@ -167,11 +176,26 @@ export function DanhMucCcdcScreen() {
     } finally {
       setDangTai(false);
     }
-  }, [tuKhoa, nhomFilter, khoFilter, trangThai, nguoiGiu]);
+  }, [pDs, trang]);
+
+  const loadThongKe = useCallback(async () => {
+    try {
+      setThongKe(await api.get<ThongKe>(`/ccdc/thong-ke?${pLoc}`));
+    } catch (e) {
+      setLoi(thongBaoLoi(e, "Không tải được số liệu tài sản."));
+    }
+  }, [pLoc]);
+
+  const load = useCallback(async () => {
+    await Promise.all([loadTrang(), loadThongKe()]);
+  }, [loadTrang, loadThongKe]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    loadTrang();
+  }, [loadTrang]);
+  useEffect(() => {
+    loadThongKe();
+  }, [loadThongKe]);
   useKhiThayDoi(load);
 
   // ---- So lieu KPI / tab tu thong-ke (toan bo ket qua loc, khong chi so dong dang hien) ----
@@ -190,7 +214,7 @@ export function DanhMucCcdcScreen() {
     };
   }, [thongKe]);
 
-  const hienThi = rows?.slice(0, soDong) ?? [];
+  const hienThi = rows ?? [];
 
   // ---- Form them / sua ----
   function openAdd() {
@@ -277,9 +301,16 @@ export function DanhMucCcdcScreen() {
   }
 
   async function exportExcel() {
-    if (!rows?.length) return;
+    if (!tong) return;
+    // Xuat TOAN BO tai san khop bo loc (khong chi trang dang xem).
+    let tatCa: CcdcRow[];
+    try {
+      tatCa = (await api.get<{ rows: CcdcRow[] }>(`/ccdc?${pDs}`)).rows;
+    } catch (e) {
+      return setLoi(thongBaoLoi(e, "Không tải được dữ liệu xuất Excel."));
+    }
     await exportRowsToExcel(
-      rows.map((r) => ({
+      tatCa.map((r) => ({
         id: r.id,
         ten_ccdc: r.ten_ccdc,
         ten_nhom: r.ten_nhom,
@@ -318,7 +349,7 @@ export function DanhMucCcdcScreen() {
             <button className="btn btn-outline" onClick={inTem} disabled={!rows?.length} title="In tem QR các dòng đã chọn (hoặc các dòng đang hiển thị)">
               <QrCode size={14} /> In tem QR{chon.size ? ` (${chon.size})` : ""}
             </button>
-            <button className="btn btn-outline" onClick={exportExcel} disabled={!rows?.length}>
+            <button className="btn btn-outline" onClick={exportExcel} disabled={!tong}>
               <Download size={14} /> Xuất Excel
             </button>
             {canEdit && (
@@ -555,18 +586,7 @@ export function DanhMucCcdcScreen() {
             </tbody>
           </table>
         </div>
-        {rows && rows.length > 0 && (
-          <div className="table-footer-link-wrap table-footer-between">
-            <span className="muted small">
-              Hiển thị {fmtSo(hienThi.length)}/{fmtSo(rows.length)} tài sản{chon.size ? ` · đã chọn ${chon.size}` : ""}
-            </span>
-            {rows.length > soDong && (
-              <button className="btn btn-outline btn-sm" onClick={() => setSoDong(soDong + TRANG)}>
-                Xem thêm {fmtSo(Math.min(TRANG, rows.length - soDong))}
-              </button>
-            )}
-          </div>
-        )}
+        <PhanTrang trang={trang} tong={tong} onDoi={setTrang} donVi="tài sản" ghiChu={chon.size ? ` · đã chọn ${fmtSo(chon.size)}` : null} />
       </div>
 
       {showForm && (
@@ -670,6 +690,7 @@ export function DanhMucCcdcScreen() {
 }
 
 function QuanLyNhomModal({ nhoms, onClose, onDoi }: { nhoms: NhomCcdc[]; onClose: () => void; onDoi: () => Promise<void> }) {
+  const tNhom = useTrangKhach(nhoms);
   const [moi, setMoi] = useState("");
   const [sua, setSua] = useState<{ id: number; ten: string } | null>(null);
   const [loi, setLoi] = useState<string | null>(null);
@@ -715,7 +736,7 @@ function QuanLyNhomModal({ nhoms, onClose, onDoi }: { nhoms: NhomCcdc[]; onClose
             </tr>
           </thead>
           <tbody>
-            {nhoms.map((n) => (
+            {tNhom.dongTrang.map((n) => (
               <tr key={n.id}>
                 <td>
                   {sua?.id === n.id ? (
@@ -763,6 +784,7 @@ function QuanLyNhomModal({ nhoms, onClose, onDoi }: { nhoms: NhomCcdc[]; onClose
           </tbody>
         </table>
       </div>
+      <PhanTrang trang={tNhom.trang} tong={tNhom.tong} onDoi={tNhom.setTrang} donVi="nhóm" />
     </Modal>
   );
 }

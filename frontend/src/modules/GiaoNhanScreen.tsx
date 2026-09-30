@@ -15,6 +15,7 @@ import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { LOAI_GIAO_NHAN, LOAI_KHO, isHcns, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
+import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
 interface NhanVienRow {
   ma_nv: string;
@@ -118,6 +119,7 @@ export function GiaoNhanScreen() {
 
   const choToi = (viec?.rows ?? []).filter((r) => r.hanh_dong === "xac_nhan_gn");
   const hienThi = (phieus ?? []).filter((p) => (tabXn === "cho" ? !p.da_xac_nhan : tabXn === "xong" ? !!p.da_xac_nhan : true));
+  const tGn = useTrangKhach(hienThi, [tabXn]);
   const soTs = (phieus ?? []).reduce((s, p) => s + p.so_luong_ccdc, 0);
   const choQuaHan = choXacNhan.filter((p) => quaHan(p.ngay_lap)).length;
   const tenThang = thang ? `${thang.slice(5)}/${thang.slice(0, 4)}` : "mọi thời điểm";
@@ -254,7 +256,7 @@ export function GiaoNhanScreen() {
                   </td>
                 </tr>
               )}
-              {hienThi.map((p) => {
+              {tGn.dongTrang.map((p) => {
                 const [tu, den] = tuDen(p);
                 const tre = !p.da_xac_nhan && quaHan(p.ngay_lap);
                 return (
@@ -289,6 +291,7 @@ export function GiaoNhanScreen() {
             </tbody>
           </table>
         </div>
+        <PhanTrang trang={tGn.trang} tong={tGn.tong} onDoi={tGn.setTrang} donVi="phiếu" />
       </div>
 
       {showForm && (
@@ -342,7 +345,7 @@ function LapPhieuModal({
 
   useEffect(() => {
     Promise.all([
-      api.get<{ rows: NhanVienRow[] }>("/nhan-vien"),
+      api.get<{ rows: NhanVienRow[] }>("/nhan-vien?gon=1"),
       api.get<{ rows: CcdcRow[] }>("/ccdc"),
       api.get<{ rows: KhoRow[] }>("/kho"),
       api.get<{ rows: NhanVienRow[] }>("/nhan-vien/cap-duoi"),

@@ -7,6 +7,7 @@ import { nowVN } from "../lib/vnTime";
 import { khoPhuTrach, laHcns } from "../lib/quyen";
 import { dkTaiSan, layPhamVi } from "../lib/phamVi";
 import { sinhMaPhieu } from "../lib/maPhieu";
+import { docTrang, layTrang } from "../lib/phanTrang";
 
 const ccdc = new Hono<{ Bindings: Env }>();
 ccdc.use("*", verifySessionMiddleware, loadUser);
@@ -52,10 +53,10 @@ async function dieuKienLoc(c: Context<{ Bindings: Env }>, boTrangThai = false) {
 }
 
 // GET /?nhom_id=&trang_thai=&kho_id=&nguoi_dang_giu=&q= - danh sach tai san co dinh (chua vo hieu hoa).
+// ?page=N -> { rows, total } 1 trang (bang Danh muc tai san); khong page -> ca danh sach (xuat Excel, form).
 ccdc.get("/", async (c) => {
   const { where, binds } = await dieuKienLoc(c);
-  const { results } = await c.env.DB.prepare(
-    `SELECT c.id, c.ten_ccdc, c.nhom_id, n.ten_nhom, c.don_vi_tinh, c.so_seri, c.ngay_mua,
+  const sql = `SELECT c.id, c.ten_ccdc, c.nhom_id, n.ten_nhom, c.don_vi_tinh, c.so_seri, c.ngay_mua,
             c.nguyen_gia, c.nha_cung_cap, c.han_bao_hanh, c.tinh_trang, c.trang_thai_hien_tai,
             c.nguoi_dang_giu, nv.ten_nv AS nguoi_dang_giu_ten, c.kho_id, k.ten_kho, c.anh_url, c.ghi_chu
      FROM ccdc c
@@ -63,8 +64,10 @@ ccdc.get("/", async (c) => {
      LEFT JOIN nhan_vien nv ON nv.ma_nv = c.nguoi_dang_giu
      LEFT JOIN kho k ON k.id = c.kho_id
      WHERE ${where}
-     ORDER BY c.created_at DESC`,
-  )
+     ORDER BY c.created_at DESC`;
+  const trang = docTrang(c);
+  if (trang) return c.json(await layTrang(c.env.DB, trang, { sql: `SELECT COUNT(*) AS n FROM ccdc c WHERE ${where}`, binds }, { sql, binds }));
+  const { results } = await c.env.DB.prepare(sql)
     .bind(...binds)
     .all();
   return c.json({ rows: results });

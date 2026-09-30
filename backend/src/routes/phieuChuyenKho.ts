@@ -6,6 +6,7 @@ import { nowVN } from "../lib/vnTime";
 import { getKho, guardTonKhongAm, khoPhuTrach, laCapDuoi, laHcns, laKeToan, laThuKho, tonKho } from "../lib/quyen";
 import { sinhMaPhieu, TIEN_TO_CHUYEN_KHO } from "../lib/maPhieu";
 import { dkPhieuKho, layPhamVi, type PhamVi } from "../lib/phamVi";
+import { docTrang, layTrang } from "../lib/phanTrang";
 
 /** Phieu nguoi dung duoc xem: kho trong pham vi + phieu minh lap + phieu cap cho nhom minh (ban than/cap duoi). */
 function dkXemPhieu(pv: PhamVi, email: string) {
@@ -67,10 +68,7 @@ phieuChuyenKho.get("/", async (c) => {
     binds.push(...ids);
   }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-  const limit = Math.min(Number(q("limit") ?? 300) || 300, 2000);
-
-  const { results } = await c.env.DB.prepare(
-    `SELECT p.id, p.ma_phieu, p.loai, p.tu_kho_id, kt.ten_kho AS tu_kho_ten, p.den_kho_id, kd.ten_kho AS den_kho_ten,
+  const sql = `SELECT p.id, p.ma_phieu, p.loai, p.tu_kho_id, kt.ten_kho AS tu_kho_ten, p.den_kho_id, kd.ten_kho AS den_kho_ten,
             p.den_nhan_vien_id, nv.ten_nv AS den_nhan_vien_ten, p.nguoi_nhan_ten_tu_do, p.nha_cung_cap,
             p.nguoi_lap, p.trang_thai, p.da_xac_nhan, p.ghi_chu, p.created_at,
             (SELECT COUNT(*) FROM phieu_chuyen_kho_ct ct WHERE ct.phieu_id = p.id) AS so_dong,
@@ -82,9 +80,13 @@ phieuChuyenKho.get("/", async (c) => {
      LEFT JOIN kho kd ON kd.id = p.den_kho_id
      LEFT JOIN nhan_vien nv ON nv.ma_nv = p.den_nhan_vien_id
      ${where}
-     ORDER BY p.created_at DESC
-     LIMIT ${limit}`,
-  )
+     ORDER BY p.created_at DESC`;
+  // ?page=N: 1 trang KICH_THUOC_TRANG dong (bang tren man hinh); khong co page: toi da `limit` dong
+  // (xuat Excel / cac cho can ca danh sach).
+  const trang = docTrang(c);
+  if (trang) return c.json(await layTrang(c.env.DB, trang, { sql: `SELECT COUNT(*) AS n FROM phieu_chuyen_kho p ${where}`, binds }, { sql, binds }));
+  const limit = Math.min(Number(q("limit") ?? 300) || 300, 5000);
+  const { results } = await c.env.DB.prepare(`${sql} LIMIT ${limit}`)
     .bind(...binds)
     .all();
   return c.json({ rows: results });

@@ -13,6 +13,7 @@ import { useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTri, fmtGiaTriDong, fmtSo } from "../lib/format";
 import { isHcns, LOAI_KHO, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
+import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
 interface TongHopKho {
   id: number;
@@ -99,6 +100,7 @@ export function KhoScreen() {
       (!tim.trim() || k.ten_kho.toLowerCase().includes(tim.trim().toLowerCase())) &&
       (!anKhoTrong || khoConSoLieu(k) || k.loai !== "Quan ly"),
   );
+  const tKho = useTrangKhach(hienThi, [loaiLoc, tim, anKhoTrong]);
   const soKhoTrongAn = rows.filter((k) => k.loai === "Quan ly" && !khoConSoLieu(k)).length;
   const coTab = (t: Parameters<typeof duocMoTab>[1]) => !!user && duocMoTab(user, t);
 
@@ -247,7 +249,7 @@ export function KhoScreen() {
                     </td>
                   </tr>
                 )}
-                {hienThi.map((k) => (
+                {tKho.dongTrang.map((k) => (
                   <tr key={k.id}>
                     <td data-label="Kho">
                       <span className="icon-text strong">
@@ -298,6 +300,7 @@ export function KhoScreen() {
               </tbody>
             </table>
           </div>
+          <PhanTrang trang={tKho.trang} tong={tKho.tong} onDoi={tKho.setTrang} donVi="kho" />
         </div>
       ) : (
         <CauHinhKho />
@@ -346,6 +349,7 @@ function CauHinhKho() {
 
   const soKhoQl = (rows ?? []).filter((k) => k.loai === "Quan ly").length;
   const hienThi = (rows ?? []).filter((k) => showQl || k.loai !== "Quan ly");
+  const tDsKho = useTrangKhach(hienThi, [showQl]);
 
   return (
     <div className="content-card task-card-full">
@@ -389,7 +393,7 @@ function CauHinhKho() {
                 </td>
               </tr>
             )}
-            {hienThi.map((k) => (
+            {tDsKho.dongTrang.map((k) => (
               <tr key={k.id}>
                 <td data-label="Tên kho" className="strong">
                   {k.ten_kho}
@@ -463,6 +467,7 @@ function CauHinhKho() {
           </tbody>
         </table>
       </div>
+      <PhanTrang trang={tDsKho.trang} tong={tDsKho.tong} onDoi={tDsKho.setTrang} donVi="kho" />
 
       {showAdd && (
         <Modal title="Thêm kho mới" onClose={() => setShowAdd(false)}>

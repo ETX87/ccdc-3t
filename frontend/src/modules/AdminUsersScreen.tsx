@@ -11,6 +11,7 @@ import { fmtNgayGio, fmtSo } from "../lib/format";
 import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { tenVaiTro, thongBaoLoi, VAI_TRO } from "../lib/nhan";
+import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
 interface UserRow {
   email: string;
@@ -107,6 +108,7 @@ export function AdminUsersScreen() {
       return !t || `${u.email} ${u.ten ?? ""} ${u.ten_nv ?? ""} ${u.ma_nv ?? ""}`.toLowerCase().includes(t);
     });
   }, [r0, tab, tim, vaiTroLoc]);
+  const tUser = useTrangKhach(ds, [tab, tim, vaiTroLoc]);
 
   async function apDung() {
     if (!thayDoi) return;
@@ -257,7 +259,7 @@ export function AdminUsersScreen() {
                   </td>
                 </tr>
               )}
-              {ds.map((u) => {
+              {tUser.dongTrang.map((u) => {
                 const st = TRANG_THAI_LABEL[u.trang_thai_duyet];
                 const daDuyet = u.trang_thai_duyet === "Da duyet";
                 return (
@@ -349,6 +351,7 @@ export function AdminUsersScreen() {
             </tbody>
           </table>
         </div>
+        <PhanTrang trang={tUser.trang} tong={tUser.tong} onDoi={tUser.setTrang} donVi="tài khoản" />
       </div>
 
       {thayDoi && (

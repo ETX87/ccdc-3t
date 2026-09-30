@@ -8,6 +8,7 @@ import { KpiCard, type XuHuong } from "../components/KpiCard";
 import { SearchSelect } from "../components/SearchSelect";
 import { StatusBadge } from "../components/StatusBadge";
 import { useChiTiet } from "../components/ChiTiet";
+import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 import { useDuLieuChung } from "../lib/duLieuChung";
 import { exportRowsToExcel } from "../lib/exportExcel";
 import { useNav } from "../lib/navigation";
@@ -126,20 +127,22 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
   const [formErr, setFormErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const loadList = useCallback(async () => {
+  // Bang phieu phan trang o server (moi trang 50 phieu) - doi bo loc thi ve trang 1.
+  const [trang, setTrang] = useState(1);
+  const [tong, setTong] = useState(0);
+  const doiLoc = (f: typeof filter) => {
+    setFilter(f);
+    setTrang(1);
+  };
+  const qsLoc = useMemo(() => new URLSearchParams(Object.entries(filter).filter(([, v]) => v)), [filter]);
+
+  const loadTrang = useCallback(async () => {
     setDangTai(true);
     setLoi(null);
-    const qs = new URLSearchParams(Object.entries(filter).filter(([, v]) => v));
-    const qsTk = new URLSearchParams({ thang: filter.thang || homNayVN().slice(0, 7), ...(filter.kho_id ? { kho_id: filter.kho_id } : {}) });
     try {
-      const [list, cho, tk] = await Promise.all([
-        api.get<{ rows: PhieuRow[] }>(`/phieu-chuyen-kho?${qs}`),
-        api.get<{ rows: PhieuRow[] }>("/phieu-chuyen-kho?cho_toi_nhan=1"),
-        api.get<ThongKe>(`/phieu-chuyen-kho/thong-ke?${qsTk}`),
-      ]);
+      const list = await api.get<{ rows: PhieuRow[]; total: number }>(`/phieu-chuyen-kho?${qsLoc}&page=${trang}`);
       setRows(list.rows);
-      setChoNhan(cho.rows);
-      setThongKe(tk);
+      setTong(list.total);
       setCapNhatLuc(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
     } catch (e) {
       setLoi(thongBaoLoi(e, "Không tải được danh sách phiếu."));
@@ -147,13 +150,33 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
     } finally {
       setDangTai(false);
     }
-  }, [filter]);
+  }, [qsLoc, trang]);
+
+  const loadPhu = useCallback(async () => {
+    const qsTk = new URLSearchParams({ thang: filter.thang || homNayVN().slice(0, 7), ...(filter.kho_id ? { kho_id: filter.kho_id } : {}) });
+    try {
+      const [cho, tk] = await Promise.all([
+        api.get<{ rows: PhieuRow[] }>("/phieu-chuyen-kho?cho_toi_nhan=1"),
+        api.get<ThongKe>(`/phieu-chuyen-kho/thong-ke?${qsTk}`),
+      ]);
+      setChoNhan(cho.rows);
+      setThongKe(tk);
+    } catch (e) {
+      setLoi(thongBaoLoi(e, "Không tải được số liệu phiếu."));
+    }
+  }, [filter.thang, filter.kho_id]);
+
+  const tChoNhan = useTrangKhach(choNhan);
+
+  const loadList = useCallback(async () => {
+    await Promise.all([loadTrang(), loadPhu()]);
+  }, [loadTrang, loadPhu]);
 
   useEffect(() => {
     Promise.all([
       api.get<{ rows: KhoRow[] }>("/kho"),
       api.get<{ rows: VtRow[] }>("/vt-tieu-hao"),
-      api.get<{ rows: NvRow[] }>("/nhan-vien"),
+      api.get<{ rows: NvRow[] }>("/nhan-vien?gon=1"),
       api.get<{ rows: NvRow[] }>("/nhan-vien/cap-duoi"),
     ])
       .then(([k, v, n, cd]) => {
@@ -166,8 +189,11 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    loadList();
-  }, [loadList]);
+    loadTrang();
+  }, [loadTrang]);
+  useEffect(() => {
+    loadPhu();
+  }, [loadPhu]);
   useKhiThayDoi(loadList);
 
   const tuKhoRow = khoAll.find((k) => k.id === tuKho);
@@ -273,9 +299,16 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
   }
 
   async function exportExcel() {
-    if (!rows?.length) return;
+    if (!tong) return;
+    // Xuat TOAN BO phieu khop bo loc (khong chi trang dang xem), toi da 5.000 phieu.
+    let tatCa: PhieuRow[];
+    try {
+      tatCa = (await api.get<{ rows: PhieuRow[] }>(`/phieu-chuyen-kho?${qsLoc}&limit=5000`)).rows;
+    } catch (e) {
+      return setLoi(thongBaoLoi(e, "Không tải được dữ liệu xuất Excel."));
+    }
     await exportRowsToExcel(
-      rows.map((p) => ({
+      tatCa.map((p) => ({
         ma_phieu: p.ma_phieu ?? p.id,
         loai: LOAI_PHIEU_CK[p.loai] ?? p.loai,
         tu: p.tu_kho_ten,
@@ -309,7 +342,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
         filters={tabs}
         actions={
           <>
-            <button className="btn btn-outline" onClick={exportExcel} disabled={!rows?.length}>
+            <button className="btn btn-outline" onClick={exportExcel} disabled={!tong}>
               <Download size={14} /> Xuất Excel
             </button>
             {isHcns(user) && (
@@ -344,7 +377,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
           xuHuong={xuHuong(cpNay?.so_phieu ?? 0, cpTruoc?.so_phieu ?? 0)}
           moTaXuHuong="so với tháng trước"
           subtext={`${fmtSo(cpNay?.so_luong ?? 0)} đơn vị · ${fmtGiaTriDong(cpNay?.gia_tri ?? 0)}`}
-          onClick={() => setFilter({ ...filter, loai: "Cap phat NV", trang_thai: "" })}
+          onClick={() => doiLoc({ ...filter, loai: "Cap phat NV", trang_thai: "" })}
         />
         <KpiCard
           tone="cyan"
@@ -355,7 +388,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
           xuHuong={xuHuong(nmNay?.gia_tri ?? 0, nmTruoc?.gia_tri ?? 0)}
           moTaXuHuong="giá trị so với tháng trước"
           subtext={`Giá trị: ${fmtGiaTriDong(nmNay?.gia_tri ?? 0)} · ${fmtSo(ckNay?.so_phieu ?? 0)} phiếu chuyển kho`}
-          onClick={() => setFilter({ ...filter, loai: "Nhap mua", trang_thai: "" })}
+          onClick={() => doiLoc({ ...filter, loai: "Nhap mua", trang_thai: "" })}
         />
         <KpiCard
           tone="yellow"
@@ -366,7 +399,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
           tangLaXau
           trend={<div className="kpi-trend trend-warning"><span className="trend-sub">Phiếu nhập mua chưa vào tồn</span></div>}
           subtext={`Giá trị: ${fmtGiaTriDong(thongKe?.cho_kt_gt ?? 0)}`}
-          onClick={() => setFilter({ ...filter, loai: "", trang_thai: "Cho ke toan duyet", thang: "" })}
+          onClick={() => doiLoc({ ...filter, loai: "", trang_thai: "Cho ke toan duyet", thang: "" })}
         />
         <KpiCard
           tone={thongKe?.dang_chuyen_qua_han ? "red" : "blue"}
@@ -381,7 +414,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             </div>
           }
           subtext={`${fmtSo(thongKe?.cho_nv_xac_nhan ?? 0)} phiếu cấp phát NV chưa xác nhận`}
-          onClick={() => setFilter({ ...filter, loai: "", trang_thai: "Dang chuyen", thang: "" })}
+          onClick={() => doiLoc({ ...filter, loai: "", trang_thai: "Dang chuyen", thang: "" })}
         />
       </div>
 
@@ -409,7 +442,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                 </tr>
               </thead>
               <tbody>
-                {choNhan.map((p) => (
+                {tChoNhan.dongTrang.map((p) => (
                   <tr key={p.id}>
                     <td data-label="Mã phiếu">
                       <span className="code-link" onClick={() => moPhieu("chuyen_kho", p.id)}>
@@ -437,13 +470,14 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
               </tbody>
             </table>
           </div>
+          <PhanTrang trang={tChoNhan.trang} tong={tChoNhan.tong} onDoi={tChoNhan.setTrang} donVi="phiếu" />
         </div>
       )}
 
       <div className="content-card task-card-full">
         <div className="filter-bar">
           <label className="header-dropdown select-dropdown">
-            <select value={filter.kho_id} onChange={(e) => setFilter({ ...filter, kho_id: e.target.value })} aria-label="Kho">
+            <select value={filter.kho_id} onChange={(e) => doiLoc({ ...filter, kho_id: e.target.value })} aria-label="Kho">
               <option value="">Tất cả kho</option>
               {khoAll
                 .filter((k) => k.loai !== "Mua hang")
@@ -456,7 +490,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
           <label className="header-dropdown select-dropdown">
-            <select value={filter.loai} onChange={(e) => setFilter({ ...filter, loai: e.target.value })} aria-label="Loại phiếu">
+            <select value={filter.loai} onChange={(e) => doiLoc({ ...filter, loai: e.target.value })} aria-label="Loại phiếu">
               <option value="">Tất cả loại</option>
               {Object.entries(LOAI_PHIEU_CK).map(([k, v]) => (
                 <option key={k} value={k}>
@@ -467,7 +501,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
           <label className="header-dropdown select-dropdown">
-            <select value={filter.trang_thai} onChange={(e) => setFilter({ ...filter, trang_thai: e.target.value })} aria-label="Trạng thái">
+            <select value={filter.trang_thai} onChange={(e) => doiLoc({ ...filter, trang_thai: e.target.value })} aria-label="Trạng thái">
               <option value="">Tất cả trạng thái</option>
               {Object.entries(TRANG_THAI_CK).map(([k, v]) => (
                 <option key={k} value={k}>
@@ -477,16 +511,16 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             </select>
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
-          <input type="month" value={filter.thang} onChange={(e) => setFilter({ ...filter, thang: e.target.value })} aria-label="Tháng" />
+          <input type="month" value={filter.thang} onChange={(e) => doiLoc({ ...filter, thang: e.target.value })} aria-label="Tháng" />
           {filter.thang && (
-            <button className="btn btn-sm" onClick={() => setFilter({ ...filter, thang: "" })}>
+            <button className="btn btn-sm" onClick={() => doiLoc({ ...filter, thang: "" })}>
               Mọi tháng
             </button>
           )}
           {filter.vt_id && (
             <span className="chip">
               Vật tư: {vts.find((v) => v.id === filter.vt_id)?.ten_vt ?? filter.vt_id}
-              <button type="button" className="chip-remove" aria-label="Bỏ lọc vật tư" onClick={() => setFilter({ ...filter, vt_id: "" })}>
+              <button type="button" className="chip-remove" aria-label="Bỏ lọc vật tư" onClick={() => doiLoc({ ...filter, vt_id: "" })}>
                 ×
               </button>
             </span>
@@ -552,7 +586,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             </tbody>
           </table>
         </div>
-        {rows !== null && rows.length >= 300 && <p className="muted small">Hiện 300 phiếu mới nhất - dùng bộ lọc tháng / kho để xem thêm.</p>}
+        <PhanTrang trang={trang} tong={tong} onDoi={setTrang} donVi="phiếu" />
       </div>
 
       {showForm && (

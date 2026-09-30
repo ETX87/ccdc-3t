@@ -11,6 +11,7 @@ import { fmtGiaTri, fmtSo } from "../lib/format";
 import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { TRANG_THAI_TS, thongBaoLoi } from "../lib/nhan";
+import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
 interface CapDuoiRow {
   ma_nv: string;
@@ -113,10 +114,13 @@ export function NhomCuaToiScreen() {
     [user, ds, soTsToi],
   );
 
-  if (!user) return null;
-
   const t = tim.trim().toLowerCase();
   const dsHien = nhom.filter((n) => !t || `${n.ma_nv} ${n.ten_nv} ${n.bo_phan ?? ""}`.toLowerCase().includes(t));
+  const tNhom = useTrangKhach(dsHien, [t]);
+  const tTsNv = useTrangKhach(ts, [chon]);
+
+  if (!user) return null;
+
   const tongTs = nhom.reduce((s, n) => s + n.so_ts_dang_giu, 0);
   const chuaTk = (ds ?? []).filter((d) => !d.email_dang_nhap);
   const conTon = ton.filter((r) => r.ton > 0);
@@ -242,7 +246,7 @@ export function NhomCuaToiScreen() {
                     </td>
                   </tr>
                 )}
-                {dsHien.map((n) => (
+                {tNhom.dongTrang.map((n) => (
                   <tr key={n.ma_nv} className={`row-clickable${chon === n.ma_nv ? " row-selected" : ""}`} onClick={() => setChon(n.ma_nv)}>
                     <td data-label="Nhân viên">
                       <div className="cell-stack">
@@ -267,6 +271,7 @@ export function NhomCuaToiScreen() {
               </tbody>
             </table>
           </div>
+          <PhanTrang trang={tNhom.trang} tong={tNhom.tong} onDoi={tNhom.setTrang} donVi="nhân viên" />
         </div>
 
         <div className="content-card">
@@ -308,7 +313,7 @@ export function NhomCuaToiScreen() {
                     </td>
                   </tr>
                 )}
-                {ts?.map((c) => (
+                {tTsNv.dongTrang.map((c) => (
                   <tr key={c.id}>
                     <td data-label="Mã tài sản">
                       <span className="code-link" onClick={() => moTaiSan(c.id)}>
@@ -351,6 +356,7 @@ export function NhomCuaToiScreen() {
               </tbody>
             </table>
           </div>
+          <PhanTrang trang={tTsNv.trang} tong={tTsNv.tong} onDoi={tTsNv.setTrang} donVi="tài sản" />
         </div>
       </div>
 

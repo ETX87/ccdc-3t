@@ -7,6 +7,7 @@ import { fmtNgayGio } from "../lib/format";
 import { thongBaoLoi } from "../lib/nhan";
 import { Modal } from "./Modal";
 import { useMoViec } from "./ChiTiet";
+import { PhanTrang, useTrangKhach } from "./PhanTrang";
 
 // Bang "viec can xu ly" dung chung (Tong quan: 5 dong, khong cot thao tac; Viec can lam: day du + thao
 // tac nhanh). Du lieu tu /api/dashboard/viec-can-lam (useDuLieuChung) - khong co dong mau.
@@ -75,6 +76,7 @@ export function TrangThaiViec({ r }: { r: ViecRow }) {
 }
 
 export function ViecTable({ rows, coThaoTac = false, trong }: { rows: ViecRow[]; coThaoTac?: boolean; trong: string }) {
+  const tViec = useTrangKhach(rows);
   const moViec = useMoViec();
   const { reload } = useDuLieuChung();
   const [busy, setBusy] = useState<string | null>(null);
@@ -121,7 +123,7 @@ export function ViecTable({ rows, coThaoTac = false, trong }: { rows: ViecRow[];
                 </td>
               </tr>
             )}
-            {rows.map((r) => {
+            {tViec.dongTrang.map((r) => {
               const ic = iconCho(r);
               const Icon = ic.icon;
               const nhanh = NHANH[r.hanh_dong];
@@ -191,6 +193,7 @@ export function ViecTable({ rows, coThaoTac = false, trong }: { rows: ViecRow[];
           </tbody>
         </table>
       </div>
+      <PhanTrang trang={tViec.trang} tong={tViec.tong} onDoi={tViec.setTrang} donVi="việc" />
 
       {tuChoi && (
         <Modal title={`${NHANH[tuChoi.r.hanh_dong]?.lyDoTuChoi ?? "Lý do"} · ${tuChoi.r.ma_phieu ?? ""}`} onClose={() => setTuChoi(null)}>

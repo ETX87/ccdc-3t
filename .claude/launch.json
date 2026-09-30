@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ccdc-worker",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["exec", "--workspace", "backend", "--", "wrangler", "dev", "--config", "../wrangler.jsonc", "--env", "local", "--persist-to", "../.wrangler/state_dev", "--port", "8793"],
+      "port": 8793
+    },
+    {
+      "name": "ccdc-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace", "frontend"],
+      "port": 5177
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+# CURSOR AI RULES — CCDC 3T (Asset Management)
+
+Bạn là trợ lý AI phát triển phần mềm cho hệ thống Quản lý Công cụ Dụng cụ (CCDC 3T) của công ty 3T.
+MỌI mã nguồn frontend hoặc thiết kế giao diện bạn tạo ra BẮT BUỘC phải tuân thủ nghiêm ngặt các quy tắc sau:
+
+## 1. NGUYÊN TẮC THIẾT KẾ BẮT BUỘC (MANDATORY UI RULES)
+- **ĐỌC TRƯỚC KHI VIẾT CODE**: Luôn tham khảo `DESIGN_SYSTEM.md` ở thư mục gốc.
+- **KHÔNG TỰ Ý ĐỔI GAM MÀU HOẶC STYLE**: Tuyệt đối không dùng giao diện generic màu xám xịt hoặc thư viện ngoài (như Bootstrap, Ant Design, Material UI...) phá vỡ phong cách hiện tại.
+- **Phong cách chuẩn**: Modern Enterprise SaaS phong cách 3T Asset Management (Deep Teal & Cyan Mint kết hợp bề mặt Pastel).
+
+## 2. HỆ THỐNG MÀU SẮC (COLOR TOKENS)
+- **Sidebar**: Gradient Deep Teal `linear-gradient(180deg, #0B6B7A 0%, #006573 45%, #005663 80%, #017280 100%)`. Rộng cố định `261px`.
+- **Nền trang chính**: `#F7FBFE` (trắng xám ánh xanh mát). KHÔNG dùng `#FFFFFF` chói mắt cho background toàn màn hình.
+- **Thẻ Card / Container**: Nền trắng `#FFFFFF`, bo góc `12px - 14px`, viền `1px solid #F1F5F9`, bóng mờ `box-shadow: 0 1px 3px rgba(0,0,0,0.025)`.
+- **5 Bộ màu Pastel nhận diện cho Thẻ KPI & Trạng thái**:
+  1. *Mint / Cyan*: Nền `#E4FAFB → #D5F7F8`, Icon `#009688` (Tổng tài sản, hoàn thành)
+  2. *Light Cyan*: Nền `#E1F7FB → #CFF1F7`, Icon `#00BCD4` (Kho, tồn kho)
+  3. *Ocean Blue*: Nền `#E9F3FD → #D8ECFC`, Icon `#2196F3` (Đang sử dụng, nhân sự)
+  4. *Purple*: Nền `#F4EDFD → #EBE0FB`, Icon `#7E57C2` (Tiêu hao, cấp phát)
+  5. *Amber / Cam*: Nền `#FFF9E7 → #FEF3CE`, Icon `#FF9800`, chữ `#D97706` (Chờ duyệt, cần xử lý)
+  6. *Danger Red*: Nền `#FEE2E2`, Icon `#EF4444`, chữ `#DC2626` (Báo hỏng, quá hạn)
+
+## 3. BỐ CỤC MÀN HÌNH CHUẨN (4 TẦNG)
+Mọi màn hình module (Tài sản, Kho, Cấp phát, Điều chuyển, Báo hỏng, Kiểm kê...) đều phải tuân theo cấu trúc:
+1. **Sub-header**: Tiêu đề trang (font 21px bold `#0F172A`) + Bộ lọc ngày/đơn vị + Nút tác vụ nhanh.
+2. **KPI Summary Row**: Hàng 3 đến 5 thẻ tóm tắt số liệu (`.kpi-grid` với các thẻ `.kpi-card`, icon tròn, watermark mờ, số to 28-29px bold).
+3. **Main Workspace**: Bảng dữ liệu phẳng (`.task-table`), bộ lọc con tabs dạng pill (`.task-tab-btn`), cột mã định danh link xanh (`.code-link` `#0284C7`), status badge bo tròn (`.status-badge`).
+4. **Side Panel / Quick Actions**: Cột phụ cảnh báo hoặc form thao tác nếu có.
+
+## 4. TÁI SỬ DỤNG CSS CÓ SẴN
+Tất cả các class đã được viết sẵn trong `frontend/src/styles.css`:
+- `.dashboard-container`, `.kpi-grid`, `.kpi-card`, `.card-cyan`, `.card-blue-light`, `.card-blue`, `.card-purple`, `.card-yellow`
+- `.content-card`, `.card-header`, `.card-title`, `.card-header-link`
+- `.task-filter-tabs`, `.task-tab-btn`, `.task-tab-btn.active`
+- `.task-table`, `.code-link`, `.status-badge`, `.badge-warning-dot`, `.badge-cyan-solid`
+- Tái sử dụng triệt để, giữ mã nguồn gọn gàng và nhất quán 100%.

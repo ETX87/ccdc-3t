@@ -1,0 +1,89 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ccdc",
+  "main": "backend/src/index.ts",
+  "compatibility_date": "2026-09-22",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // run_worker_first la BAT BUOC - thieu no thi request navigate that (Sec-Fetch-Mode: navigate) se
+  // bi Workers Static Assets SPA fallback chan truoc khi toi duoc Worker (bai hoc load-bearing tu
+  // linh-kien-app/vi-pham-app CLAUDE.md/wrangler.jsonc). KHONG xoa dong nay.
+  "assets": {
+    "directory": "./frontend/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ccdc-db",
+      "database_id": "79c34cd1-638b-46d5-b138-d3170e870fd3",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Khong co "services" (Service Binding) - CCDC 3T doc lap hoan toan, khong goi sang linh-kien-app/
+  // vi-pham-app/dvbh o Phase 1 (xem ke hoach trien khai).
+  // Cron hang ngay 17h UTC = 0h gio VN: chup so lieu tong quan (thong_ke_ngay). Dong bo danh ba "ETX nhan
+  // su" + tu tao/duyet tai khoan cung chay HANG NGAY (tu 2026-09-30; ~1 request ETX/lan, trong tran luot
+  // goi/ngay cua key).
+  "triggers": { "crons": ["0 17 * * *"] },
+
+  "vars": {
+    "BOOTSTRAP_ADMIN_EMAIL": "smarttrade.vp@gmail.com",
+    "GOOGLE_REDIRECT_URI": "https://ccdc.dichvu3t.workers.dev/api/auth/callback",
+    "FRONTEND_URL": "https://ccdc.dichvu3t.workers.dev",
+    // Nguon danh ba ETX (Google Cloud Function, khong phai Worker cung tai khoan -> fetch() thang).
+    "ETX_HR_BASE_URL": "https://asia-southeast1-etx-nhan-su.cloudfunctions.net"
+  },
+
+  // Cac gia tri NHAY CAM cua PRODUCTION (khong dat trong "vars" - dat qua "wrangler secret put",
+  // xem DEPLOY.md): GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET (dung CHUNG 1 Google OAuth Client voi
+  // vi-pham-app/linh-kien-app - khong tao moi, hoi xin lai client_id/secret cu), SESSION_SECRET
+  // (moi, rieng cho app nay), ETX_HR_API_KEY (key doi tac ETX nhan su - xem DEPLOY.md).
+
+  // "env.local" CHI dung cho "npm run dev:worker" - da xac nhan that (2026-09-22, wrangler 4.111 va
+  // 4.136 deu bi) bug cua wrangler: bat ky bien nao CHI khai bao trong ".dev.vars" ma KHONG cung ten
+  // xuat hien san trong "vars"/"env.<ten>.vars" thi bi wrangler dev AM THAM bo qua (khong bind vao
+  // c.env), DU banner khoi dong van in ten bien do la "(hidden)" nhu the co bind that - xem
+  // https://github.com/cloudflare/workers-sdk/issues/11264. Vi vay KHONG the dua SESSION_SECRET/
+  // GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/LOCAL_DEV_BYPASS_AUTH thuan tuy qua ".dev.vars" nhu 2 app
+  // anh em van lam - phai khai bao gia tri dev CHI-DOC o day (an toan vi day la placeholder/dummy,
+  // KHONG phai secret that, va "env.local" khong bao gio duoc dung khi deploy production - deploy
+  // luon chay khong co "--env"). ".dev.vars" van giu de dung ("cp .dev.vars.example .dev.vars") vi
+  // GOOGLE_REDIRECT_URI/FRONTEND_URL/BOOTSTRAP_ADMIN_EMAIL o day VAN duoc doc dung (cung ten voi
+  // "vars" o tren).
+  // "d1_databases" cung phai khai bao lai TRONG "env.local" - wrangler CANH BAO ro "d1_databases
+  // exists at the top level, but not on env.local... not inherited by environments" - neu bo qua,
+  // "c.env.DB" se la undefined khi chay "--env local" (da gap that 2026-09-22, loi "Cannot read
+  // properties of undefined (reading 'prepare')" tren MOI route dung DB). Cung 1 bai hoc voi bug
+  // ".dev.vars" o tren: KHONG dua vao suy doan ve inheritance giua cac "env.<ten>", phai khai bao
+  // tuong minh lai o day.
+  "env": {
+    "local": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "ccdc-db",
+          "database_id": "REPLACE_AFTER_WRANGLER_D1_CREATE",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "vars": {
+        "BOOTSTRAP_ADMIN_EMAIL": "smarttrade.vp@gmail.com",
+        "GOOGLE_REDIRECT_URI": "http://localhost:8791/api/auth/callback",
+        "FRONTEND_URL": "http://localhost:8791",
+        "SESSION_SECRET": "dev-only-local-testing-secret-change-me",
+        "GOOGLE_CLIENT_ID": "dev-placeholder-client-id",
+        "GOOGLE_CLIENT_SECRET": "dev-placeholder-client-secret",
+        "LOCAL_DEV_BYPASS_AUTH": "true",
+        // Local tro toi server GIA LAP ETX (scripts/mock_etx_server.py, port 8799) - KHONG goi ETX
+        // that tu may dev (key that chi dat tren production qua wrangler secret put).
+        "ETX_HR_BASE_URL": "http://127.0.0.1:8799",
+        "ETX_HR_API_KEY": "dev-mock-etx-key-only-for-local"
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+# CHU Y (xac nhan that 2026-09-22): "npm run dev:worker" KHONG doc file nay - do 1 bug cua wrangler
+# (https://github.com/cloudflare/workers-sdk/issues/11264) khien cac bien CHI khai bao o .dev.vars
+# bi am tham bo qua. Gia tri dev thuc te da chuyen sang "env.local.vars" trong wrangler.jsonc (xem
+# comment tai do). File nay giu lai de dung dung DEPLOY.md khi set secret that qua "wrangler secret
+# put" (danh sach ten bien can dat) - KHONG con tac dung cho "wrangler dev" local.
+SESSION_SECRET=dev-only-local-testing-secret-change-me
+GOOGLE_CLIENT_ID=dev-placeholder-client-id
+GOOGLE_CLIENT_SECRET=dev-placeholder-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:8791/api/auth/callback
+FRONTEND_URL=http://localhost:8791
+LOCAL_DEV_BYPASS_AUTH=true

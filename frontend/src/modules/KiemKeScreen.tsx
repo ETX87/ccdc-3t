@@ -1,0 +1,696 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Download, ListChecks, Plus, QrCode, Search } from "lucide-react";
+import { api } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
+import { Modal } from "../components/Modal";
+import { PageHeader } from "../components/PageHeader";
+import { KpiCard } from "../components/KpiCard";
+import { FilterTabs } from "../components/FilterTabs";
+import { SearchSelect } from "../components/SearchSelect";
+import { StatusBadge } from "../components/StatusBadge";
+import { QrScannerModal } from "../components/QrScanner";
+import { useChiTiet } from "../components/ChiTiet";
+import { useDuLieuChung } from "../lib/duLieuChung";
+import { exportRowsToExcel } from "../lib/exportExcel";
+import { useNav } from "../lib/navigation";
+import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
+import { fmtNgay, fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
+import { isHcns, thongBaoLoi, TINH_TRANG_KIEM_KE, TRANG_THAI_TS } from "../lib/nhan";
+
+interface DotRow {
+  id: string;
+  ma_phieu: string | null;
+  ten_dot: string;
+  ngay_bat_dau: string;
+  ngay_ket_thuc: string | null;
+  trang_thai: string;
+  nguoi_tao: string;
+  so_luong_da_kiem: number;
+}
+interface CcdcRow {
+  id: string;
+  ten_ccdc: string;
+  trang_thai_hien_tai: string;
+  nguoi_dang_giu: string | null;
+  nguoi_dang_giu_ten: string | null;
+  ten_kho: string | null;
+}
+interface NhanVienRow {
+  ma_nv: string;
+  ten_nv: string;
+}
+interface KiemKeItem {
+  id: number;
+  ccdc_id: string;
+  ten_ccdc: string;
+  trang_thai_hien_tai: string;
+  he_thong_nguoi_giu: string | null;
+  he_thong_nguoi_giu_ten: string | null;
+  tinh_trang_thuc_te: string;
+  nguoi_dang_giu_thuc_te: string | null;
+  nguoi_dang_giu_thuc_te_ten: string | null;
+  ghi_chu: string | null;
+  kiem_ke_luc?: string | null;
+}
+
+// TS can kiem = dang quan ly (khong tinh da thanh ly / tieu huy / cho duyet nhap).
+const CAN_KIEM = (c: CcdcRow) => !["Da thanh ly", "Da tieu huy", "Cho duyet nhap"].includes(c.trang_thai_hien_tai);
+
+// Kiem ke chi GHI NHAN chenh lech - khong tu sua trang thai / nguoi giu (sua that qua phieu giao nhan
+// dieu chinh, co nguoi chiu trach nhiem - quy tac CLAUDE.md).
+export function KiemKeScreen() {
+  const auth = useAuth();
+  const { params } = useNav();
+  const user = auth.status === "authenticated" ? auth.user : null;
+  const hc = !!user && isHcns(user);
+  const [dots, setDots] = useState<DotRow[] | null>(null);
+  const [activeDotId, setActiveDotId] = useState<string | null>(params.dot ?? null);
+  const [showNew, setShowNew] = useState(false);
+  const [dangTai, setDangTai] = useState(false);
+  const [capNhatLuc, setCapNhatLuc] = useState<string | null>(null);
+  const [loi, setLoi] = useState<string | null>(null);
+  const [tongTs, setTongTs] = useState<number | null>(null);
+  const [chenhLechGanNhat, setChenhLechGanNhat] = useState<number | null>(null);
+
+  const loadDots = useCallback(async () => {
+    setDangTai(true);
+    try {
+      const [res, tk] = await Promise.all([
+        api.get<{ rows: DotRow[] }>("/dot-kiem-ke"),
+        api.get<{ theo_trang_thai: { trang_thai: string; so_luong: number }[] }>("/ccdc/thong-ke"),
+      ]);
+      setDots(res.rows);
+      setTongTs(tk.theo_trang_thai.filter((t) => !["Da thanh ly", "Da tieu huy", "Cho duyet nhap"].includes(t.trang_thai)).reduce((s, t) => s + t.so_luong, 0));
+      const ganNhat = res.rows[0];
+      if (ganNhat) {
+        const d = await api.get<{ items: KiemKeItem[] }>(`/dot-kiem-ke/${encodeURIComponent(ganNhat.id)}`);
+        setChenhLechGanNhat(d.items.filter((i) => i.tinh_trang_thuc_te !== "Dung vi tri").length);
+      } else setChenhLechGanNhat(0);
+      setCapNhatLuc(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
+    } catch (e) {
+      setLoi(thongBaoLoi(e, "Không tải được đợt kiểm kê."));
+      setDots([]);
+    } finally {
+      setDangTai(false);
+    }
+  }, []);
+  useEffect(() => {
+    loadDots();
+  }, [loadDots]);
+  useKhiThayDoi(loadDots);
+
+  const activeDot = dots?.find((d) => d.id === activeDotId) ?? null;
+  if (activeDot) return <ChiTietDot dot={activeDot} onBack={() => setActiveDotId(null)} onDoi={loadDots} />;
+
+  const dangLam = (dots ?? []).filter((d) => d.trang_thai === "Dang thuc hien");
+  const xong = (dots ?? []).filter((d) => d.trang_thai === "Da hoan tat");
+  const ganNhat = dots?.[0];
+
+  return (
+    <div className="dashboard-container">
+      <PageHeader
+        title="Kiểm kê tài sản"
+        actions={
+          hc && (
+            <button className="btn btn-primary" onClick={() => setShowNew(true)}>
+              <Plus size={15} /> Tạo đợt kiểm kê
+            </button>
+          )
+        }
+        capNhatLuc={capNhatLuc}
+        onRefresh={loadDots}
+        dangTai={dangTai}
+      />
+      {loi && <div className="alert alert-error">{loi}</div>}
+
+      <div className="kpi-grid kpi-grid-4">
+        <KpiCard
+          tone="cyan"
+          icon={<ClipboardList size={20} className="text-white" />}
+          watermark={<ClipboardList size={52} />}
+          label="Đợt đang thực hiện"
+          value={fmtSo(dangLam.length)}
+          trend={<div className="kpi-trend"><span className="trend-sub">{dangLam[0] ? dangLam[0].ten_dot : "Không có đợt đang mở"}</span></div>}
+          onClick={dangLam[0] ? () => setActiveDotId(dangLam[0].id) : undefined}
+        />
+        <KpiCard
+          tone="blue"
+          icon={<ListChecks size={20} className="text-white" />}
+          watermark={<ListChecks size={52} />}
+          label="Tiến độ đợt gần nhất"
+          value={ganNhat && tongTs ? `${fmtSo((ganNhat.so_luong_da_kiem / tongTs) * 100, 1)}%` : "0%"}
+          trend={
+            <div className="kpi-trend">
+              <span className="trend-sub">
+                {fmtSo(ganNhat?.so_luong_da_kiem ?? 0)}/{fmtSo(tongTs ?? 0)} tài sản đã kiểm
+              </span>
+            </div>
+          }
+          onClick={ganNhat ? () => setActiveDotId(ganNhat.id) : undefined}
+        />
+        <KpiCard
+          tone={chenhLechGanNhat ? "red" : "blue-light"}
+          icon={<AlertTriangle size={20} className="text-white" />}
+          watermark={<AlertTriangle size={52} />}
+          label="Chênh lệch đợt gần nhất"
+          value={fmtSo(chenhLechGanNhat ?? 0)}
+          tangLaXau
+          trend={<div className={`kpi-trend ${chenhLechGanNhat ? "trend-danger" : "trend-up"}`}><span className="trend-sub">Thiếu / thừa / hỏng / sai người giữ</span></div>}
+          onClick={ganNhat ? () => setActiveDotId(ganNhat.id) : undefined}
+        />
+        <KpiCard
+          tone="purple"
+          icon={<CheckCircle2 size={20} className="text-white" />}
+          watermark={<CheckCircle2 size={52} />}
+          label="Đợt đã hoàn tất"
+          value={fmtSo(xong.length)}
+          trend={<div className="kpi-trend"><span className="trend-sub">{xong[0] ? `Gần nhất: ${fmtNgay(xong[0].ngay_ket_thuc ?? xong[0].ngay_bat_dau)}` : "Chưa có đợt hoàn tất"}</span></div>}
+        />
+      </div>
+
+      <div className="content-card task-card-full">
+        <div className="card-header">
+          <div className="card-title-wrap">
+            <ClipboardList size={18} className="card-title-icon text-teal" />
+            <h2 className="card-title">Các đợt kiểm kê</h2>
+          </div>
+        </div>
+        <div className="task-table-wrapper">
+          <table className="task-table">
+            <thead>
+              <tr>
+                <th style={{ width: "13%" }}>Mã đợt</th>
+                <th>Tên đợt</th>
+                <th style={{ width: "13%" }}>Bắt đầu</th>
+                <th style={{ width: "13%" }}>Kết thúc</th>
+                <th style={{ width: "13%", textAlign: "right" }}>Đã kiểm</th>
+                <th style={{ width: "13%", textAlign: "center" }}>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dots === null && (
+                <tr>
+                  <td colSpan={6} className="task-empty">
+                    Đang tải…
+                  </td>
+                </tr>
+              )}
+              {dots !== null && dots.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="task-empty">
+                    Chưa có đợt kiểm kê nào{hc ? " - bấm “Tạo đợt kiểm kê” để bắt đầu." : "."}
+                  </td>
+                </tr>
+              )}
+              {dots?.map((d) => (
+                <tr key={d.id}>
+                  <td data-label="Mã đợt">
+                    <span className="code-link" role="button" tabIndex={0} onClick={() => setActiveDotId(d.id)}>
+                      {d.ma_phieu ?? d.id.slice(0, 8)}
+                    </span>
+                  </td>
+                  <td data-label="Tên đợt" className="strong">
+                    {d.ten_dot}
+                  </td>
+                  <td data-label="Bắt đầu">{fmtNgay(d.ngay_bat_dau)}</td>
+                  <td data-label="Kết thúc">{d.ngay_ket_thuc ? fmtNgay(d.ngay_ket_thuc) : "-"}</td>
+                  <td data-label="Đã kiểm" style={{ textAlign: "right" }}>
+                    {fmtSo(d.so_luong_da_kiem)}
+                    {tongTs ? <span className="muted small"> / {fmtSo(tongTs)}</span> : null}
+                  </td>
+                  <td data-label="Trạng thái" style={{ textAlign: "center" }}>
+                    <StatusBadge label={d.trang_thai === "Da hoan tat" ? "Đã hoàn tất" : "Đang thực hiện"} tone={d.trang_thai === "Da hoan tat" ? "success" : "warning"} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showNew && (
+        <TaoDotModal
+          onClose={() => setShowNew(false)}
+          onDone={async (id) => {
+            setShowNew(false);
+            baoThayDoi();
+            await loadDots();
+            setActiveDotId(id);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function TaoDotModal({ onClose, onDone }: { onClose: () => void; onDone: (id: string) => void }) {
+  const [tenDot, setTenDot] = useState(`Kiểm kê tháng ${homNayVN().slice(5, 7)}/${homNayVN().slice(0, 4)}`);
+  const [ngay, setNgay] = useState(homNayVN());
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  return (
+    <Modal title="Tạo đợt kiểm kê" onClose={onClose}>
+      <div className="field-group">
+        <label className="field-label">Tên đợt *</label>
+        <input type="text" value={tenDot} onChange={(e) => setTenDot(e.target.value)} autoFocus />
+      </div>
+      <div className="field-group">
+        <label className="field-label">Ngày bắt đầu *</label>
+        <input type="date" value={ngay} onChange={(e) => setNgay(e.target.value)} />
+      </div>
+      {err && <div className="alert alert-error">{err}</div>}
+      <div className="modal-actions">
+        <button className="btn" onClick={onClose}>
+          Huỷ
+        </button>
+        <button
+          className="btn btn-primary"
+          disabled={busy || !tenDot.trim() || !ngay}
+          onClick={async () => {
+            setBusy(true);
+            setErr(null);
+            try {
+              const r = await api.post<{ id: string }>("/dot-kiem-ke", { ten_dot: tenDot.trim(), ngay_bat_dau: ngay });
+              onDone(r.id);
+            } catch (e) {
+              setErr(thongBaoLoi(e, "Không tạo được đợt kiểm kê."));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Tạo đợt
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+type TabDot = "da-kiem" | "chenh-lech" | "chua-kiem";
+
+function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; onDoi: () => Promise<void> }) {
+  const auth = useAuth();
+  const { moTaiSan } = useChiTiet();
+  const { reload: reloadViec } = useDuLieuChung();
+  const hc = auth.status === "authenticated" && isHcns(auth.user);
+  const moDot = dot.trang_thai === "Dang thuc hien";
+  const [items, setItems] = useState<KiemKeItem[] | null>(null);
+  const [ccdcs, setCcdcs] = useState<CcdcRow[]>([]);
+  const [nhanViens, setNhanViens] = useState<NhanVienRow[]>([]);
+  const [tab, setTab] = useState<TabDot>("da-kiem");
+  const [tim, setTim] = useState("");
+  const [ccdcId, setCcdcId] = useState("");
+  const [tinhTrang, setTinhTrang] = useState("Dung vi tri");
+  const [nguoiGiu, setNguoiGiu] = useState("");
+  const [ghiChu, setGhiChu] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [quet, setQuet] = useState(false);
+  const [xacNhanXong, setXacNhanXong] = useState(false);
+
+  const loadItems = useCallback(async () => {
+    try {
+      setItems((await api.get<{ items: KiemKeItem[] }>(`/dot-kiem-ke/${encodeURIComponent(dot.id)}`)).items);
+    } catch (e) {
+      setError(thongBaoLoi(e));
+      setItems([]);
+    }
+  }, [dot.id]);
+
+  useEffect(() => {
+    loadItems();
+    Promise.all([api.get<{ rows: CcdcRow[] }>("/ccdc"), api.get<{ rows: NhanVienRow[] }>("/nhan-vien")])
+      .then(([cc, nv]) => {
+        setCcdcs(cc.rows.filter(CAN_KIEM));
+        setNhanViens(nv.rows);
+      })
+      .catch(() => undefined);
+  }, [loadItems]);
+
+  const daKiemIds = useMemo(() => new Set((items ?? []).map((i) => i.ccdc_id)), [items]);
+  const chuaKiem = ccdcs.filter((c) => !daKiemIds.has(c.id));
+  const chenhLech = (items ?? []).filter((i) => i.tinh_trang_thuc_te !== "Dung vi tri");
+  const demTT = (k: string) => (items ?? []).filter((i) => i.tinh_trang_thuc_te === k).length;
+  const ccdcOptions = useMemo(
+    () => ccdcs.map((c) => ({ value: c.id, label: `${c.id} - ${c.ten_ccdc}${daKiemIds.has(c.id) ? " (đã kiểm - ghi đè)" : ""}` })),
+    [ccdcs, daKiemIds],
+  );
+  const nhanVienOptions = useMemo(() => nhanViens.map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` })), [nhanViens]);
+  const dangChon = ccdcs.find((c) => c.id === ccdcId);
+
+  async function ghiNhan() {
+    if (!ccdcId) return setError("Chọn hoặc quét tài sản cần ghi nhận.");
+    if (tinhTrang === "Sai nguoi giu" && !nguoiGiu) return setError("Chọn người đang giữ thực tế.");
+    setSaving(true);
+    setError(null);
+    try {
+      await api.post(`/dot-kiem-ke/${encodeURIComponent(dot.id)}/ghi-nhan`, {
+        ccdc_id: ccdcId,
+        tinh_trang_thuc_te: tinhTrang,
+        nguoi_dang_giu_thuc_te: tinhTrang === "Sai nguoi giu" ? nguoiGiu : undefined,
+        ghi_chu: ghiChu.trim() || undefined,
+      });
+      setMsg(`Đã ghi nhận ${ccdcId}: ${TINH_TRANG_KIEM_KE[tinhTrang]?.label}.`);
+      setCcdcId("");
+      setNguoiGiu("");
+      setGhiChu("");
+      setTinhTrang("Dung vi tri");
+      await loadItems();
+      baoThayDoi();
+    } catch (e) {
+      const code = (e as { code?: string })?.code;
+      setError(code === "DOT_DA_HOAN_TAT" ? "Đợt kiểm kê này đã hoàn tất." : thongBaoLoi(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function hoanTat() {
+    setXacNhanXong(false);
+    try {
+      await api.post(`/dot-kiem-ke/${encodeURIComponent(dot.id)}/hoan-tat`);
+      baoThayDoi();
+      await Promise.all([onDoi(), reloadViec()]);
+    } catch (e) {
+      setError(thongBaoLoi(e, "Không hoàn tất được."));
+    }
+  }
+
+  async function exportExcel() {
+    await exportRowsToExcel(
+      [
+        ...(items ?? []).map((i) => ({
+          ma: i.ccdc_id,
+          ten: i.ten_ccdc,
+          he_thong: i.he_thong_nguoi_giu_ten ?? "Trong kho",
+          thuc_te: TINH_TRANG_KIEM_KE[i.tinh_trang_thuc_te]?.label ?? i.tinh_trang_thuc_te,
+          nguoi_giu_thuc_te: i.nguoi_dang_giu_thuc_te_ten ?? "",
+          ghi_chu: i.ghi_chu ?? "",
+        })),
+        ...chuaKiem.map((c) => ({ ma: c.id, ten: c.ten_ccdc, he_thong: c.nguoi_dang_giu_ten ?? c.ten_kho ?? "", thuc_te: "Chưa kiểm", nguoi_giu_thuc_te: "", ghi_chu: "" })),
+      ],
+      `Kiem_ke_${(dot.ma_phieu ?? dot.id).replace(/\W+/g, "_")}.xlsx`,
+      "Kiem ke",
+      { ma: "Mã tài sản", ten: "Tên tài sản", he_thong: "Hệ thống ghi nhận", thuc_te: "Thực tế", nguoi_giu_thuc_te: "Người giữ thực tế", ghi_chu: "Ghi chú" },
+    );
+  }
+
+  const t = tim.trim().toLowerCase();
+  const loc = <T extends { ccdc_id?: string; id?: string | number; ten_ccdc: string }>(ds: T[]) =>
+    t ? ds.filter((x) => `${x.ccdc_id ?? x.id} ${x.ten_ccdc}`.toLowerCase().includes(t)) : ds;
+  const tong = ccdcs.length;
+
+  return (
+    <div className="dashboard-container">
+      <PageHeader
+        title={
+          <span className="title-with-badge">
+            {dot.ten_dot}
+            <StatusBadge label={moDot ? "Đang thực hiện" : "Đã hoàn tất"} tone={moDot ? "warning" : "success"} />
+          </span>
+        }
+        filters={
+          <button className="btn btn-outline btn-sm" onClick={onBack}>
+            <ArrowLeft size={13} /> Các đợt
+          </button>
+        }
+        actions={
+          <>
+            <button className="btn btn-outline" onClick={exportExcel}>
+              <Download size={14} /> Xuất Excel
+            </button>
+            {moDot && hc && (
+              <button className="btn btn-primary" onClick={() => setXacNhanXong(true)}>
+                <CheckCircle2 size={14} /> Hoàn tất đợt
+              </button>
+            )}
+          </>
+        }
+        onRefresh={loadItems}
+      />
+
+      <div className="kpi-grid kpi-grid-4">
+        <KpiCard
+          tone="cyan"
+          icon={<ListChecks size={20} className="text-white" />}
+          watermark={<ListChecks size={52} />}
+          label="Đã kiểm"
+          value={`${fmtSo(items?.length ?? 0)}/${fmtSo(tong)}`}
+          trend={
+            <div className="kpi-trend trend-up">
+              <span className="trend-bold">{tong ? fmtSo(((items?.length ?? 0) / tong) * 100, 1) : 0}%</span>
+              <span className="trend-sub">tài sản đang quản lý</span>
+            </div>
+          }
+          subtext={`${dot.ma_phieu ?? ""} · bắt đầu ${fmtNgay(dot.ngay_bat_dau)}`}
+          onClick={() => setTab("da-kiem")}
+        />
+        <KpiCard
+          tone="blue-light"
+          icon={<CheckCircle2 size={20} className="text-white" />}
+          watermark={<CheckCircle2 size={52} />}
+          label="Đúng vị trí"
+          value={fmtSo(demTT("Dung vi tri"))}
+          trend={<div className="kpi-trend trend-up"><span className="trend-sub">Khớp hệ thống</span></div>}
+        />
+        <KpiCard
+          tone={chenhLech.length ? "red" : "purple"}
+          icon={<AlertTriangle size={20} className="text-white" />}
+          watermark={<AlertTriangle size={52} />}
+          label="Chênh lệch"
+          value={fmtSo(chenhLech.length)}
+          tangLaXau
+          trend={
+            <div className={`kpi-trend ${chenhLech.length ? "trend-danger" : ""}`}>
+              <span className="trend-sub">
+                {demTT("Thieu")} thiếu · {demTT("Thua")} thừa · {demTT("Hong")} hỏng · {demTT("Sai nguoi giu")} sai người giữ
+              </span>
+            </div>
+          }
+          subtext="Sửa thực tế qua phiếu điều chuyển điều chỉnh"
+          onClick={() => setTab("chenh-lech")}
+        />
+        <KpiCard
+          tone="yellow"
+          icon={<ClipboardList size={20} className="text-white" />}
+          watermark={<ClipboardList size={52} />}
+          label="Chưa kiểm"
+          value={fmtSo(chuaKiem.length)}
+          trend={<div className="kpi-trend trend-warning"><span className="trend-sub">{moDot ? "Còn cần đi kiểm" : "Không kiểm trong đợt này"}</span></div>}
+          onClick={() => setTab("chua-kiem")}
+        />
+      </div>
+
+      {msg && <div className="alert alert-success">{msg}</div>}
+      {error && <div className="alert alert-error">{error}</div>}
+
+      {moDot && hc && (
+        <div className="content-card">
+          <div className="card-header">
+            <div className="card-title-wrap">
+              <ClipboardList size={17} className="card-title-icon text-teal" />
+              <h2 className="card-title">Ghi nhận kiểm kê</h2>
+            </div>
+            <button className="btn btn-outline btn-sm" onClick={() => setQuet(true)}>
+              <QrCode size={13} /> Quét tem QR
+            </button>
+          </div>
+          <div className="form-grid">
+            <div className="field-group">
+              <label className="field-label">Tài sản</label>
+              <SearchSelect options={ccdcOptions} value={ccdcId} onChange={setCcdcId} placeholder="Tìm mã / tên tài sản..." />
+              {dangChon && (
+                <div className="field-hint">
+                  Hệ thống: {TRANG_THAI_TS[dangChon.trang_thai_hien_tai]?.label ?? dangChon.trang_thai_hien_tai} · {dangChon.nguoi_dang_giu_ten ?? dangChon.ten_kho ?? "-"}
+                </div>
+              )}
+            </div>
+            <div className="field-group">
+              <label className="field-label">Tình trạng thực tế</label>
+              <select value={tinhTrang} onChange={(e) => setTinhTrang(e.target.value)}>
+                {Object.entries(TINH_TRANG_KIEM_KE).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {tinhTrang === "Sai nguoi giu" && (
+              <div className="field-group">
+                <label className="field-label">Người đang giữ thực tế</label>
+                <SearchSelect options={nhanVienOptions} value={nguoiGiu} onChange={setNguoiGiu} placeholder="Tìm nhân viên..." />
+              </div>
+            )}
+            <div className="field-group">
+              <label className="field-label">Ghi chú</label>
+              <input type="text" value={ghiChu} onChange={(e) => setGhiChu(e.target.value)} />
+            </div>
+          </div>
+          <div className="modal-actions" style={{ marginTop: 4 }}>
+            <button className="btn btn-primary" disabled={saving} onClick={ghiNhan}>
+              {saving ? "Đang lưu..." : "Ghi nhận"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="content-card task-card-full">
+        <div className="card-header">
+          <FilterTabs<TabDot>
+            value={tab}
+            onChange={setTab}
+            tabs={[
+              { key: "da-kiem", label: "Đã kiểm", count: items?.length ?? 0 },
+              { key: "chenh-lech", label: "Chênh lệch", count: chenhLech.length },
+              { key: "chua-kiem", label: "Chưa kiểm", count: chuaKiem.length },
+            ]}
+          />
+          <div className="topbar-search filter-search">
+            <Search size={15} className="search-icon" />
+            <input className="search-input" placeholder="Tìm mã, tên tài sản..." value={tim} onChange={(e) => setTim(e.target.value)} />
+          </div>
+        </div>
+        <div className="task-table-wrapper">
+          {tab !== "chua-kiem" ? (
+            <table className="task-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "14%" }}>Mã tài sản</th>
+                  <th>Tên tài sản</th>
+                  <th style={{ width: "18%" }}>Hệ thống ghi nhận</th>
+                  <th style={{ width: "13%", textAlign: "center" }}>Thực tế</th>
+                  <th style={{ width: "16%" }}>Người giữ thực tế</th>
+                  <th style={{ width: "16%" }}>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items === null && (
+                  <tr>
+                    <td colSpan={6} className="task-empty">
+                      Đang tải…
+                    </td>
+                  </tr>
+                )}
+                {items !== null && loc(tab === "chenh-lech" ? chenhLech : items).length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="task-empty">
+                      {tab === "chenh-lech" ? "Không có chênh lệch." : "Chưa ghi nhận tài sản nào."}
+                    </td>
+                  </tr>
+                )}
+                {loc(tab === "chenh-lech" ? chenhLech : items ?? []).map((it) => {
+                  const tt = TINH_TRANG_KIEM_KE[it.tinh_trang_thuc_te];
+                  return (
+                    <tr key={it.id}>
+                      <td data-label="Mã tài sản">
+                        <span className="code-link" onClick={() => moTaiSan(it.ccdc_id)}>
+                          {it.ccdc_id}
+                        </span>
+                      </td>
+                      <td data-label="Tên tài sản">{it.ten_ccdc}</td>
+                      <td data-label="Hệ thống" className="text-secondary">
+                        {it.he_thong_nguoi_giu_ten ?? "Trong kho"}
+                      </td>
+                      <td data-label="Thực tế" style={{ textAlign: "center" }}>
+                        <StatusBadge label={tt?.label ?? it.tinh_trang_thuc_te} tone={tt?.tone ?? "neutral"} />
+                      </td>
+                      <td data-label="Người giữ thực tế">{it.nguoi_dang_giu_thuc_te_ten ?? "-"}</td>
+                      <td data-label="Ghi chú" className="text-secondary">
+                        {it.ghi_chu ?? "-"}
+                        {it.kiem_ke_luc && <div className="small">{fmtNgayGio(it.kiem_ke_luc)}</div>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <table className="task-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "16%" }}>Mã tài sản</th>
+                  <th>Tên tài sản</th>
+                  <th style={{ width: "16%" }}>Trạng thái hệ thống</th>
+                  <th style={{ width: "24%" }}>Vị trí / người giữ</th>
+                  {moDot && hc && <th style={{ width: "12%", textAlign: "right" }}>Ghi nhận</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {loc(chuaKiem).length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="task-empty">
+                      Đã kiểm hết tài sản.
+                    </td>
+                  </tr>
+                )}
+                {loc(chuaKiem)
+                  .slice(0, 300)
+                  .map((c) => (
+                    <tr key={c.id}>
+                      <td data-label="Mã tài sản">
+                        <span className="code-link" onClick={() => moTaiSan(c.id)}>
+                          {c.id}
+                        </span>
+                      </td>
+                      <td data-label="Tên tài sản">{c.ten_ccdc}</td>
+                      <td data-label="Trạng thái">{TRANG_THAI_TS[c.trang_thai_hien_tai]?.label ?? c.trang_thai_hien_tai}</td>
+                      <td data-label="Vị trí" className="text-secondary">
+                        {c.nguoi_dang_giu_ten ?? c.ten_kho ?? "-"}
+                      </td>
+                      {moDot && hc && (
+                        <td data-label="Ghi nhận" style={{ textAlign: "right" }}>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => {
+                              setCcdcId(c.id);
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                              document.querySelector(".content")?.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                          >
+                            Chọn
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        {tab === "chua-kiem" && loc(chuaKiem).length > 300 && <p className="muted small">Hiện 300/{fmtSo(loc(chuaKiem).length)} - dùng ô tìm kiếm để lọc.</p>}
+      </div>
+
+      {quet && (
+        <QrScannerModal
+          onClose={() => setQuet(false)}
+          onResult={(ma) => {
+            setQuet(false);
+            if (ccdcs.some((c) => c.id === ma)) {
+              setCcdcId(ma);
+              setError(null);
+            } else setError(`Mã "${ma}" không thuộc danh sách tài sản cần kiểm.`);
+          }}
+        />
+      )}
+
+      {xacNhanXong && (
+        <Modal title="Hoàn tất đợt kiểm kê" onClose={() => setXacNhanXong(false)}>
+          <p>
+            Hoàn tất <b>{dot.ten_dot}</b>? Sau khi hoàn tất không ghi nhận thêm được. Hiện đã kiểm {fmtSo(items?.length ?? 0)}/{fmtSo(tong)} tài sản,{" "}
+            {fmtSo(chenhLech.length)} chênh lệch, {fmtSo(chuaKiem.length)} chưa kiểm.
+          </p>
+          <div className="modal-actions">
+            <button className="btn" onClick={() => setXacNhanXong(false)}>
+              Huỷ
+            </button>
+            <button className="btn btn-primary" onClick={hoanTat}>
+              Hoàn tất đợt
+            </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}

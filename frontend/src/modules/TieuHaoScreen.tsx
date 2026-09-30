@@ -1,0 +1,23 @@
+import { useState } from "react";
+import { FilterTabs } from "../components/FilterTabs";
+import { useNav } from "../lib/navigation";
+import { ChuyenKhoScreen } from "./ChuyenKhoScreen";
+import { DanhMucTieuHaoScreen } from "./DanhMucTieuHaoScreen";
+import { TonTieuHaoScreen } from "./TonTieuHaoScreen";
+
+type SubTab = "phieu" | "ton-kho" | "danh-muc";
+const TABS: { key: SubTab; label: string }[] = [
+  { key: "phieu", label: "Phiếu cấp phát & chuyển kho" },
+  { key: "ton-kho", label: "Tồn kho" },
+  { key: "danh-muc", label: "Danh mục vật tư" },
+];
+
+// Nhom "Cap phat" (menu con): tab lay tu tham so dieu huong (?tab=) de menu con / link "Xem ton" mo dung tab.
+export function TieuHaoScreen() {
+  const { params } = useNav();
+  const [subTab, setSubTab] = useState<SubTab>(TABS.some((t) => t.key === params.tab) ? (params.tab as SubTab) : "phieu");
+  const tabs = <FilterTabs<SubTab> value={subTab} onChange={setSubTab} tabs={TABS} />;
+  if (subTab === "ton-kho") return <TonTieuHaoScreen tabs={tabs} />;
+  if (subTab === "danh-muc") return <DanhMucTieuHaoScreen tabs={tabs} />;
+  return <ChuyenKhoScreen tabs={tabs} />;
+}

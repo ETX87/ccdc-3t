@@ -1,0 +1,565 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronDown, Download, Network, Plus, RefreshCw, Search, UserCheck, Users, Package } from "lucide-react";
+import { api } from "../api/client";
+import { Modal } from "../components/Modal";
+import { useAuth } from "../auth/AuthContext";
+import { SearchSelect } from "../components/SearchSelect";
+import { PageHeader } from "../components/PageHeader";
+import { KpiCard } from "../components/KpiCard";
+import { FilterTabs } from "../components/FilterTabs";
+import { exportRowsToExcel } from "../lib/exportExcel";
+import { fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
+import { useNav } from "../lib/navigation";
+import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
+import { thongBaoLoi } from "../lib/nhan";
+
+interface NhanVienRow {
+  ma_nv: string;
+  ten_nv: string;
+  bo_phan: string | null;
+  chuc_vu: string | null;
+  sdt: string | null;
+  email_dang_nhap: string | null;
+  dang_lam_viec: number;
+  quan_ly_id: string | null;
+  quan_ly_ten: string | null;
+  so_cap_duoi: number;
+  so_ts_dang_giu: number;
+}
+interface EtxStatus {
+  last_run_at: string | null;
+  last_status: string | null;
+  changed_count: number;
+  tai_khoan_count: number;
+  last_error: string | null;
+}
+type Loc = "tat-ca" | "quan-ly" | "chua-co-ql" | "giu-ts";
+const TRANG = 100;
+
+function emptyForm() {
+  return { ma_nv: "", ten_nv: "", bo_phan: "", chuc_vu: "", sdt: "", email_dang_nhap: "", quan_ly_id: "" };
+}
+const LOI_FORM: Record<string, string> = {
+  MA_NV_EXISTS: "Mã nhân viên này đã tồn tại.",
+  QUAN_LY_LA_CHINH_MINH: "Không thể tự làm quản lý của chính mình.",
+  QUAN_LY_NOT_FOUND: "Quản lý đã chọn không còn làm việc.",
+  USER_CHUA_DANG_NHAP: "Email này chưa từng đăng nhập hệ thống - người đó cần đăng nhập Google 1 lần trước.",
+};
+
+// Nhan vien & so do quan ly: danh sach NV (dong bo ETX + nhap tay), gan quan ly truc tiep (tu tao kho QL),
+// lien ket tai khoan dang nhap, xem tai san dang giu. Sua / them / nghi viec: Admin + HCNS.
+export function NhanVienScreen() {
+  const auth = useAuth();
+  const { params, navigate } = useNav();
+  const canEdit = auth.status === "authenticated" && (auth.user.vai_tro === "Admin" || auth.user.vai_tro === "HCNS");
+
+  const [rows, setRows] = useState<NhanVienRow[] | null>(null);
+  const [trangThai, setTrangThai] = useState<"dang-lam" | "nghi">("dang-lam");
+  const [tim, setTim] = useState(params.q ?? "");
+  const [boPhan, setBoPhan] = useState("");
+  const [loc, setLoc] = useState<Loc>("tat-ca");
+  const [capDuoiCua, setCapDuoiCua] = useState<NhanVienRow | null>(null);
+  const [soDong, setSoDong] = useState(TRANG);
+  const [dangTai, setDangTai] = useState(false);
+  const [capNhatLuc, setCapNhatLuc] = useState<string | null>(null);
+  const [loi, setLoi] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const [showForm, setShowForm] = useState(false);
+  const [editingMaNv, setEditingMaNv] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm());
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [nghi, setNghi] = useState<NhanVienRow | null>(null);
+  const [nghiLoi, setNghiLoi] = useState<string | null>(null);
+  const [etx, setEtx] = useState<EtxStatus | null>(null);
+  const [dongBo, setDongBo] = useState(false);
+
+  const load = useCallback(async () => {
+    setDangTai(true);
+    setLoi(null);
+    try {
+      const res = await api.get<{ rows: NhanVienRow[] }>(`/nhan-vien?trang_thai=${trangThai === "nghi" ? "nghi" : ""}`);
+      setRows(res.rows);
+      setCapNhatLuc(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
+    } catch (e) {
+      setLoi(thongBaoLoi(e, "Không tải được danh sách nhân viên."));
+      setRows([]);
+    } finally {
+      setDangTai(false);
+    }
+  }, [trangThai]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+  useKhiThayDoi(load);
+  useEffect(() => {
+    if (canEdit) api.get<EtxStatus>("/etx-sync/status").then(setEtx).catch(() => undefined);
+  }, [canEdit]);
+  useEffect(() => setSoDong(TRANG), [tim, boPhan, loc, capDuoiCua, trangThai]);
+
+  async function chayDongBo() {
+    setDongBo(true);
+    setMsg(null);
+    try {
+      const r = await api.post<EtxStatus>("/etx-sync/run");
+      setEtx(r);
+      if (r.last_status === "ok") setMsg(`Đồng bộ ETX xong: ${fmtSo(r.changed_count)} nhân viên thay đổi, ${fmtSo(r.tai_khoan_count)} tài khoản được cấp/duyệt/liên kết.`);
+      await load();
+    } catch (e) {
+      setLoi(thongBaoLoi(e, "Đồng bộ ETX thất bại."));
+    } finally {
+      setDongBo(false);
+    }
+  }
+
+  const dsBoPhan = useMemo(() => [...new Set((rows ?? []).map((r) => r.bo_phan).filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b, "vi")), [rows]);
+
+  const dsLoc = useMemo(() => {
+    const t = tim.trim().toLowerCase();
+    return (rows ?? []).filter((r) => {
+      if (boPhan && r.bo_phan !== boPhan) return false;
+      if (capDuoiCua && r.quan_ly_id !== capDuoiCua.ma_nv) return false;
+      if (loc === "quan-ly" && !r.so_cap_duoi) return false;
+      if (loc === "chua-co-ql" && r.quan_ly_id) return false;
+      if (loc === "giu-ts" && !r.so_ts_dang_giu) return false;
+      return !t || `${r.ma_nv} ${r.ten_nv} ${r.bo_phan ?? ""} ${r.chuc_vu ?? ""} ${r.email_dang_nhap ?? ""}`.toLowerCase().includes(t);
+    });
+  }, [rows, tim, boPhan, loc, capDuoiCua]);
+
+  const r0 = rows ?? [];
+  const soQl = r0.filter((r) => r.so_cap_duoi > 0).length;
+  const giuTs = r0.filter((r) => r.so_ts_dang_giu > 0);
+  const coTk = r0.filter((r) => r.email_dang_nhap).length;
+
+  function openAdd() {
+    setEditingMaNv(null);
+    setForm(emptyForm());
+    setError(null);
+    setShowForm(true);
+  }
+  function openEdit(row: NhanVienRow) {
+    setEditingMaNv(row.ma_nv);
+    setForm({
+      ma_nv: row.ma_nv,
+      ten_nv: row.ten_nv,
+      bo_phan: row.bo_phan ?? "",
+      chuc_vu: row.chuc_vu ?? "",
+      sdt: row.sdt ?? "",
+      email_dang_nhap: row.email_dang_nhap ?? "",
+      quan_ly_id: row.quan_ly_id ?? "",
+    });
+    setError(null);
+    setShowForm(true);
+  }
+
+  async function submitForm() {
+    if (!form.ten_nv.trim() || (!editingMaNv && !form.ma_nv.trim())) {
+      setError("Vui lòng nhập đủ Mã NV và Họ tên.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    const body = {
+      ma_nv: form.ma_nv.trim(),
+      ten_nv: form.ten_nv.trim(),
+      bo_phan: form.bo_phan.trim() || null,
+      chuc_vu: form.chuc_vu.trim() || null,
+      sdt: form.sdt.trim() || null,
+      email_dang_nhap: form.email_dang_nhap.trim() || null,
+      quan_ly_id: form.quan_ly_id || null,
+    };
+    try {
+      if (editingMaNv) await api.put(`/nhan-vien/${encodeURIComponent(editingMaNv)}`, body);
+      else await api.post("/nhan-vien", body);
+      setShowForm(false);
+      setMsg(editingMaNv ? `Đã cập nhật ${body.ten_nv}.` : `Đã thêm nhân viên ${body.ten_nv}.`);
+      baoThayDoi();
+      await load();
+    } catch (e) {
+      const code = (e as { code?: string })?.code;
+      setError((code && LOI_FORM[code]) || thongBaoLoi(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function xacNhanNghi() {
+    if (!nghi) return;
+    setNghiLoi(null);
+    try {
+      await api.delete(`/nhan-vien/${encodeURIComponent(nghi.ma_nv)}`);
+      setMsg(`Đã đánh dấu ${nghi.ten_nv} nghỉ việc.`);
+      setNghi(null);
+      baoThayDoi();
+      await load();
+    } catch (e) {
+      const code = (e as { code?: string })?.code;
+      setNghiLoi(code === "DANG_GIU_CCDC" ? "Nhân viên đang giữ tài sản - phải lập phiếu thu hồi trước." : thongBaoLoi(e));
+    }
+  }
+
+  async function xuatExcel() {
+    await exportRowsToExcel(
+      dsLoc.map((r) => ({
+        ma_nv: r.ma_nv,
+        ten_nv: r.ten_nv,
+        bo_phan: r.bo_phan ?? "",
+        chuc_vu: r.chuc_vu ?? "",
+        sdt: r.sdt ?? "",
+        email: r.email_dang_nhap ?? "",
+        quan_ly: r.quan_ly_ten ?? "",
+        cap_duoi: r.so_cap_duoi,
+        ts: r.so_ts_dang_giu,
+      })),
+      `Nhan_vien_${homNayVN()}.xlsx`,
+      "Nhan vien",
+      { ma_nv: "Mã NV", ten_nv: "Họ tên", bo_phan: "Bộ phận", chuc_vu: "Chức vụ", sdt: "SĐT", email: "Email đăng nhập", quan_ly: "Quản lý trực tiếp", cap_duoi: "Số cấp dưới", ts: "TS đang giữ" },
+    );
+  }
+
+  const etxLoi = etx?.last_status === "error";
+
+  return (
+    <div className="dashboard-container">
+      <PageHeader
+        title="Nhân viên & sơ đồ quản lý"
+        filters={
+          <label className="header-dropdown select-dropdown">
+            <select value={trangThai} onChange={(e) => setTrangThai(e.target.value as "dang-lam" | "nghi")} aria-label="Trạng thái">
+              <option value="dang-lam">Đang làm việc</option>
+              <option value="nghi">Đã nghỉ việc</option>
+            </select>
+            <ChevronDown size={13} className="dropdown-arrow" />
+          </label>
+        }
+        actions={
+          <>
+            <button className="btn btn-outline" onClick={xuatExcel} disabled={!dsLoc.length}>
+              <Download size={14} /> Xuất Excel
+            </button>
+            {canEdit && (
+              <>
+                <button className="btn btn-outline" disabled={dongBo} onClick={chayDongBo}>
+                  <RefreshCw size={14} className={dongBo ? "spin" : undefined} /> {dongBo ? "Đang đồng bộ..." : "Đồng bộ ETX"}
+                </button>
+                <button className="btn btn-primary" onClick={openAdd}>
+                  <Plus size={15} /> Thêm nhân viên
+                </button>
+              </>
+            )}
+          </>
+        }
+        capNhatLuc={capNhatLuc}
+        onRefresh={load}
+        dangTai={dangTai}
+      />
+      {loi && <div className="alert alert-error">{loi}</div>}
+      {msg && <div className="alert alert-success">{msg}</div>}
+
+      <div className="kpi-grid kpi-grid-4">
+        <KpiCard
+          tone="cyan"
+          icon={<Users size={20} className="text-white" />}
+          watermark={<Users size={52} />}
+          label={trangThai === "nghi" ? "Nhân viên đã nghỉ" : "Nhân viên đang làm việc"}
+          value={fmtSo(r0.length)}
+          trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(dsBoPhan.length)} bộ phận</span></div>}
+          subtext={`${fmtSo(coTk)} người đã liên kết tài khoản đăng nhập`}
+          onClick={() => setLoc("tat-ca")}
+        />
+        <KpiCard
+          tone="blue-light"
+          icon={<Network size={20} className="text-white" />}
+          watermark={<Network size={52} />}
+          label="Quản lý có cấp dưới"
+          value={fmtSo(soQl)}
+          trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(r0.filter((r) => !r.quan_ly_id).length)} NV chưa gán quản lý</span></div>}
+          onClick={() => setLoc("quan-ly")}
+        />
+        <KpiCard
+          tone="purple"
+          icon={<Package size={20} className="text-white" />}
+          watermark={<Package size={52} />}
+          label="Đang giữ tài sản"
+          value={fmtSo(giuTs.length)}
+          trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(giuTs.reduce((s, r) => s + r.so_ts_dang_giu, 0))} tài sản</span></div>}
+          onClick={() => setLoc("giu-ts")}
+        />
+        {canEdit ? (
+          <KpiCard
+            tone={etxLoi ? "red" : "blue"}
+            icon={<RefreshCw size={20} className="text-white" />}
+            watermark={<RefreshCw size={52} />}
+            label="Đồng bộ nhân sự ETX"
+            value={etx?.last_run_at ? (etxLoi ? "Lỗi" : fmtNgayGio(etx.last_run_at).slice(0, 10)) : "Chưa chạy"}
+            trend={
+              <div className={`kpi-trend ${etxLoi ? "trend-danger" : ""}`}>
+                <span className="trend-sub" title={etx?.last_error ?? ""}>
+                  {etx?.last_run_at
+                    ? etxLoi
+                      ? (etx.last_error ?? "").slice(0, 60)
+                      : `${fmtNgayGio(etx.last_run_at).slice(11)} · ${fmtSo(etx.changed_count)} NV · ${fmtSo(etx.tai_khoan_count)} TK`
+                    : "Tự động 0h hằng ngày"}
+                </span>
+              </div>
+            }
+          />
+        ) : (
+          <KpiCard
+            tone="blue"
+            icon={<UserCheck size={20} className="text-white" />}
+            watermark={<UserCheck size={52} />}
+            label="Có tài khoản hệ thống"
+            value={fmtSo(coTk)}
+          />
+        )}
+      </div>
+
+      <div className="content-card task-card-full">
+        <div className="card-header">
+          <FilterTabs<Loc>
+            value={loc}
+            onChange={setLoc}
+            tabs={[
+              { key: "tat-ca", label: "Tất cả", count: r0.length },
+              { key: "quan-ly", label: "Quản lý", count: soQl },
+              { key: "chua-co-ql", label: "Chưa có quản lý", count: r0.filter((r) => !r.quan_ly_id).length },
+              { key: "giu-ts", label: "Đang giữ tài sản", count: giuTs.length },
+            ]}
+          />
+          <div className="icon-text">
+            {capDuoiCua && (
+              <span className="chip">
+                Cấp dưới của {capDuoiCua.ten_nv}
+                <button type="button" className="chip-remove" aria-label="Bỏ lọc" onClick={() => setCapDuoiCua(null)}>
+                  ×
+                </button>
+              </span>
+            )}
+            <label className="header-dropdown select-dropdown">
+              <select value={boPhan} onChange={(e) => setBoPhan(e.target.value)} aria-label="Bộ phận">
+                <option value="">Tất cả bộ phận</option>
+                {dsBoPhan.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={13} className="dropdown-arrow" />
+            </label>
+            <div className="topbar-search filter-search">
+              <Search size={15} className="search-icon" />
+              <input className="search-input" placeholder="Tìm mã, tên, bộ phận, email..." value={tim} onChange={(e) => setTim(e.target.value)} />
+            </div>
+          </div>
+        </div>
+        <div className="task-table-wrapper">
+          <table className="task-table">
+            <thead>
+              <tr>
+                <th style={{ width: "11%" }}>Mã NV</th>
+                <th>Họ tên</th>
+                <th style={{ width: "17%" }}>Bộ phận</th>
+                <th style={{ width: "9%" }}>Chức vụ</th>
+                <th style={{ width: "16%" }}>Quản lý trực tiếp</th>
+                <th style={{ width: "8%", textAlign: "right" }}>Cấp dưới</th>
+                <th style={{ width: "8%", textAlign: "right" }}>TS giữ</th>
+                {canEdit && trangThai === "dang-lam" && <th style={{ width: "13%", textAlign: "right" }}>Thao tác</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {rows === null && (
+                <tr>
+                  <td colSpan={8} className="task-empty">
+                    Đang tải…
+                  </td>
+                </tr>
+              )}
+              {rows !== null && dsLoc.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="task-empty">
+                    Không có nhân viên phù hợp.
+                  </td>
+                </tr>
+              )}
+              {dsLoc.slice(0, soDong).map((r) => (
+                <tr key={r.ma_nv}>
+                  <td data-label="Mã NV" className="code-text">
+                    {r.ma_nv}
+                  </td>
+                  <td data-label="Họ tên">
+                    <div className="cell-stack">
+                      <span className="strong">{r.ten_nv}</span>
+                      {r.email_dang_nhap && <span className="small text-secondary">{r.email_dang_nhap}</span>}
+                    </div>
+                  </td>
+                  <td data-label="Bộ phận" className="text-secondary">
+                    {r.bo_phan ?? "-"}
+                  </td>
+                  <td data-label="Chức vụ">{r.chuc_vu ?? "-"}</td>
+                  <td data-label="Quản lý">
+                    {r.quan_ly_id ? (
+                      <span
+                        className="code-link"
+                        title="Xem nhóm của quản lý này"
+                        onClick={() => {
+                          const ql = r0.find((x) => x.ma_nv === r.quan_ly_id);
+                          setCapDuoiCua(ql ?? { ...r, ma_nv: r.quan_ly_id!, ten_nv: r.quan_ly_ten ?? r.quan_ly_id! });
+                          setLoc("tat-ca");
+                        }}
+                      >
+                        {r.quan_ly_ten ?? r.quan_ly_id}
+                      </span>
+                    ) : (
+                      <span className="muted">-</span>
+                    )}
+                  </td>
+                  <td data-label="Cấp dưới" style={{ textAlign: "right" }}>
+                    {r.so_cap_duoi ? (
+                      <span
+                        className="code-link"
+                        onClick={() => {
+                          setCapDuoiCua(r);
+                          setLoc("tat-ca");
+                        }}
+                      >
+                        {fmtSo(r.so_cap_duoi)}
+                      </span>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td data-label="TS giữ" style={{ textAlign: "right" }}>
+                    {r.so_ts_dang_giu ? (
+                      <span className="code-link" onClick={() => navigate("tai-san", { nguoi_dang_giu: r.ma_nv, ten: r.ten_nv })}>
+                        {fmtSo(r.so_ts_dang_giu)}
+                      </span>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  {canEdit && trangThai === "dang-lam" && (
+                    <td data-label="Thao tác" style={{ textAlign: "right" }}>
+                      <div className="row-actions">
+                        <button className="btn btn-outline btn-sm" onClick={() => openEdit(r)}>
+                          Sửa
+                        </button>
+                        <button
+                          className="btn btn-outline btn-sm danger-outline"
+                          onClick={() => {
+                            setNghiLoi(null);
+                            setNghi(r);
+                          }}
+                        >
+                          Nghỉ việc
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="table-footer-between">
+          <span className="muted small">
+            Hiển thị {fmtSo(Math.min(soDong, dsLoc.length))}/{fmtSo(dsLoc.length)} nhân viên
+            {trangThai === "dang-lam" && " · Gán quản lý trực tiếp sẽ tự tạo kho quản lý cho người đó"}
+          </span>
+          {dsLoc.length > soDong && (
+            <button className="btn btn-outline btn-sm" onClick={() => setSoDong(soDong + TRANG)}>
+              Xem thêm
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showForm && (
+        <Modal title={editingMaNv ? "Sửa nhân viên" : "Thêm nhân viên"} onClose={() => setShowForm(false)}>
+          <div className="form-grid">
+            {!editingMaNv && (
+              <div className="field-group">
+                <label className="field-label">Mã nhân viên *</label>
+                <input type="text" value={form.ma_nv} onChange={(e) => setForm({ ...form, ma_nv: e.target.value })} autoFocus />
+              </div>
+            )}
+            <div className="field-group">
+              <label className="field-label">Họ tên *</label>
+              <input type="text" value={form.ten_nv} onChange={(e) => setForm({ ...form, ten_nv: e.target.value })} />
+            </div>
+            <div className="field-group">
+              <label className="field-label">Bộ phận</label>
+              <input type="text" list="ds-bo-phan" value={form.bo_phan} onChange={(e) => setForm({ ...form, bo_phan: e.target.value })} />
+              <datalist id="ds-bo-phan">
+                {dsBoPhan.map((b) => (
+                  <option key={b} value={b} />
+                ))}
+              </datalist>
+            </div>
+            <div className="field-group">
+              <label className="field-label">Chức vụ</label>
+              <input type="text" value={form.chuc_vu} onChange={(e) => setForm({ ...form, chuc_vu: e.target.value })} />
+            </div>
+            <div className="field-group">
+              <label className="field-label">Số điện thoại</label>
+              <input type="tel" value={form.sdt} onChange={(e) => setForm({ ...form, sdt: e.target.value })} />
+            </div>
+            <div className="field-group">
+              <label className="field-label">Email đăng nhập</label>
+              <input type="email" value={form.email_dang_nhap} onChange={(e) => setForm({ ...form, email_dang_nhap: e.target.value })} placeholder="Nếu có tài khoản hệ thống" />
+            </div>
+          </div>
+          <div className="field-group">
+            <label className="field-label">Quản lý trực tiếp (gán sẽ tự tạo kho quản lý cho người đó)</label>
+            <SearchSelect
+              options={[
+                { value: "", label: "-- Không có --" },
+                ...(trangThai === "dang-lam" ? r0 : []).filter((n) => n.ma_nv !== form.ma_nv).map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` })),
+              ]}
+              value={form.quan_ly_id}
+              onChange={(v) => setForm({ ...form, quan_ly_id: v })}
+              placeholder="Tìm quản lý..."
+            />
+          </div>
+          {error && <div className="alert alert-error">{error}</div>}
+          <div className="modal-actions">
+            <button className="btn" onClick={() => setShowForm(false)}>
+              Huỷ
+            </button>
+            <button className="btn btn-primary" disabled={saving} onClick={submitForm}>
+              {saving ? "Đang lưu..." : "Lưu"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {nghi && (
+        <Modal title="Đánh dấu nghỉ việc" onClose={() => setNghi(null)}>
+          <p>
+            Đánh dấu <b>{nghi.ten_nv}</b> ({nghi.ma_nv}) nghỉ việc? Nhân viên sẽ không còn xuất hiện trong danh sách chọn người nhận.
+          </p>
+          {nghi.so_ts_dang_giu > 0 && (
+            <div className="alert alert-error">
+              Đang giữ {fmtSo(nghi.so_ts_dang_giu)} tài sản - cần lập phiếu thu hồi trước.{" "}
+              <button type="button" className="link-btn" onClick={() => navigate("tai-san", { nguoi_dang_giu: nghi.ma_nv, ten: nghi.ten_nv })}>
+                Xem tài sản
+              </button>
+            </div>
+          )}
+          {nghi.so_cap_duoi > 0 && <div className="alert alert-warning">Đang quản lý {fmtSo(nghi.so_cap_duoi)} nhân viên - nên gán quản lý mới cho nhóm này.</div>}
+          {nghiLoi && <div className="alert alert-error">{nghiLoi}</div>}
+          <div className="modal-actions">
+            <button className="btn" onClick={() => setNghi(null)}>
+              Huỷ
+            </button>
+            <button className="btn btn-primary" disabled={nghi.so_ts_dang_giu > 0} onClick={xacNhanNghi}>
+              Xác nhận nghỉ việc
+            </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}

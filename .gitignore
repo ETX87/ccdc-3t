@@ -1,0 +1,18 @@
+node_modules/
+dist/
+.wrangler/
+*.log
+.env
+.env.*
+.dev.vars
+secrets.md
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
+
+# Du lieu that / thong tin nhay cam - KHONG commit (chep tay sang may deploy neu can)
+cookies.txt
+*.xlsx
+scripts/import_data.sql
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

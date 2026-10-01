@@ -166,8 +166,8 @@ ccdc.post("/", requireRole("Admin", "HCNS"), async (c) => {
   await db.batch([
     db.prepare(
     `INSERT INTO ccdc (id, ten_ccdc, nhom_id, don_vi_tinh, so_seri, ngay_mua, nguyen_gia,
-                        nha_cung_cap, han_bao_hanh, tinh_trang, anh_url, ghi_chu, nguoi_tao, trang_thai_hien_tai)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Cho duyet nhap')`,
+                        nha_cung_cap, han_bao_hanh, tinh_trang, anh_url, ghi_chu, nguoi_tao, trang_thai_hien_tai, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Cho duyet nhap', datetime('now', '+7 hours'), datetime('now', '+7 hours'))`,
   )
     .bind(
       body.id.trim(),

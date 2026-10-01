@@ -84,8 +84,8 @@ kho.post("/", requireRole("Admin", "HCNS"), async (c) => {
     const dup = await c.env.DB.prepare("SELECT id FROM kho WHERE nhan_vien_id = ?").bind(body.nhan_vien_id).first();
     if (dup) return c.json({ error: "QL_DA_CO_KHO" }, 409);
   }
-  const row = await c.env.DB.prepare(`INSERT INTO kho (ten_kho, loai, nhan_vien_id, ghi_chu) VALUES (?, ?, ?, ?) RETURNING id`)
-    .bind(body.ten_kho.trim(), body.loai, body.loai === "Quan ly" ? body.nhan_vien_id : null, body.ghi_chu ?? null)
+  const row = await c.env.DB.prepare(`INSERT INTO kho (ten_kho, loai, nhan_vien_id, ghi_chu, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`)
+    .bind(body.ten_kho.trim(), body.loai, body.loai === "Quan ly" ? body.nhan_vien_id : null, body.ghi_chu ?? null, nowVN(), nowVN())
     .first<{ id: number }>();
   return c.json({ ok: true, id: row?.id });
 });
@@ -114,7 +114,7 @@ kho.post("/:id/thu-kho", requireRole("Admin", "HCNS"), async (c) => {
   if (!u) return c.json({ error: "USER_CHUA_DANG_NHAP" }, 400);
   const k = await c.env.DB.prepare("SELECT id FROM kho WHERE id = ?").bind(id).first();
   if (!k) return c.json({ error: "NOT_FOUND" }, 404);
-  await c.env.DB.prepare("INSERT INTO kho_thu_kho (kho_id, email) VALUES (?, ?) ON CONFLICT DO NOTHING").bind(id, email).run();
+  await c.env.DB.prepare("INSERT INTO kho_thu_kho (kho_id, email, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING").bind(id, email, nowVN()).run();
   return c.json({ ok: true });
 });
 

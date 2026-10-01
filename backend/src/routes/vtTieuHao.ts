@@ -43,8 +43,8 @@ vtTieuHao.post("/", requireRole("Admin", "HCNS"), async (c) => {
   const existing = await c.env.DB.prepare("SELECT id FROM vt_tieu_hao WHERE id = ?").bind(body.id.trim()).first();
   if (existing) return c.json({ error: "ID_EXISTS" }, 409);
 
-  await c.env.DB.prepare(`INSERT INTO vt_tieu_hao (id, ten_vt, nhom_id, don_vi_tinh, don_gia_tham_khao, nguoi_tao) VALUES (?, ?, ?, ?, ?, ?)`)
-    .bind(body.id.trim(), body.ten_vt.trim(), body.nhom_id ?? null, body.don_vi_tinh ?? null, body.don_gia_tham_khao ?? null, user.email)
+  await c.env.DB.prepare(`INSERT INTO vt_tieu_hao (id, ten_vt, nhom_id, don_vi_tinh, don_gia_tham_khao, nguoi_tao, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .bind(body.id.trim(), body.ten_vt.trim(), body.nhom_id ?? null, body.don_vi_tinh ?? null, body.don_gia_tham_khao ?? null, user.email, nowVN(), nowVN())
     .run();
 
   return c.json({ ok: true, id: body.id.trim() });

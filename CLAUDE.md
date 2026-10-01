@@ -128,9 +128,11 @@ state đang dùng.
   fallback chặn request `/api/*` thật (navigate) trước khi tới Worker.
 - `wrangler dev` (`npm run dev:worker`) cần `frontend/dist` tồn tại trước (chạy `npm run build`
   hoặc `npm run build --workspace frontend` ít nhất 1 lần) — Worker sẽ báo lỗi nếu thư mục chưa có.
-- Timestamp hệ thống: cột `TEXT NOT NULL DEFAULT (datetime('now'))` cho insert mặc định, nhưng khi
-  code tự cập nhật `updated_at`/timestamp khác thì dùng `nowVN()` (`backend/src/lib/vnTime.ts`, giờ
-  VN = UTC+7, format `YYYY-MM-DD HH:MM:SS`) — đúng convention 2 app anh em.
+- **Mọi thời gian lưu/xử lý theo giờ VN (UTC+7)** (user chốt 2026-10-01): MỌI INSERT/UPDATE phải tự
+  ghi `created_at`/`updated_at`/timestamp bằng `nowVN()` (`backend/src/lib/vnTime.ts`, format
+  `YYYY-MM-DD HH:MM:SS`) hoặc `datetime('now', '+7 hours')` trong SQL — KHÔNG để rơi vào
+  `DEFAULT (datetime('now'))` của cột (= UTC, lệch 7 giờ). Dữ liệu cũ đã dời +7h ở migration 0012
+  (users, kho, ccdc, vt_tieu_hao, kho_thu_kho).
 - `vai_tro` CHECK-constrained trên `users` (xem mục đa kho ở trên), NULL = Nhân viên (mặc định sau khi được duyệt).
 - Mọi thao tác ghi nhiều bảng cùng lúc (tạo phiếu + line item + cập nhật `ccdc`...) PHẢI dùng
   `db.batch()` của D1 — không tách nhiều `run()` rời rạc (D1 không tự rollback nếu 1 lệnh giữa

@@ -1,4 +1,5 @@
 import type { Context, Next } from "hono";
+import { nowVN } from "../lib/vnTime";
 import type { AppUser, Env, VaiTro } from "../types";
 
 interface UserRow {
@@ -20,11 +21,11 @@ export async function loadUser(c: Context<{ Bindings: Env }>, next: Next) {
   if (!row) {
     const isBootstrapAdmin = email === c.env.BOOTSTRAP_ADMIN_EMAIL;
     row = await c.env.DB.prepare(
-      `INSERT INTO users (email, vai_tro, trang_thai_duyet)
-       VALUES (?, ?, ?)
+      `INSERT INTO users (email, vai_tro, trang_thai_duyet, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)
        RETURNING email, ten, vai_tro, trang_thai_duyet, bi_khoa, anh_dai_dien`,
     )
-      .bind(email, isBootstrapAdmin ? "Admin" : null, isBootstrapAdmin ? "Da duyet" : "Cho duyet")
+      .bind(email, isBootstrapAdmin ? "Admin" : null, isBootstrapAdmin ? "Da duyet" : "Cho duyet", nowVN(), nowVN())
       .first<UserRow>();
   }
 

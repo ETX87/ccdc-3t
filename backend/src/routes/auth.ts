@@ -74,8 +74,8 @@ auth.get("/callback", async (c) => {
   const isBootstrapAdmin = userInfo.email === c.env.BOOTSTRAP_ADMIN_EMAIL;
 
   await c.env.DB.prepare(
-    `INSERT INTO users (email, ten, vai_tro, trang_thai_duyet, anh_dai_dien)
-     VALUES (?, ?, ?, ?, ?)
+    `INSERT INTO users (email, ten, vai_tro, trang_thai_duyet, anh_dai_dien, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(email) DO UPDATE SET
        ten = excluded.ten,
        anh_dai_dien = excluded.anh_dai_dien,
@@ -87,6 +87,8 @@ auth.get("/callback", async (c) => {
       isBootstrapAdmin ? "Admin" : null,
       isBootstrapAdmin ? "Da duyet" : "Cho duyet",
       userInfo.picture ?? null,
+      nowVN(),
+      nowVN(),
       nowVN(),
     )
     .run();
@@ -122,11 +124,11 @@ auth.get("/dev-login", async (c) => {
 
   const email = c.env.BOOTSTRAP_ADMIN_EMAIL;
   await c.env.DB.prepare(
-    `INSERT INTO users (email, ten, vai_tro, trang_thai_duyet)
-     VALUES (?, ?, 'Admin', 'Da duyet')
+    `INSERT INTO users (email, ten, vai_tro, trang_thai_duyet, created_at, updated_at)
+     VALUES (?, ?, 'Admin', 'Da duyet', ?, ?)
      ON CONFLICT(email) DO UPDATE SET updated_at = ?`,
   )
-    .bind(email, "Dev Admin (local bypass)", nowVN())
+    .bind(email, "Dev Admin (local bypass)", nowVN(), nowVN(), nowVN())
     .run();
 
   const token = await signSession({ email }, c.env.SESSION_SECRET, SESSION_TTL_SECONDS);

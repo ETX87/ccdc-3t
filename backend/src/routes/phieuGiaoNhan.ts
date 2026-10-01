@@ -205,10 +205,10 @@ phieuGiaoNhan.post("/", async (c) => {
   const statements = [
     db
       .prepare(
-        `INSERT INTO phieu_giao_nhan (id, loai_phieu, nhan_vien_id, nhan_vien_nhan_moi_id, tu_kho_id, den_kho_id, nguoi_lap, ngay_lap, ghi_chu)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO phieu_giao_nhan (id, loai_phieu, nhan_vien_id, nhan_vien_nhan_moi_id, tu_kho_id, den_kho_id, nguoi_lap, ngay_lap, ghi_chu, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .bind(phieuId, loai, nvId, nvMoiId, tuKhoId, denKhoId, user.email, ngay, body.ghi_chu ?? null),
+      .bind(phieuId, loai, nvId, nvMoiId, tuKhoId, denKhoId, user.email, ngay, body.ghi_chu ?? null, nowVN()),
     ...sinhMaPhieu(db, "phieu_giao_nhan", phieuId, "GN", ngay),
   ];
 

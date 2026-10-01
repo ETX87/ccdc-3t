@@ -58,8 +58,8 @@ export async function tuDongTaiKhoanTuEtx(db: D1Database): Promise<EtxTuDongTaiK
     if (!tt) {
       stmts.push(
         db
-          .prepare("INSERT INTO users (email, ten, vai_tro, trang_thai_duyet) VALUES (?, ?, NULL, 'Da duyet') ON CONFLICT(email) DO NOTHING")
-          .bind(email, r.ten_nv),
+          .prepare("INSERT INTO users (email, ten, vai_tro, trang_thai_duyet, created_at, updated_at) VALUES (?, ?, NULL, 'Da duyet', ?, ?) ON CONFLICT(email) DO NOTHING")
+          .bind(email, r.ten_nv, now, now),
       );
       tkTuTao++;
     } else if (tt === "Cho duyet") {

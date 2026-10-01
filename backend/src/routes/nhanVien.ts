@@ -158,11 +158,11 @@ interface Body {
 function taoKhoQl(db: D1Database, qlMaNv: string) {
   return db
     .prepare(
-      `INSERT INTO kho (ten_kho, loai, nhan_vien_id)
-       SELECT 'Kho QL - ' || ten_nv, 'Quan ly', ma_nv FROM nhan_vien WHERE ma_nv = ?
+      `INSERT INTO kho (ten_kho, loai, nhan_vien_id, created_at, updated_at)
+       SELECT 'Kho QL - ' || ten_nv, 'Quan ly', ma_nv, ?, ? FROM nhan_vien WHERE ma_nv = ?
        ON CONFLICT(nhan_vien_id) DO NOTHING`,
     )
-    .bind(qlMaNv);
+    .bind(nowVN(), nowVN(), qlMaNv);
 }
 
 // email_dang_nhap co FK users(email) - bao loi ro rang thay vi de FK loi 500. 1 tai khoan chi gan 1 ho so
@@ -198,8 +198,8 @@ nhanVien.post("/", requireRole("Admin", "HCNS"), async (c) => {
 
   const stmts = [
     c.env.DB.prepare(
-      `INSERT INTO nhan_vien (ma_nv, ten_nv, bo_phan, chuc_vu, sdt, email_dang_nhap, ghi_chu, quan_ly_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO nhan_vien (ma_nv, ten_nv, bo_phan, chuc_vu, sdt, email_dang_nhap, ghi_chu, quan_ly_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(
       body.ma_nv.trim(),
       body.ten_nv.trim(),
@@ -209,6 +209,8 @@ nhanVien.post("/", requireRole("Admin", "HCNS"), async (c) => {
       body.email_dang_nhap || null,
       body.ghi_chu ?? null,
       body.quan_ly_id || null,
+      nowVN(),
+      nowVN(),
     ),
   ];
   if (body.quan_ly_id) stmts.push(taoKhoQl(c.env.DB, body.quan_ly_id));

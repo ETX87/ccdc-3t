@@ -149,11 +149,11 @@ export async function runEtxNhanSuSync(env: Env, db: D1Database): Promise<EtxSyn
     qlWrites.push(
       db
         .prepare(
-          `INSERT INTO kho (ten_kho, loai, nhan_vien_id)
-           SELECT 'Kho QL - ' || ten_nv, 'Quan ly', ma_nv FROM nhan_vien WHERE ma_nv = ?
+          `INSERT INTO kho (ten_kho, loai, nhan_vien_id, created_at, updated_at)
+           SELECT 'Kho QL - ' || ten_nv, 'Quan ly', ma_nv, ?, ? FROM nhan_vien WHERE ma_nv = ?
            ON CONFLICT(nhan_vien_id) DO NOTHING`,
         )
-        .bind(ql),
+        .bind(now, now, ql),
     );
   }
   await runInChunks(db, qlWrites);

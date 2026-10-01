@@ -48,10 +48,24 @@ NHIEU = re.compile(r"\b(ptdv|ctv|ktv|telesale|nv|gs)\b")
 KHONG_PHAI_NGUOI = ("kho ", "van phong", "khong ro", "cong ty", "phong ", "chi nhanh", "cua hang")
 
 
+# Dau thanh kieu cu / kieu moi ("Thuý" == "Thúy", "Hoà" == "Hòa") - dua ve 1 kieu truoc khi so.
+_THAY_DAU = [
+    ("oá", "óa"), ("oà", "òa"), ("oả", "ỏa"), ("oã", "õa"), ("oạ", "ọa"),
+    ("oé", "óe"), ("oè", "òe"), ("oẻ", "ỏe"), ("oẽ", "õe"), ("oẹ", "ọe"),
+    ("uý", "úy"), ("uỳ", "ùy"), ("uỷ", "ủy"), ("uỹ", "ũy"), ("uỵ", "ụy"),
+]
+
+
+def dau_moi(s):
+    for a, b in _THAY_DAU:
+        s = s.replace(b, a)
+    return s
+
+
 def ten_sach(s):
     """Tra ve (ho ten GIU DAU viet thuong, ngu canh bo dau) tu 1 chuoi ten tu do / ten_nv cu.
     GIU DAU khi so ten: bo dau lam "Hưng" == "Hùng" (da gap that) - khop bo dau chi la du phong."""
-    raw = re.sub(r"\s+", " ", unicodedata.normalize("NFC", s or "")).strip().lower()
+    raw = dau_moi(re.sub(r"\s+", " ", unicodedata.normalize("NFC", s or "")).strip().lower())
     ngu_canh = norm(s)
     raw = re.sub(r"\([^)]*\)", " ", raw)  # "(longvb.ptdv-hcm)"
     phan = [p.strip() for p in re.split(r"\s+-\s+|\s*-\s*$|^\s*-\s*", raw) if p.strip()]

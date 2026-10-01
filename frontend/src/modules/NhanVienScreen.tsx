@@ -13,6 +13,7 @@ import { fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { thongBaoLoi } from "../lib/nhan";
+import { DoiMaNhanVienModal } from "./DoiMaNhanVienModal";
 
 interface NhanVienRow {
   ma_nv: string;
@@ -22,6 +23,7 @@ interface NhanVienRow {
   sdt: string | null;
   email_dang_nhap: string | null;
   dang_lam_viec: number;
+  ma_etx: string | null;
   quan_ly_id: string | null;
   quan_ly_ten: string | null;
   so_cap_duoi: number;
@@ -53,6 +55,7 @@ const LOI_FORM: Record<string, string> = {
   QUAN_LY_LA_CHINH_MINH: "Không thể tự làm quản lý của chính mình.",
   QUAN_LY_NOT_FOUND: "Quản lý đã chọn không còn làm việc.",
   USER_CHUA_DANG_NHAP: "Email này chưa từng đăng nhập hệ thống - người đó cần đăng nhập Google 1 lần trước.",
+  EMAIL_DA_LIEN_KET: "Email này đã gắn với hồ sơ nhân viên khác - 1 tài khoản chỉ gắn 1 hồ sơ (dùng “Đổi mã / gộp” nếu là cùng 1 người).",
 };
 
 // Nhan vien & so do quan ly: danh sach NV (dong bo ETX + nhap tay), gan quan ly truc tiep (tu tao kho QL),
@@ -79,6 +82,7 @@ export function NhanVienScreen() {
 
   const [showForm, setShowForm] = useState(false);
   const [editingMaNv, setEditingMaNv] = useState<string | null>(null);
+  const [doiMa, setDoiMa] = useState<NhanVienRow | null>(null);
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -428,8 +432,12 @@ export function NhanVienScreen() {
               )}
               {rows?.map((r) => (
                 <tr key={r.ma_nv}>
-                  <td data-label="Mã NV" className="code-text">
-                    {r.ma_nv}
+                  <td data-label="Mã NV">
+                    <div className="cell-stack">
+                      <span className="code-text">{r.ma_nv}</span>
+                      {r.ma_etx && r.ma_etx !== r.ma_nv && <span className="small text-secondary">ETX {r.ma_etx}</span>}
+                      {!r.ma_etx && <span className="small muted">Chưa có mã ETX</span>}
+                    </div>
                   </td>
                   <td data-label="Họ tên">
                     <div className="cell-stack">
@@ -488,6 +496,9 @@ export function NhanVienScreen() {
                         <button className="btn btn-outline btn-sm" onClick={() => openEdit(r)}>
                           Sửa
                         </button>
+                        <button className="btn btn-outline btn-sm" onClick={() => setDoiMa(r)}>
+                          Đổi mã / gộp
+                        </button>
                         <button
                           className="btn btn-outline btn-sm danger-outline"
                           onClick={() => {
@@ -526,6 +537,9 @@ export function NhanVienScreen() {
             <div className="field-group">
               <label className="field-label">Họ tên *</label>
               <input type="text" value={form.ten_nv} onChange={(e) => setForm({ ...form, ten_nv: e.target.value })} />
+              {editingMaNv && rows?.find((x) => x.ma_nv === editingMaNv)?.ma_etx && (
+                <span className="small muted">Hồ sơ gắn ETX - họ tên, chức vụ, Gmail theo ETX (lần đồng bộ sau sẽ ghi đè nếu sửa tay).</span>
+              )}
             </div>
             <div className="field-group">
               <label className="field-label">Bộ phận</label>
@@ -571,6 +585,18 @@ export function NhanVienScreen() {
             </button>
           </div>
         </Modal>
+      )}
+
+      {doiMa && (
+        <DoiMaNhanVienModal
+          nv={doiMa}
+          onClose={() => setDoiMa(null)}
+          onXong={(ma) => {
+            setDoiMa(null);
+            setMsg(`Đã cập nhật hồ sơ ${doiMa.ten_nv} → mã ${ma}.`);
+            load();
+          }}
+        />
       )}
 
       {nghi && (

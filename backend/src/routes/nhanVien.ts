@@ -5,6 +5,12 @@ import { loadUser } from "../middleware/loadUser";
 import { requireRole } from "../middleware/requireRole";
 import { nowVN } from "../lib/vnTime";
 import { docTrang, layTrang } from "../lib/phanTrang";
+import { LoiGop, lapKeHoach, lenhThucHien, type GiuEmail, type YeuCau } from "../lib/gopNhanVien";
+
+// Bo dau + viet thuong de so khop ten tieng Viet (khong phan biet hoa/thuong, dau).
+function boDau(s: string) {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\u0111/gi, "d").toLowerCase().trim();
+}
 
 const nhanVien = new Hono<{ Bindings: Env }>();
 nhanVien.use("*", verifySessionMiddleware, loadUser);
@@ -51,7 +57,7 @@ nhanVien.get("/", async (c) => {
     return c.json({ rows: results });
   }
 
-  const sql = `SELECT n.ma_nv, n.ten_nv, n.bo_phan, n.chuc_vu, n.sdt, n.email_dang_nhap, n.dang_lam_viec,
+  const sql = `SELECT n.ma_nv, n.ten_nv, n.bo_phan, n.chuc_vu, n.sdt, n.email_dang_nhap, n.dang_lam_viec, n.ma_etx,
             n.quan_ly_id, ql.ten_nv AS quan_ly_ten,
             (SELECT COUNT(*) FROM nhan_vien x WHERE x.quan_ly_id = n.ma_nv AND x.dang_lam_viec = 1) AS so_cap_duoi,
             (SELECT COUNT(*) FROM ccdc c WHERE c.nguoi_dang_giu = n.ma_nv AND c.vo_hieu_hoa = 0
@@ -113,6 +119,24 @@ nhanVien.get("/cap-duoi", async (c) => {
   return c.json({ rows: results });
 });
 
+// (Dang ky TRUOC "/:ma_nv" - Hono khop theo thu tu, "/:ma_nv" se nuot "/etx".)
+// GET /etx?search= - tra danh ba ETX day du (ca nguoi da nghi) + ho so CCDC dang giu ma do.
+nhanVien.get("/etx", requireRole("Admin", "HCNS"), async (c) => {
+  const q = boDau(c.req.query("search") ?? "");
+  if (q.length < 2) return c.json({ rows: [] });
+  // Loc o JS (khong dung LIKE): LIKE cua SQLite phan biet hoa/thuong voi chu co dau ("Bình An" != "BÌNH AN").
+  // Danh ba ~3.600 dong - doc het moi lan tra van nhe.
+  const { results } = await c.env.DB.prepare(
+    `SELECT e.ma_nhan_su, e.ho_ten, e.chuc_danh, e.gmail, e.trang_thai_lam_viec, n.ma_nv AS ho_so_ma_nv, n.ten_nv AS ho_so_ten
+     FROM etx_nhan_su e LEFT JOIN nhan_vien n ON n.ma_etx = e.ma_nhan_su`,
+  ).all<{ ma_nhan_su: string; ho_ten: string; gmail: string | null; trang_thai_lam_viec: string }>();
+  const rows = results
+    .filter((e) => boDau(e.ma_nhan_su) === q || boDau(e.ho_ten).includes(q) || boDau(e.gmail ?? "").includes(q))
+    .sort((a, b) => (a.trang_thai_lam_viec === b.trang_thai_lam_viec ? a.ho_ten.localeCompare(b.ho_ten, "vi") : a.trang_thai_lam_viec === "on" ? -1 : 1))
+    .slice(0, 20);
+  return c.json({ rows });
+});
+
 nhanVien.get("/:ma_nv", async (c) => {
   const row = await c.env.DB.prepare("SELECT * FROM nhan_vien WHERE ma_nv = ?").bind(c.req.param("ma_nv")).first();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
@@ -141,11 +165,17 @@ function taoKhoQl(db: D1Database, qlMaNv: string) {
     .bind(qlMaNv);
 }
 
-// email_dang_nhap co FK users(email) - bao loi ro rang thay vi de FK loi 500.
-async function kiemTraEmail(db: D1Database, email: string | null | undefined): Promise<string | null> {
+// email_dang_nhap co FK users(email) - bao loi ro rang thay vi de FK loi 500. 1 tai khoan chi gan 1 ho so
+// dang lam viec (user chot 2026-10-01: "1 nhan su chi co 1 tai khoan").
+async function kiemTraEmail(db: D1Database, email: string | null | undefined, maNv?: string): Promise<string | null> {
   if (!email) return null;
   const u = await db.prepare("SELECT email FROM users WHERE email = ?").bind(email).first();
-  return u ? null : "USER_CHUA_DANG_NHAP";
+  if (!u) return "USER_CHUA_DANG_NHAP";
+  const khac = await db
+    .prepare("SELECT 1 FROM nhan_vien WHERE LOWER(email_dang_nhap) = LOWER(?) AND ma_nv != ? AND dang_lam_viec = 1 LIMIT 1")
+    .bind(email, maNv ?? "")
+    .first();
+  return khac ? "EMAIL_DA_LIEN_KET" : null;
 }
 
 async function kiemTraQuanLy(db: D1Database, maNv: string, qlId: string | null | undefined): Promise<string | null> {
@@ -163,7 +193,7 @@ nhanVien.post("/", requireRole("Admin", "HCNS"), async (c) => {
   if (existing) return c.json({ error: "MA_NV_EXISTS" }, 409);
   const loiQl = await kiemTraQuanLy(c.env.DB, body.ma_nv.trim(), body.quan_ly_id);
   if (loiQl) return c.json({ error: loiQl }, 400);
-  const loiEmail = await kiemTraEmail(c.env.DB, body.email_dang_nhap);
+  const loiEmail = await kiemTraEmail(c.env.DB, body.email_dang_nhap, body.ma_nv.trim());
   if (loiEmail) return c.json({ error: loiEmail }, 400);
 
   const stmts = [
@@ -193,7 +223,7 @@ nhanVien.put("/:ma_nv", requireRole("Admin", "HCNS"), async (c) => {
   if (!body?.ten_nv?.trim()) return c.json({ error: "MISSING_FIELDS" }, 400);
   const loiQl = await kiemTraQuanLy(c.env.DB, maNv ?? "", body.quan_ly_id);
   if (loiQl) return c.json({ error: loiQl }, 400);
-  const loiEmail = await kiemTraEmail(c.env.DB, body.email_dang_nhap);
+  const loiEmail = await kiemTraEmail(c.env.DB, body.email_dang_nhap, maNv);
   if (loiEmail) return c.json({ error: loiEmail }, 400);
 
   const stmts = [
@@ -247,6 +277,48 @@ nhanVien.post("/:ma_nv/lien-ket-tai-khoan", requireRole("Admin", "HCNS"), async 
 
   await c.env.DB.prepare("UPDATE nhan_vien SET email_dang_nhap = ?, updated_at = ? WHERE ma_nv = ?").bind(email, nowVN(), maNv).run();
   return c.json({ ok: true });
+});
+
+// ---- Doi ma / gop ho so / gan ma ETX chuan (lib/gopNhanVien.ts) ------------------------------------------
+function docYeuCau(body: { loai?: string; dich?: string; ma_moi?: string; ma_etx?: string } | null): YeuCau | null {
+  if (body?.loai === "gop" && body.dich) return { loai: "gop", dich: body.dich };
+  if (body?.loai === "doi-ma" && body.ma_moi) return { loai: "doi-ma", maMoi: body.ma_moi };
+  if (body?.loai === "gan-etx" && body.ma_etx) return { loai: "gan-etx", maEtx: body.ma_etx };
+  return null;
+}
+
+// POST /:ma_nv/doi-ma { loai: gop|doi-ma|gan-etx, dich|ma_moi|ma_etx, giu_email?: dich|nguon, xem_truoc?: true }
+// xem_truoc -> tra ke hoach (so tai san / phieu / kho se chuyen, canh bao), khong ghi gi.
+nhanVien.post("/:ma_nv/doi-ma", requireRole("Admin", "HCNS"), async (c) => {
+  const body = await c.req.json<{ loai?: string; dich?: string; ma_moi?: string; ma_etx?: string; giu_email?: GiuEmail; xem_truoc?: boolean }>().catch(() => null);
+  const yc = docYeuCau(body);
+  if (!yc) return c.json({ error: "MISSING_FIELDS" }, 400);
+  try {
+    const k = await lapKeHoach(c.env.DB, c.req.param("ma_nv") ?? "", yc, body?.giu_email === "nguon" ? "nguon" : "dich");
+    if (body?.xem_truoc) return c.json({ ke_hoach: k });
+    try {
+      await c.env.DB.batch(lenhThucHien(c.env.DB, k, c.get("user").email));
+    } catch (e) {
+      if (String(e).includes("CHECK constraint failed")) return c.json({ error: "DU_LIEU_DA_DOI" }, 409);
+      throw e;
+    }
+    return c.json({ ok: true, ma_dich: k.maDich });
+  } catch (e) {
+    if (e instanceof LoiGop) return c.json({ error: e.code, ...e.extra }, e.code === "NOT_FOUND" ? 404 : 400);
+    throw e;
+  }
+});
+
+// GET /:ma_nv/lich-su-ma - nhat ky doi ma / gop lien quan ho so nay (ca ma cu da gop vao).
+nhanVien.get("/:ma_nv/lich-su-ma", async (c) => {
+  const ma = c.req.param("ma_nv");
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, thao_tac, ma_nguon, ten_nguon, ma_dich, ma_etx, chi_tiet, nguoi_thuc_hien, created_at
+     FROM nhan_vien_lich_su_ma WHERE ma_nguon = ?1 OR ma_dich = ?1 ORDER BY id DESC LIMIT 50`,
+  )
+    .bind(ma)
+    .all();
+  return c.json({ rows: results });
 });
 
 // DELETE /:ma_nv - danh dau nghi viec (dang_lam_viec=0). Chan neu con dang giu CCDC nao.

@@ -104,6 +104,28 @@ export async function runEtxNhanSuSync(env: Env, db: D1Database): Promise<EtxSyn
     }
   }
 
+  // Danh ba ETX DAY DU (ca nguoi da nghi, migration 0011) - tra cuu "Gan ma ETX chuan" tai cho. Chi ghi dong khac.
+  const { results: daCo } = await db
+    .prepare("SELECT ma_nhan_su, ho_ten, chuc_danh, gmail, trang_thai_lam_viec FROM etx_nhan_su")
+    .all<{ ma_nhan_su: string; ho_ten: string; chuc_danh: string | null; gmail: string | null; trang_thai_lam_viec: string }>();
+  const cu = new Map(daCo.map((r) => [r.ma_nhan_su, r]));
+  for (const it of items) {
+    const ma = it.maNhanSu.trim();
+    const r = cu.get(ma);
+    const gmail = lower(it.gmail);
+    const tt = it.trangThaiLamViec === "on" ? "on" : "off";
+    if (r && r.ho_ten === it.hoTen && r.chuc_danh === it.chucDanh && r.gmail === gmail && r.trang_thai_lam_viec === tt) continue;
+    writes.push(
+      db
+        .prepare(
+          `INSERT INTO etx_nhan_su (ma_nhan_su, ho_ten, chuc_danh, gmail, trang_thai_lam_viec, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(ma_nhan_su) DO UPDATE SET ho_ten = excluded.ho_ten, chuc_danh = excluded.chuc_danh, gmail = excluded.gmail,
+             trang_thai_lam_viec = excluded.trang_thai_lam_viec, updated_at = excluded.updated_at`,
+        )
+        .bind(ma, it.hoTen, it.chucDanh, gmail, tt, now),
+    );
+  }
+
   await runInChunks(db, writes);
 
   // Luot 2: quan ly truc tiep (FK nhan_vien -> phai chay SAU khi moi dong da ton tai) + kho QL cho

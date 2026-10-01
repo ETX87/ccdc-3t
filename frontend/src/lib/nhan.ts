@@ -72,6 +72,9 @@ export const coKhoThaoTac = (u: AppUser) => u.kho_phu_trach.some((k) => k.loai !
 
 const LOI: Record<string, string> = {
   VUOT_TON: "Số lượng xuất vượt tồn kho nguồn.",
+  HO_SO_DA_LIEN_KET: "Hồ sơ này đã liên kết với một email đăng nhập khác.",
+  EMAIL_DA_LIEN_KET: "Email này đã liên kết với một hồ sơ nhân viên khác.",
+  HO_SO_DA_NGHI: "Hồ sơ này đã nghỉ việc.",
   KHONG_PHU_TRACH_KHO_NGUON: "Bạn không phụ trách kho nguồn này.",
   KHONG_PHU_TRACH_KHO_DICH: "Bạn không phụ trách kho nhận.",
   NGOAI_NHOM_QUAN_LY: "Người này không thuộc nhóm cấp dưới của quản lý.",

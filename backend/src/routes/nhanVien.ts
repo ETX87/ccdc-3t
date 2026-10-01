@@ -221,6 +221,34 @@ nhanVien.put("/:ma_nv", requireRole("Admin", "HCNS"), async (c) => {
   return c.json({ ok: true });
 });
 
+// POST /:ma_nv/lien-ket-tai-khoan { email } - CHI gan email_dang_nhap (khong dung PUT ghi de ca ho so).
+// Dung o "Tai san cua toi" khi Admin/HCNS chua lien ket ho so cua chinh minh. Khong ghi de lien ket san
+// co: ho so da gan email khac / email da gan ho so dang lam viec khac -> 409.
+nhanVien.post("/:ma_nv/lien-ket-tai-khoan", requireRole("Admin", "HCNS"), async (c) => {
+  const maNv = c.req.param("ma_nv");
+  const body = await c.req.json<{ email?: string }>().catch(() => null);
+  const email = body?.email?.trim().toLowerCase();
+  if (!email) return c.json({ error: "MISSING_FIELDS" }, 400);
+  const loiEmail = await kiemTraEmail(c.env.DB, email);
+  if (loiEmail) return c.json({ error: loiEmail }, 400);
+
+  const [nv, khac] = await Promise.all([
+    c.env.DB.prepare("SELECT email_dang_nhap, dang_lam_viec FROM nhan_vien WHERE ma_nv = ?")
+      .bind(maNv)
+      .first<{ email_dang_nhap: string | null; dang_lam_viec: number }>(),
+    c.env.DB.prepare("SELECT ma_nv FROM nhan_vien WHERE LOWER(email_dang_nhap) = ? AND ma_nv != ? AND dang_lam_viec = 1 LIMIT 1")
+      .bind(email, maNv)
+      .first<{ ma_nv: string }>(),
+  ]);
+  if (!nv) return c.json({ error: "NOT_FOUND" }, 404);
+  if (!nv.dang_lam_viec) return c.json({ error: "HO_SO_DA_NGHI" }, 400);
+  if (nv.email_dang_nhap && nv.email_dang_nhap.toLowerCase() !== email) return c.json({ error: "HO_SO_DA_LIEN_KET" }, 409);
+  if (khac) return c.json({ error: "EMAIL_DA_LIEN_KET", ma_nv: khac.ma_nv }, 409);
+
+  await c.env.DB.prepare("UPDATE nhan_vien SET email_dang_nhap = ?, updated_at = ? WHERE ma_nv = ?").bind(email, nowVN(), maNv).run();
+  return c.json({ ok: true });
+});
+
 // DELETE /:ma_nv - danh dau nghi viec (dang_lam_viec=0). Chan neu con dang giu CCDC nao.
 nhanVien.delete("/:ma_nv", requireRole("Admin", "HCNS"), async (c) => {
   const maNv = c.req.param("ma_nv");

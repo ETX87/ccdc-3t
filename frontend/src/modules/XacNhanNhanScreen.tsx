@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Inbox, Package, PackageCheck, Search, Wrench } from "lucide-react";
 import { api } from "../api/client";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth, useRefreshUser } from "../auth/AuthContext";
+import { SearchSelect } from "../components/SearchSelect";
 import { PageHeader } from "../components/PageHeader";
 import { KpiCard } from "../components/KpiCard";
 import { FilterTabs } from "../components/FilterTabs";
@@ -11,7 +12,7 @@ import { QrScanButton } from "../components/QrScanner";
 import { useDuLieuChung } from "../lib/duLieuChung";
 import { fmtGiaTri, fmtGiaTriDong, fmtNgay, fmtNgayGio, fmtSo } from "../lib/format";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
-import { LOAI_KHO, TRANG_THAI_TS, tenVaiTro, thongBaoLoi } from "../lib/nhan";
+import { LOAI_KHO, TRANG_THAI_TS, isHcns, tenVaiTro, thongBaoLoi } from "../lib/nhan";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
 interface CcdcRow {
@@ -139,16 +140,22 @@ export function XacNhanNhanScreen() {
   const tLs = useTrangKhach(dsGn, [t]);
 
   if (!user) return null;
+  // Admin/HCNS/KT "phu trach" moi kho (~70) - liet ke het thanh 1 khoi chu dai: >3 kho chi hien so luong,
+  // ten day du o tooltip.
   const khoInfo = user.kho_phu_trach.filter((k) => k.loai !== "Mua hang");
-  const moTa = `${tenVaiTro(user.vai_tro)}${khoInfo.length ? ` · Thủ kho: ${khoInfo.map((k) => `${k.ten_kho} (${LOAI_KHO[k.loai]})`).join(", ")}` : ""}`;
+  const tenKho = khoInfo.map((k) => `${k.ten_kho} (${LOAI_KHO[k.loai]})`).join(", ");
+  const moTa = `${tenVaiTro(user.vai_tro)}${khoInfo.length ? ` · Thủ kho: ${khoInfo.length <= 3 ? tenKho : `${fmtSo(khoInfo.length)} kho`}` : ""}`;
+  const phuDe = <span className="muted small" title={khoInfo.length > 3 ? tenKho : undefined}>{moTa}</span>;
 
   if (!maNv) {
     return (
       <div className="dashboard-container">
-        <PageHeader title="Tài sản của tôi" filters={<span className="muted small">{moTa}</span>} />
+        <PageHeader title="Tài sản của tôi" filters={phuDe} />
         <div className="content-card task-empty">
-          Tài khoản <b>{user.email}</b> chưa được liên kết với hồ sơ nhân viên nào - nhờ HCNS nhập email này vào mục “Email đăng nhập” của bạn ở màn Nhân viên.
+          Tài khoản <b>{user.email}</b> chưa được liên kết với hồ sơ nhân viên nào
+          {isHcns(user) ? " - chọn hồ sơ của bạn bên dưới để liên kết." : " - nhờ HCNS nhập email này vào mục “Email đăng nhập” của bạn ở màn Nhân viên."}
         </div>
+        {isHcns(user) && <LienKetHoSo email={user.email} />}
       </div>
     );
   }
@@ -160,7 +167,7 @@ export function XacNhanNhanScreen() {
     <div className="dashboard-container">
       <PageHeader
         title="Tài sản của tôi"
-        filters={<span className="muted small">{moTa}</span>}
+        filters={phuDe}
         actions={<QrScanButton />}
         capNhatLuc={capNhatLuc}
         onRefresh={load}
@@ -466,6 +473,53 @@ export function XacNhanNhanScreen() {
         {tab === "tieu-hao" && <PhanTrang trang={tTh.trang} tong={tTh.tong} onDoi={tTh.setTrang} donVi="phiếu" />}
         {tab === "lich-su" && <PhanTrang trang={tLs.trang} tong={tLs.tong} onDoi={tLs.setTrang} donVi="phiếu" />}
       </div>
+    </div>
+  );
+}
+
+// Admin/HCNS tu lien ket tai khoan cua minh voi 1 ho so nhan vien dang lam viec (chi gan email_dang_nhap,
+// server chan neu ho so / email da lien ket noi khac).
+function LienKetHoSo({ email }: { email: string }) {
+  const refreshUser = useRefreshUser();
+  const [ds, setDs] = useState<{ ma_nv: string; ten_nv: string }[]>([]);
+  const [maNv, setMaNv] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [loi, setLoi] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .get<{ rows: { ma_nv: string; ten_nv: string }[] }>("/nhan-vien?gon=1")
+      .then((r) => setDs(r.rows))
+      .catch((e) => setLoi(thongBaoLoi(e, "Không tải được danh sách nhân viên.")));
+  }, []);
+  const options = useMemo(() => ds.map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` })), [ds]);
+
+  async function lienKet() {
+    setBusy(true);
+    setLoi(null);
+    try {
+      await api.post(`/nhan-vien/${encodeURIComponent(maNv)}/lien-ket-tai-khoan`, { email });
+      baoThayDoi();
+      await refreshUser();
+    } catch (e) {
+      setLoi(thongBaoLoi(e, "Không liên kết được."));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="content-card">
+      <div className="card-header">
+        <h3 className="card-title">Liên kết hồ sơ nhân viên</h3>
+      </div>
+      {loi && <div className="alert alert-error">{loi}</div>}
+      <div className="field-group">
+        <label className="field-label">Hồ sơ của bạn</label>
+        <SearchSelect options={options} value={maNv} onChange={setMaNv} placeholder="Tìm theo họ tên hoặc mã NV..." />
+      </div>
+      <button className="btn btn-primary" disabled={!maNv || busy} onClick={lienKet}>
+        {busy ? "Đang liên kết..." : `Liên kết với ${email}`}
+      </button>
     </div>
   );
 }

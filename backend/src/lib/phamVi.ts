@@ -56,20 +56,20 @@ export interface DieuKien {
   binds: unknown[];
 }
 
-const dsHoi = (n: number) => Array(n).fill("?").join(",");
+// Danh sach truyen bang 1 tham so JSON (json_each) - KHONG "?" cho tung phan tu: D1 gioi han 100 tham so/cau
+// lenh, quan ly co >100 cap duoi lam vo chup so lieu hang ngay (gap that 2026-10-01).
+const trong = (cot: string, ds: unknown[]) => ({ sql: `${cot} IN (SELECT value FROM json_each(?))`, bind: JSON.stringify(ds) });
 
 /** Dieu kien tai san (bang ccdc, alias a) thuoc pham vi: nam trong kho pham vi HOAC nhom dang giu. */
 export function dkTaiSan(pv: PhamVi, a = "c"): DieuKien {
   if (pv.toanBo) return { sql: "1=1", binds: [] };
   const parts: string[] = [];
   const binds: unknown[] = [];
-  if (pv.khoIds.length) {
-    parts.push(`${a}.kho_id IN (${dsHoi(pv.khoIds.length)})`);
-    binds.push(...pv.khoIds);
-  }
-  if (pv.nhomMaNv.length) {
-    parts.push(`${a}.nguoi_dang_giu IN (${dsHoi(pv.nhomMaNv.length)})`);
-    binds.push(...pv.nhomMaNv);
+  for (const [cot, ds] of [[`${a}.kho_id`, pv.khoIds], [`${a}.nguoi_dang_giu`, pv.nhomMaNv]] as const) {
+    if (!ds.length) continue;
+    const t = trong(cot, ds);
+    parts.push(t.sql);
+    binds.push(t.bind);
   }
   return parts.length ? { sql: `(${parts.join(" OR ")})`, binds } : { sql: "0=1", binds: [] };
 }
@@ -78,13 +78,15 @@ export function dkTaiSan(pv: PhamVi, a = "c"): DieuKien {
 export function dkPhieuKho(pv: PhamVi, a = "p"): DieuKien {
   if (pv.toanBo) return { sql: "1=1", binds: [] };
   if (!pv.khoIds.length) return { sql: "0=1", binds: [] };
-  const q = dsHoi(pv.khoIds.length);
-  return { sql: `(${a}.tu_kho_id IN (${q}) OR ${a}.den_kho_id IN (${q}))`, binds: [...pv.khoIds, ...pv.khoIds] };
+  const tu = trong(`${a}.tu_kho_id`, pv.khoIds);
+  const den = trong(`${a}.den_kho_id`, pv.khoIds);
+  return { sql: `(${tu.sql} OR ${den.sql})`, binds: [tu.bind, den.bind] };
 }
 
 /** Dieu kien theo 1 cot kho (vd v_ton_kho.kho_id, phieu.tu_kho_id). */
 export function dkCotKho(pv: PhamVi, cot: string): DieuKien {
   if (pv.toanBo) return { sql: "1=1", binds: [] };
   if (!pv.khoIds.length) return { sql: "0=1", binds: [] };
-  return { sql: `${cot} IN (${dsHoi(pv.khoIds.length)})`, binds: [...pv.khoIds] };
+  const t = trong(cot, pv.khoIds);
+  return { sql: t.sql, binds: [t.bind] };
 }

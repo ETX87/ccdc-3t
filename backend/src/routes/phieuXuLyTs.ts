@@ -104,8 +104,8 @@ phieuXuLyTs.post("/", async (c) => {
 
   const ids = [...new Set(body.ccdc_ids)];
   const { results: rows } = await db
-    .prepare(`SELECT id, trang_thai_hien_tai, nguoi_dang_giu, kho_id FROM ccdc WHERE vo_hieu_hoa = 0 AND id IN (${ids.map(() => "?").join(",")})`)
-    .bind(...ids)
+    .prepare(`SELECT id, trang_thai_hien_tai, nguoi_dang_giu, kho_id FROM ccdc WHERE vo_hieu_hoa = 0 AND id IN (SELECT value FROM json_each(?))`)
+    .bind(JSON.stringify(ids))
     .all<CcdcRow>();
   if (rows.length !== ids.length) return c.json({ error: "CCDC_NOT_FOUND" }, 400);
 

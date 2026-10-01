@@ -8,6 +8,12 @@
       "port": 8793
     },
     {
+      "name": "ccdc-huong-dan",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["exec", "--workspace", "backend", "--", "wrangler", "dev", "--config", "../wrangler.jsonc", "--env", "local", "--persist-to", "../../.wrangler/state_hd", "--port", "8797"],
+      "port": 8797
+    },
+    {
       "name": "ccdc-frontend",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace", "frontend"],

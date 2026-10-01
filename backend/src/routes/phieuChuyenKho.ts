@@ -12,8 +12,8 @@ import { docTrang, layTrang } from "../lib/phanTrang";
 function dkXemPhieu(pv: PhamVi, email: string) {
   const k = dkPhieuKho(pv);
   if (pv.toanBo) return k;
-  const nhom = pv.nhomMaNv.length ? ` OR p.den_nhan_vien_id IN (${pv.nhomMaNv.map(() => "?").join(",")})` : "";
-  return { sql: `(${k.sql} OR p.nguoi_lap = ?${nhom})`, binds: [...k.binds, email, ...pv.nhomMaNv] };
+  const nhom = pv.nhomMaNv.length ? " OR p.den_nhan_vien_id IN (SELECT value FROM json_each(?))" : "";
+  return { sql: `(${k.sql} OR p.nguoi_lap = ?${nhom})`, binds: [...k.binds, email, ...(pv.nhomMaNv.length ? [JSON.stringify(pv.nhomMaNv)] : [])] };
 }
 
 // Phieu chuyen kho TAI SAN TIEU HAO (thay phieu_tieu_hao phang cu). Luong da chot voi user 2026-09-23:

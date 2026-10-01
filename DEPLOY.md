@@ -14,6 +14,11 @@
 > 5. `npx wrangler d1 execute DB --remote --config wrangler.jsonc --env="" --file=../_backup_ccdc/ghep_nv/ghep_nhan_su_etx.sql`
 >    Đầu file có guard: production lệch snapshot → lỗi `CHECK constraint failed: x = 1`, không ghi gì.
 
+> **ĐỒNG BỘ DỮ LIỆU HỆ THỐNG CŨ 2026-10-02** (`scripts/dong_bo_tieu_hao_cu.py`, nguồn = 2 sheet AppSheet xuất TSV,
+> backup `../_backup_ccdc/prod-truoc-dong-bo-th-20261002.sql`): TSCĐ không đổi so với lần import; tiêu hao +92 giao
+> dịch mới (22/09 → 01/10/2026) + 7 giao dịch cũ đổi trạng thái, +1 vật tư. Chạy lại an toàn (chỉ thêm ID chưa có,
+> chỉ đổi trạng thái khi production còn ở trạng thái lúc import). Tồn âm mới: 4 cặp ở Kho QL Nguyễn Thị Xuân.
+>
 > **ĐÃ TRIỂN KHAI 2026-10-01 (tối)** (version `51b1c9f6`): backup `../_backup_ccdc/prod-truoc-dot2-20261001.sql` →
 > migrate 0011 → ghép đợt 2 (`scripts/ghep_dot2.ts`, dùng chính `lib/gopNhanVien.ts`; 55 gộp + 4 gắn ETX tại chỗ +
 > 53 tên tự do trên phiếu, 22 hồ sơ mới; nhân viên 1.730 → 1.697, phiếu tên tự do 1.051 → 693, tồn không đổi) →

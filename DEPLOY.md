@@ -14,6 +14,13 @@
 > 5. `npx wrangler d1 execute DB --remote --config wrangler.jsonc --env="" --file=../_backup_ccdc/ghep_nv/ghep_nhan_su_etx.sql`
 >    Đầu file có guard: production lệch snapshot → lỗi `CHECK constraint failed: x = 1`, không ghi gì.
 
+> **ĐÃ TRIỂN KHAI 2026-10-01** (version `8b4667cf`): backup `../_backup_ccdc/prod-truoc-ghep-0009-20261001.sql`
+> → ghép nhân sự dữ liệu cũ vào hồ sơ ETX (`scripts/ghep_nhan_su_etx.py` + `ghep_nhan_su_etx_sql.py`, CHỈ dòng
+> "Chắc chắn": 377 dòng; nhân viên 1.832 → 1.712, phiếu tên tự do 2.622 → 1.051, kho QL không chủ 2 → 0, tồn kho
+> không đổi) → migrate 0009 + 0010 → deploy (ETX hằng ngày + tự cấp tài khoản, phân trang, PWA, xử lý cảnh báo).
+> Còn chờ HCNS: 42 dòng gợi ý/cần chọn tay + ~100 tên không có trên ETX trong
+> `../_backup_ccdc/ghep_nv_1001/ghep_nhan_su_etx.xlsx` — duyệt xong thì xuất lại snapshot, chạy lại bước 1+2.
+
 > **Cập nhật 2026-09-30 (đồng bộ ETX hằng ngày + tự cấp tài khoản)** — thứ tự deploy:
 > 1. Backup: `npx wrangler d1 export ccdc-db --remote --output ../_backup_ccdc/prod-truoc-0009.sql`
 > 2. `npm run db:migrate:remote` — áp `0009_etx_tai_khoan.sql` (chỉ thêm cột `etx_sync_state.tai_khoan_count`).

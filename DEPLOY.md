@@ -14,6 +14,11 @@
 > 5. `npx wrangler d1 execute DB --remote --config wrangler.jsonc --env="" --file=../_backup_ccdc/ghep_nv/ghep_nhan_su_etx.sql`
 >    Đầu file có guard: production lệch snapshot → lỗi `CHECK constraint failed: x = 1`, không ghi gì.
 
+> **ĐÃ TRIỂN KHAI 2026-10-01 (tối)** (version `51b1c9f6`): backup `../_backup_ccdc/prod-truoc-dot2-20261001.sql` →
+> migrate 0011 → ghép đợt 2 (`scripts/ghep_dot2.ts`, dùng chính `lib/gopNhanVien.ts`; 55 gộp + 4 gắn ETX tại chỗ +
+> 53 tên tự do trên phiếu, 22 hồ sơ mới; nhân viên 1.730 → 1.697, phiếu tên tự do 1.051 → 693, tồn không đổi) →
+> deploy chức năng "Đổi mã / gộp". Danh bạ `etx_nhan_su` có dữ liệu sau lần "Đồng bộ ETX" kế tiếp.
+>
 > **ĐÃ TRIỂN KHAI 2026-10-01** (version `8b4667cf`): backup `../_backup_ccdc/prod-truoc-ghep-0009-20261001.sql`
 > → ghép nhân sự dữ liệu cũ vào hồ sơ ETX (`scripts/ghep_nhan_su_etx.py` + `ghep_nhan_su_etx_sql.py`, CHỈ dòng
 > "Chắc chắn": 377 dòng; nhân viên 1.832 → 1.712, phiếu tên tự do 2.622 → 1.051, kho QL không chủ 2 → 0, tồn kho

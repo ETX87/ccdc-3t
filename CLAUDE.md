@@ -65,6 +65,15 @@ state đang dùng.
   làm việc có Gmail + gán `nhan_vien.email_dang_nhap`; bỏ qua tài khoản "Từ chối", Gmail trùng >1 hồ sơ,
   hồ sơ đã liên kết email khác. Nghỉ việc (ETX off) → tự khoá như cũ. Số tài khoản: `etx_sync_state.tai_khoan_count` (migration 0009). Local dùng mock `scripts/mock_etx_server.py` (port 8799,
   `env.local.vars.ETX_HR_BASE_URL`). Production cần secret `ETX_HR_API_KEY` — người dùng tự đặt.
+- **Đổi mã / gộp hồ sơ nhân viên** (2026-10-01, `lib/gopNhanVien.ts`, migration 0011, nút "Đổi mã / gộp" ở
+  NhanVienScreen): 3 thao tác cùng 1 lõi "gộp NGUỒN vào ĐÍCH" — gắn mã ETX chuẩn (mã đã thuộc hồ sơ khác →
+  gộp vào hồ sơ đó, ETX là gốc), gộp vào hồ sơ khác, đổi mã nội bộ. Chuyển ĐỦ mọi cột tham chiếu
+  (`COT_NHAN_VIEN`, `COT_KHO` — thêm bảng/cột mới tham chiếu nhân viên hay kho PHẢI bổ sung vào 2 danh sách
+  này), 2 kho QL → gộp kho; tồn kho không đổi. Luôn xem trước rồi mới thực hiện, 1 `db.batch()` có chốt
+  `batch_guard`, nhật ký `nhan_vien_lich_su_ma`. Nguyên tắc **1 nhân sự = 1 tài khoản**: xung đột email khi
+  gộp → chọn giữ 1; POST/PUT nhân viên chặn email đã gắn hồ sơ khác. Danh bạ ETX đầy đủ (cả người nghỉ) ở
+  `etx_nhan_su` (sync hằng ngày ghi diff) — tra cứu lọc ở JS (bỏ dấu), không dùng LIKE. Hồ sơ không có trên
+  ETX (Trạm/CTV đối tác) dùng **mã tạm** làm `ma_nv`, `ma_etx` NULL.
 - Script import dữ liệu cũ: `scripts/generate_import_sql.py` (quyết định ánh xạ ghi ở docstring đầu
   file). Phải import TRƯỚC lần đồng bộ ETX đầu tiên trên production (xem `DEPLOY.md`).
 

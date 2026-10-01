@@ -1162,7 +1162,7 @@ html, body {
 .btn-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 
 /* Form */
-:where(input[type="text"], input[type="number"], input[type="date"], input[type="email"],
+:where(input[type="text"], input[type="number"], input[type="date"], input[type="email"], input[type="tel"],
   input[type="search"], input[type="month"], input[type="datetime-local"], select, textarea) {
   width: 100%;
   height: 36px;

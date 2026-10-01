@@ -122,6 +122,16 @@ state đang dùng.
 (`frontend/.env.development.local`, mặc định 8791). User test theo vai trò: `admin|kt|hcns|ql|tk|nv
 @test.local` qua `/api/auth/dev-login?email=`.
 
+## Tài liệu hướng dẫn sử dụng (DOCX, 2026-10-01)
+
+`scripts/huong_dan/`: chụp màn hình thật bằng Playwright (Chrome cài sẵn, `pip install playwright`) trên **bản
+sao production local** rồi dựng DOCX bằng python-docx. Quy trình: export production → `nap_du_lieu.py` nạp vào
+`../.wrangler/state_hd` (+ tài khoản đào tạo `hcns|kt|admin|nv@test.local`, hồ sơ `DT-NV01`, `DT-HCNS`) → chạy
+worker `ccdc-huong-dan` (launch.json, cổng 8797) → `python chup_hcns.py <cảnh…>` (ảnh vào
+`../.wrangler/huong_dan/anh/`; các cảnh có GHI dữ liệu - chạy lại sẽ tạo phiếu trùng, nạp lại DB nếu cần) →
+`python tao_docx_hcns.py` → `cap_nhat_word.ps1` (Word COM: điền mục lục + xuất PDF). Kết quả `docs/*.docx|pdf`
+(không commit). Vai trò khác: thêm `chup_<vai_tro>.py` + `tao_docx_<vai_tro>.py`, dùng chung `hd.py`/`docx_lib.py`.
+
 ## Quy ước chung (giống hệ QLBH 3T)
 
 - `run_worker_first: ["/api/*"]` trong `assets` của `wrangler.jsonc` là bắt buộc — thiếu sẽ bị SPA

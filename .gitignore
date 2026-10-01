@@ -16,3 +16,8 @@ cookies.txt
 scripts/import_data.sql
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+
+# Tai lieu huong dan (sinh tu scripts/huong_dan)
+docs/*.docx
+docs/*.pdf
+__pycache__/

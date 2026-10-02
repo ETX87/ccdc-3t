@@ -96,6 +96,12 @@ const LOI: Record<string, string> = {
   USER_CHUA_DANG_NHAP: "Email này chưa từng đăng nhập hệ thống - cần đăng nhập 1 lần trước khi gán.",
   ID_EXISTS: "Mã này đã tồn tại.",
   FORBIDDEN: "Bạn không có quyền thực hiện thao tác này.",
+  DRIVE_CHUA_KET_NOI: "Chưa kết nối Google Drive - Admin cần kết nối trước khi tải tệp.",
+  DRIVE_LOI: "Tải tệp lên Google Drive thất bại - vui lòng thử lại.",
+  TEP_QUA_LON: "Tệp lớn hơn 10MB.",
+  SAI_DINH_DANG: "Chỉ nhận ảnh (JPG, PNG, WEBP, HEIC) hoặc PDF.",
+  DANG_CAP_PHAT: "Tài sản đang nằm trong một phiếu cấp phát chưa hoàn tất.",
+  DANG_CHO_DUYET: "Đang có phiếu chờ duyệt cho tài sản này.",
 };
 
 export function thongBaoLoi(e: unknown, macDinh = "Không thực hiện được - vui lòng thử lại.") {

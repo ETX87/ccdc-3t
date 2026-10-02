@@ -82,6 +82,9 @@ hỏi lại `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` đã dùng cho 2 app kia.
 1. [Google Cloud Console](https://console.cloud.google.com/) → mở đúng project chứa OAuth Client đó.
 2. APIs & Services → Credentials → OAuth Client → "Authorized redirect URIs" → thêm:
    `https://ccdc.dichvu3t.workers.dev/api/auth/callback`
+   và (đính kèm hóa đơn/chứng từ lưu Google Drive) `https://ccdc.dichvu3t.workers.dev/api/settings/google-drive/callback`.
+   Đảm bảo **Google Drive API** được bật trong project đó (APIs & Services → Library).
+   Sau deploy: Admin vào Cấu hình → Tài khoản & phân quyền → "Kết nối Google Drive" (chọn tài khoản Google công ty).
 
 ## 2. Tạo D1 database thật
 

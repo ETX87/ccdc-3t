@@ -3,6 +3,8 @@ import { AlertTriangle, ArrowLeftRight, CalendarDays, ChevronDown, Laptop, Plus,
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { Modal } from "../components/Modal";
+import { ChonTep } from "../components/DinhKem";
+import { taiLenTepCho, type TepCho } from "../lib/dinhKem";
 import { PageHeader } from "../components/PageHeader";
 import { KpiCard } from "../components/KpiCard";
 import { FilterTabs } from "../components/FilterTabs";
@@ -340,6 +342,7 @@ function LapPhieuModal({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [timTs, setTimTs] = useState("");
   const [ghiChu, setGhiChu] = useState("");
+  const [tep, setTep] = useState<TepCho[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -399,6 +402,8 @@ function LapPhieuModal({
         ghi_chu: ghiChu || undefined,
         items: [...selected].map((ccdc_id) => ({ ccdc_id })),
       });
+      // Tep loi van mo phieu binh thuong - nguoi dung tai lai trong popup chi tiet phieu.
+      if (tep.length) await taiLenTepCho("giao_nhan", r.id, tep);
       onDone(r.id, loai);
     } catch (e) {
       setError(thongBaoLoi(e, "Không tạo được phiếu - vui lòng thử lại."));
@@ -519,6 +524,7 @@ function LapPhieuModal({
         <label className="field-label">Ghi chú</label>
         <textarea rows={2} value={ghiChu} onChange={(e) => setGhiChu(e.target.value)} />
       </div>
+      <ChonTep tep={tep} onDoi={setTep} loaiMacDinh="Bang chung" />
       {error && <div className="alert alert-error">{error}</div>}
       <div className="modal-actions">
         <button className="btn" onClick={onClose}>

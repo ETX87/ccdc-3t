@@ -122,6 +122,20 @@ state đang dùng.
 (`frontend/.env.development.local`, mặc định 8791). User test theo vai trò: `admin|kt|hcns|ql|tk|nv
 @test.local` qua `/api/auth/dev-login?email=`.
 
+## Đính kèm hóa đơn / chứng từ / ảnh bằng chứng (Google Drive, 2026-10-02)
+
+Port từ `vi-pham-app` (skill `qlbh3t-cf-integrations` phần 1), migration 0013. Tệp lưu trên Drive của 1 tài
+khoản Google THẬT do Admin kết nối (thẻ "Lưu trữ hóa đơn…" ở Cấu hình → Tài khoản & phân quyền, route
+`routes/settings.ts`, refresh_token mã hoá `lib/secretBox.ts`); D1 chỉ giữ `dinh_kem` (drive_file_id + metadata).
+- `doi_tuong` ∈ `chuyen_kho|giao_nhan|xu_ly|tai_san`; xem tài sản = tệp của chính TS + tệp trên phiếu xử lý /
+  giao nhận có TS đó (kèm `nguon_ma`). Tạo TSCĐ mới (`POST /ccdc`) → tệp gắn vào phiếu nhập `xu_ly` (`phieu_id`).
+- Upload: body BYTES thô (Content-Type = mime thật), ảnh nén ở client (`lib/dinhKem.ts` `nenAnh`, ≤1920px JPEG),
+  tối đa 10MB, chỉ ảnh/PDF. Quyền tải: Admin/KT/HCNS, người lập, người liên quan (mã NV), thủ kho 2 đầu. Xoá = xoá
+  MỀM (người tải hoặc Admin/HCNS), tệp trên Drive giữ nguyên để đối chiếu.
+- Frontend: `components/DinhKem.tsx` — `DinhKem` (khung trong popup chi tiết phiếu/TS) và `ChonTep` (form lập
+  phiếu: chọn trước, tải lên SAU khi phiếu tạo xong qua `taiLenTepCho`). Phiếu Nhập mua chưa có Hóa đơn → nhắc.
+- Không test upload thật ở local được (cần OAuth + redirect URI đúng origin) — local chỉ test nhánh "chưa kết nối".
+
 ## Tài liệu hướng dẫn sử dụng (DOCX, 2026-10-01)
 
 `scripts/huong_dan/`: chụp màn hình thật bằng Playwright (Chrome cài sẵn, `pip install playwright`) trên **bản

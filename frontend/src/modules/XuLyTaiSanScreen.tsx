@@ -3,6 +3,8 @@ import { AlertTriangle, CheckCircle2, ChevronDown, Clock, Coins, Plus, Trash2, W
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { Modal } from "../components/Modal";
+import { ChonTep } from "../components/DinhKem";
+import { taiLenTepCho, type TepCho } from "../lib/dinhKem";
 import { PageHeader } from "../components/PageHeader";
 import { KpiCard } from "../components/KpiCard";
 import { FilterTabs } from "../components/FilterTabs";
@@ -416,6 +418,7 @@ function DeXuatModal({ loai, onClose, onDone }: { loai: LoaiDeXuat; onClose: () 
   const [ungVien, setUngVien] = useState<CcdcRow[] | null>(null);
   const [chon, setChon] = useState<Set<string>>(new Set());
   const [lyDo, setLyDo] = useState("");
+  const [tep, setTep] = useState<TepCho[]>([]);
   const [tim, setTim] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -440,6 +443,8 @@ function DeXuatModal({ loai, onClose, onDone }: { loai: LoaiDeXuat; onClose: () 
     setErr(null);
     try {
       const r = await api.post<{ id: string }>("/phieu-xu-ly-ts", { loai, ccdc_ids: [...chon], ly_do: lyDo.trim() });
+      // Tep loi van mo phieu binh thuong - nguoi dung tai lai trong popup chi tiet phieu.
+      if (tep.length) await taiLenTepCho("xu_ly", r.id, tep);
       onDone(r.id);
     } catch (e) {
       setErr(thongBaoLoi(e));
@@ -483,6 +488,7 @@ function DeXuatModal({ loai, onClose, onDone }: { loai: LoaiDeXuat; onClose: () 
         <label className="field-label">{loai === "Bao hong" ? "Mô tả hư hỏng *" : "Lý do *"}</label>
         <textarea rows={2} value={lyDo} onChange={(e) => setLyDo(e.target.value)} />
       </div>
+      <ChonTep tep={tep} onDoi={setTep} loaiMacDinh={loai === "Bao hong" ? "Bang chung" : "Chung tu"} />
       {err && <div className="alert alert-error">{err}</div>}
       <div className="modal-actions">
         <button className="btn" onClick={onClose}>

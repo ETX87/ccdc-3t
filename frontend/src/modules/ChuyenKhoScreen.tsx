@@ -8,6 +8,8 @@ import { KpiCard, type XuHuong } from "../components/KpiCard";
 import { SearchSelect } from "../components/SearchSelect";
 import { StatusBadge } from "../components/StatusBadge";
 import { useChiTiet } from "../components/ChiTiet";
+import { ChonTep } from "../components/DinhKem";
+import { taiLenTepCho, type TepCho } from "../lib/dinhKem";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 import { useDuLieuChung } from "../lib/duLieuChung";
 import { exportRowsToExcel } from "../lib/exportExcel";
@@ -122,6 +124,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
   const [dungTuDo, setDungTuDo] = useState(false);
   const [ncc, setNcc] = useState("");
   const [ghiChu, setGhiChu] = useState("");
+  const [tep, setTep] = useState<TepCho[]>([]);
   const [dongs, setDongs] = useState<Dong[]>([{ vt_id: "", so_luong: "", don_gia: "" }]);
   const [tonNguon, setTonNguon] = useState<Record<string, number>>({});
   const [formErr, setFormErr] = useState<string | null>(null);
@@ -231,6 +234,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
     setDungTuDo(false);
     setNcc("");
     setGhiChu("");
+    setTep([]);
     setDongs([{ vt_id: "", so_luong: "", don_gia: "" }]);
     setFormErr(null);
     setShowForm(true);
@@ -265,13 +269,15 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
         ghi_chu: ghiChu || null,
         items,
       });
+      const loiTep = r?.id && tep.length ? await taiLenTepCho("chuyen_kho", r.id, tep) : 0;
       setShowForm(false);
       setMsg(
-        loai === "Nhap mua"
+        (loiTep ? `${loiTep} tệp đính kèm chưa tải được - mở phiếu để tải lại. ` : "") +
+        (loai === "Nhap mua"
           ? "Đã lập phiếu nhập mua - chờ Kế toán duyệt."
           : loai === "Chuyen kho"
             ? "Đã lập phiếu chuyển kho - hàng trừ kho nguồn, chờ kho đích xác nhận nhận."
-            : "Đã lập phiếu cấp phát.",
+            : "Đã lập phiếu cấp phát."),
       );
       baoThayDoi();
       await reloadViec();
@@ -687,6 +693,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             <label className="field-label">Ghi chú</label>
             <textarea rows={2} value={ghiChu} onChange={(e) => setGhiChu(e.target.value)} />
           </div>
+          <ChonTep tep={tep} onDoi={setTep} loaiMacDinh={loai === "Nhap mua" ? "Hoa don" : "Chung tu"} />
           {loai === "Chuyen kho" && <div className="field-hint">Hàng trừ khỏi kho nguồn ngay; cộng vào kho đích khi thủ kho đích xác nhận đã nhận.</div>}
           {loai === "Nhap mua" && <div className="field-hint">Hàng chỉ vào tồn kho HCNS sau khi Kế toán duyệt.</div>}
           {formErr && <div className="alert alert-error">{formErr}</div>}

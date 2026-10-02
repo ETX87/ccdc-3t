@@ -15,6 +15,8 @@ import etxSync from "./routes/etxSync";
 import { runEtxNhanSuSyncWithState } from "./lib/etxNhanSuSync";
 import baoCao from "./routes/baoCao";
 import dashboard from "./routes/dashboard";
+import dinhKem from "./routes/dinhKem";
+import settings from "./routes/settings";
 import { chupSoLieu } from "./lib/thongKe";
 import { nowVN } from "./lib/vnTime";
 
@@ -47,6 +49,8 @@ app.route("/api/kho", kho);
 app.route("/api/etx-sync", etxSync);
 app.route("/api/bao-cao", baoCao);
 app.route("/api/dashboard", dashboard);
+app.route("/api/dinh-kem", dinhKem);
+app.route("/api/settings", settings);
 
 app.get("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 

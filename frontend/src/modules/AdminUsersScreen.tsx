@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, Lock, Search, ShieldCheck, UserCheck, UserPlus, UserX } from "lucide-react";
+import { ChevronDown, HardDrive, Lock, Search, ShieldCheck, UserCheck, UserPlus, UserX } from "lucide-react";
 import { api } from "../api/client";
 import type { TrangThaiDuyet, VaiTro } from "../types";
 import { Modal } from "../components/Modal";
@@ -8,6 +8,7 @@ import { KpiCard } from "../components/KpiCard";
 import { FilterTabs } from "../components/FilterTabs";
 import { StatusBadge } from "../components/StatusBadge";
 import { fmtNgayGio, fmtSo } from "../lib/format";
+import { fmtKichThuoc } from "../lib/dinhKem";
 import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { tenVaiTro, thongBaoLoi, VAI_TRO } from "../lib/nhan";
@@ -214,6 +215,8 @@ export function AdminUsersScreen() {
         />
       </div>
 
+      <KetNoiDrive />
+
       <div className="content-card task-card-full">
         <div className="card-header">
           <FilterTabs<Tab>
@@ -376,6 +379,54 @@ export function AdminUsersScreen() {
             </button>
           </div>
         </Modal>
+      )}
+    </div>
+  );
+}
+
+// Ket noi Google Drive (1 tai khoan Google that) luu hoa don / chung tu / anh bang chung - backend routes/settings.ts.
+function KetNoiDrive() {
+  const [st, setSt] = useState<{
+    connected: boolean;
+    google_email?: string;
+    authorized_by?: string | null;
+    authorized_at?: string;
+    so_tep: number;
+    dung_luong: number;
+  } | null>(null);
+  const [loi, setLoi] = useState<string | null>(null);
+  useEffect(() => {
+    api
+      .get<NonNullable<typeof st>>("/settings/google-drive/status")
+      .then(setSt)
+      .catch((e) => setLoi(thongBaoLoi(e, "Không đọc được trạng thái Google Drive.")));
+  }, []);
+  return (
+    <div className="content-card" style={{ marginBottom: 14 }}>
+      <div className="card-header" style={{ marginBottom: 6 }}>
+        <div className="card-title-wrap">
+          <HardDrive size={16} className="card-title-icon text-teal" />
+          <span className="card-title">Lưu trữ hóa đơn, chứng từ & ảnh (Google Drive)</span>
+          {st && <StatusBadge label={st.connected ? "Đã kết nối" : "Chưa kết nối"} tone={st.connected ? "success" : "warning"} />}
+        </div>
+        {st && (
+          <a className="btn btn-outline btn-sm" href="/api/settings/google-drive/authorize">
+            {st.connected ? "Kết nối lại / đổi tài khoản" : "Kết nối Google Drive"}
+          </a>
+        )}
+      </div>
+      {loi && <div className="alert alert-error">{loi}</div>}
+      {st && (
+        <div className="muted" style={{ fontSize: 12.5 }}>
+          {st.connected ? (
+            <>
+              Tài khoản <b>{st.google_email}</b> · kết nối bởi {st.authorized_by ?? "—"} lúc {fmtNgayGio(st.authorized_at ?? null)} · {fmtSo(st.so_tep)} tệp (
+              {fmtKichThuoc(st.dung_luong)}).
+            </>
+          ) : (
+            "Chưa kết nối - người dùng chưa tải được hóa đơn, chứng từ, ảnh lên phiếu. Bấm \"Kết nối Google Drive\" và chọn tài khoản Google của công ty để lưu tệp."
+          )}
+        </div>
       )}
     </div>
   );

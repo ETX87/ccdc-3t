@@ -1680,3 +1680,16 @@ input.header-month { height: 33px; width: auto; font-size: 12.5px; border-radius
 .row-clickable { cursor: pointer; }
 .row-clickable:hover td { background: var(--color-border-light); }
 .task-table tr.row-selected td { background: #E1F7FB; }
+
+/* ===== Dinh kem hoa don / chung tu / anh (components/DinhKem.tsx) ===== */
+.dinh-kem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.dinh-kem-item { position: relative; background: #ffffff; border: 1px solid #f1f5f9; border-radius: 12px; padding: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.025); min-width: 0; }
+.dinh-kem-thumb { display: flex; align-items: center; justify-content: center; height: 96px; border-radius: 8px; background: #f7fbfe; color: #0284c7; overflow: hidden; }
+.dinh-kem-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.dinh-kem-loai { display: inline-block; margin-top: 6px; padding: 1px 8px; border-radius: 10px; background: #e1f7fb; color: #007482; font-size: 10.5px; font-weight: 600; }
+.dinh-kem-ten { font-size: 11.5px; font-weight: 600; color: #0f172a; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dinh-kem-meta { font-size: 10.5px; color: #64748b; margin-top: 2px; line-height: 1.35; }
+.dinh-kem-xoa { position: absolute; top: 10px; right: 10px; width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(15,23,42,0.6); color: #ffffff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.dinh-kem-xoa:hover { background: #dc2626; }
+.dinh-kem-tai { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dinh-kem-tai select { height: 28px; border: 1px solid #e2e8f0; border-radius: 7px; padding: 0 8px; font-size: 12px; background: #ffffff; }

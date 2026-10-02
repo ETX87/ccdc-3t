@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { Modal } from "./Modal";
+import { DinhKem } from "./DinhKem";
 import { StatusBadge } from "./StatusBadge";
 import { useDuLieuChung, type ViecRow } from "../lib/duLieuChung";
 import { useNav } from "../lib/navigation";
@@ -363,6 +364,7 @@ function PhieuModal({ loai, id, onClose }: { loai: LoaiPhieu; id: string; onClos
               </tbody>
             </table>
           </div>
+          <DinhKem doiTuong={loai} id={id} nhacHoaDon={row.loai === "Nhap mua"} />
           {data.log && <NhatKy log={data.log} nhan={loai === "chuyen_kho" ? TRANG_THAI_CK : TRANG_THAI_XU_LY} />}
           {user && <ThanhHanhDong ds={tinhHanhDong(loai, row, user)} onDone={load} />}
         </>
@@ -468,6 +470,7 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
               />
             </div>
           </div>
+          <DinhKem doiTuong="tai_san" id={id} />
 
           {form === "bao-hong" && (
             <div className="action-panel">

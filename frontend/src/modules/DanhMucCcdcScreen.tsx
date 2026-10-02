@@ -8,6 +8,8 @@ import { KpiCard } from "../components/KpiCard";
 import { FilterTabs } from "../components/FilterTabs";
 import { StatusBadge } from "../components/StatusBadge";
 import { useChiTiet } from "../components/ChiTiet";
+import { ChonTep } from "../components/DinhKem";
+import { taiLenTepCho, type TepCho } from "../lib/dinhKem";
 import { PhanTrang, useTrangKhach, useTrangServer } from "../components/PhanTrang";
 import { exportRowsToExcel } from "../lib/exportExcel";
 import { inTemQr } from "../lib/inTem";
@@ -123,6 +125,7 @@ export function DanhMucCcdcScreen() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm());
+  const [tep, setTep] = useState<TepCho[]>([]);
   const [saving, setSaving] = useState(false);
   const [formLoi, setFormLoi] = useState<string | null>(null);
   const [xoa, setXoa] = useState<CcdcRow | null>(null);
@@ -220,6 +223,7 @@ export function DanhMucCcdcScreen() {
   function openAdd() {
     setEditingId(null);
     setForm(emptyForm());
+    setTep([]);
     setFormLoi(null);
     setShowForm(true);
   }
@@ -269,8 +273,12 @@ export function DanhMucCcdcScreen() {
         await api.put(`/ccdc/${encodeURIComponent(editingId)}`, payload);
         setMsg(`Đã cập nhật tài sản ${editingId}.`);
       } else {
-        await api.post("/ccdc", payload);
-        setMsg(`Đã tạo tài sản ${payload.id} - phiếu nhập đang chờ Kế toán duyệt, duyệt xong tài sản vào kho HCNS.`);
+        const r = await api.post<{ phieu_id: string }>("/ccdc", payload);
+        const loiTep = r?.phieu_id && tep.length ? await taiLenTepCho("xu_ly", r.phieu_id, tep) : 0;
+        setMsg(
+          `Đã tạo tài sản ${payload.id} - phiếu nhập đang chờ Kế toán duyệt, duyệt xong tài sản vào kho HCNS.` +
+            (loiTep ? ` ${loiTep} tệp đính kèm chưa tải được - mở tài sản để tải lại.` : ""),
+        );
       }
       setShowForm(false);
       baoThayDoi();
@@ -655,6 +663,7 @@ export function DanhMucCcdcScreen() {
               <label className="field-label">Ghi chú</label>
               <textarea rows={2} value={form.ghi_chu} onChange={(e) => setForm({ ...form, ghi_chu: e.target.value })} />
             </div>
+            {!editingId && <ChonTep tep={tep} onDoi={setTep} />}
             <div className="modal-actions">
               <button type="button" className="btn" onClick={() => setShowForm(false)}>
                 Hủy

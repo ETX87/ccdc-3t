@@ -511,11 +511,11 @@ function cauLenhCanhBao(db: D1Database, pv: PhamVi) {
     "don-gia-bat-thuong": db
       .prepare(
         `SELECT p.ma_phieu AS ma, v.ten_vt AS ten,
-                'Đơn giá ' || printf('%,d', CAST(ct.don_gia AS INTEGER)) || 'đ, tham khảo ' || printf('%,d', CAST(v.don_gia_tham_khao AS INTEGER)) || 'đ' AS chi_tiet,
+                'Đơn giá ' || replace(printf('%,d', CAST(ct.don_gia AS INTEGER)), ',', '.') || 'đ, tham khảo ' || replace(printf('%,d', CAST(v.don_gia_tham_khao AS INTEGER)), ',', '.') || 'đ' AS chi_tiet,
                 p.created_at AS thoi_gian, 'chuyen_kho' AS kind, p.id AS ref,
                 CAST(ct.id AS TEXT) AS khoa, ct.vt_id, ct.don_gia, v.don_gia_tham_khao
          FROM phieu_chuyen_kho_ct ct JOIN phieu_chuyen_kho p ON p.id = ct.phieu_id JOIN vt_tieu_hao v ON v.id = ct.vt_id
-         WHERE v.don_gia_tham_khao > 0 AND ct.don_gia > 0 AND (ct.don_gia > 5 * v.don_gia_tham_khao OR ct.don_gia * 5 < v.don_gia_tham_khao) AND ${pk.sql}
+         WHERE p.trang_thai NOT IN ('Ke toan tu choi', 'Bi tu choi') AND v.don_gia_tham_khao > 0 AND ct.don_gia > 0 AND (ct.don_gia > 5 * v.don_gia_tham_khao OR ct.don_gia * 5 < v.don_gia_tham_khao) AND ${pk.sql}
            AND NOT EXISTS (SELECT 1 FROM canh_bao_bo_qua b WHERE b.loai = 'don-gia-bat-thuong' AND b.khoa = CAST(ct.id AS TEXT))
          ORDER BY p.created_at DESC`,
       )

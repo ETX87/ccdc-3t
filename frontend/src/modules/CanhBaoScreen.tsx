@@ -221,15 +221,16 @@ export function CanhBaoScreen() {
           {chiTiet && chiTiet.length === 0 && <div className="empty-state">Không có mục nào cần xử lý.</div>}
           {chiTiet && chiTiet.length > 0 && (
             <div className="task-table-wrapper">
-              <table className="task-table">
+              {/* Don gia: bang co dinh be rong cot + cho xuong dong - de xuat dai khong day bang tran ngang */}
+              <table className="task-table" style={laDonGia ? { tableLayout: "fixed" } : undefined}>
                 <thead>
                   <tr>
-                    <th style={{ width: "18%" }}>Mã</th>
-                    <th style={{ width: "26%" }}>Đối tượng</th>
-                    <th>Chi tiết</th>
-                    {laDonGia && <th style={{ width: "30%" }}>Đề xuất</th>}
-                    <th style={{ width: "13%" }}>Thời gian</th>
-                    {xuLyDuoc && <th style={{ width: laDonGia ? "15%" : "12%", textAlign: "right" }}>Thao tác</th>}
+                    <th style={{ width: laDonGia ? "12%" : "18%" }}>Mã</th>
+                    <th style={{ width: laDonGia ? "15%" : "26%" }}>Đối tượng</th>
+                    <th style={laDonGia ? { width: "18%" } : undefined}>Chi tiết</th>
+                    {laDonGia && <th style={{ width: "25%" }}>Đề xuất</th>}
+                    <th style={{ width: laDonGia ? "12%" : "13%" }}>Thời gian</th>
+                    {xuLyDuoc && <th style={{ width: laDonGia ? "18%" : "12%", textAlign: "right" }}>Thao tác</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -240,21 +241,23 @@ export function CanhBaoScreen() {
                           {d.ma ?? d.ref.slice(0, 8)}
                         </span>
                       </td>
-                      <td data-label="Đối tượng">{d.ten}</td>
-                      <td data-label="Chi tiết" className="text-secondary">
+                      <td data-label="Đối tượng" style={laDonGia ? { whiteSpace: "normal" } : undefined}>
+                        {d.ten}
+                      </td>
+                      <td data-label="Chi tiết" className="text-secondary" style={{ whiteSpace: "normal" }}>
                         {d.chi_tiet}
                       </td>
                       {laDonGia && (
-                        <td data-label="Đề xuất" className={`small ${d.de_xuat ? MAU_DE_XUAT[d.de_xuat.kieu] : "muted"}`}>
+                        <td data-label="Đề xuất" className={`small ${d.de_xuat ? MAU_DE_XUAT[d.de_xuat.kieu] : "muted"}`} style={{ whiteSpace: "normal" }}>
                           {d.de_xuat?.ly_do ?? "-"}
                         </td>
                       )}
-                      <td data-label="Thời gian" className="text-secondary">
+                      <td data-label="Thời gian" className="text-secondary" style={laDonGia ? { whiteSpace: "normal" } : undefined}>
                         {d.thoi_gian ? fmtNgayGio(d.thoi_gian) : "-"}
                       </td>
                       {xuLyDuoc && (
                         <td data-label="Thao tác" style={{ textAlign: "right" }}>
-                          <div className="row-actions">
+                          <div className="row-actions" style={laDonGia ? { flexDirection: "column", alignItems: "flex-end" } : undefined}>
                             {d.de_xuat?.kieu === "sua_tham_khao" && d.vt_id && d.de_xuat.gia_de_xuat ? (
                               <button
                                 className="btn btn-primary btn-sm"

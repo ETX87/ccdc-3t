@@ -1486,7 +1486,7 @@ button.card-header-link { background: none; border: none; font-family: inherit; 
 .alert-row.active { background: #e6fbfb; }
 .alert-row-ok { opacity: 0.6; }
 .bg-blue-light { background: #dbeafe; }
-.split-grid { display: grid; grid-template-columns: 360px 1fr; gap: 14px; align-items: start; }
+.split-grid { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 14px; align-items: start; }
 
 /* Tong quan: bieu do, donut, luong */
 .y-axis-label-right { left: auto; right: 2px; }

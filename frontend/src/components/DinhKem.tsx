@@ -49,7 +49,7 @@ function TheTep({ t, onXoa }: { t: DinhKemRow | { ten: string; mime: string; url
 
 export function DinhKem({ doiTuong, id, nhacHoaDon }: { doiTuong: DoiTuongDinhKem; id: string; nhacHoaDon?: boolean }) {
   const [data, setData] = useState<{ rows: DinhKemRow[]; co_the_tai: boolean; drive_ket_noi: boolean } | null>(null);
-  const [loai, setLoai] = useState<LoaiDinhKem>(doiTuong === "chuyen_kho" || nhacHoaDon ? "Hoa don" : "Bang chung");
+  const [loai, setLoai] = useState<LoaiDinhKem>(nhacHoaDon ? "Hoa don" : doiTuong === "chuyen_kho" ? "Chung tu" : "Bang chung");
   const [dangTai, setDangTai] = useState<string | null>(null);
   const [xoa, setXoa] = useState<DinhKemRow | null>(null);
   const [err, setErr] = useState<string | null>(null);

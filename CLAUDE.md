@@ -145,6 +145,9 @@ worker `ccdc-huong-dan` (launch.json, cổng 8797) → `python chup_hcns.py <c�
 `../.wrangler/huong_dan/anh/`; các cảnh có GHI dữ liệu - chạy lại sẽ tạo phiếu trùng, nạp lại DB nếu cần) →
 `python tao_docx_hcns.py` → `cap_nhat_word.ps1` (Word COM: điền mục lục + xuất PDF). Kết quả `docs/*.docx|pdf`
 (không commit). Vai trò khác: thêm `chup_<vai_tro>.py` + `tao_docx_<vai_tro>.py`, dùng chung `hd.py`/`docx_lib.py`.
+Quản lý + Nhân viên (2026-10-03): `nap_ql_nv.py` (worker TẮT: thêm `ql@test.local`/`DT-QL`, `DT-NV02`, kho QL, giả lập
+Drive đã kết nối) → `chup_ql_nv.py chuan_bi …` (Playwright giả lập `POST /api/dinh-kem` + thumbnail Drive bằng ảnh mẫu
+`tao_anh_mau.py`) → `tao_docx_quan_ly.py`, `tao_docx_nhan_vien.py`.
 
 ## Quy ước chung (giống hệ QLBH 3T)
 

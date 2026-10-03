@@ -227,21 +227,20 @@ export function NhomCuaToiScreen() {
               <thead>
                 <tr>
                   <th>Nhân viên</th>
-                  <th style={{ width: "32%" }}>Bộ phận</th>
-                  <th style={{ width: "16%", textAlign: "right" }}>TS giữ</th>
+                  <th style={{ width: 70, textAlign: "right" }}>TS giữ</th>
                 </tr>
               </thead>
               <tbody>
                 {ds === null && (
                   <tr>
-                    <td colSpan={3} className="task-empty">
+                    <td colSpan={2} className="task-empty">
                       Đang tải…
                     </td>
                   </tr>
                 )}
                 {ds !== null && dsHien.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="task-empty">
+                    <td colSpan={2} className="task-empty">
                       {nhom.length ? "Không tìm thấy thành viên." : "Bạn chưa có cấp dưới trực tiếp nào."}
                     </td>
                   </tr>
@@ -256,12 +255,10 @@ export function NhomCuaToiScreen() {
                         </span>
                         <span className="small text-secondary">
                           {n.ma_nv}
+                          {n.bo_phan && ` · ${n.bo_phan}`}
                           {!n.email_dang_nhap && " · chưa có tài khoản"}
                         </span>
                       </div>
-                    </td>
-                    <td data-label="Bộ phận" className="text-secondary">
-                      {n.bo_phan ?? "-"}
                     </td>
                     <td data-label="TS giữ" style={{ textAlign: "right" }} className="strong">
                       {fmtSo(n.so_ts_dang_giu)}

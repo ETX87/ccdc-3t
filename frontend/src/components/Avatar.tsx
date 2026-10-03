@@ -3,7 +3,8 @@ import { useState } from "react";
 // Anh Google cua nguoi dung (luu luc dang nhap); khong co / loi tai -> chu cai dau tren nen teal.
 export function Avatar({ ten, anh, size = 38 }: { ten: string; anh?: string | null; size?: number }) {
   const [loi, setLoi] = useState(false);
-  const chu = ten
+  // Bo phan trong ngoac (vd "(dao tao)", "(CTV)") - lay 2 chu cua ten that.
+  const chu = (ten.replace(/\([^)]*\)/g, " ").trim() || ten)
     .split(/[\s@.]+/)
     .filter(Boolean)
     .slice(-2)

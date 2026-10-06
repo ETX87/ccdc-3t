@@ -28,6 +28,10 @@ export interface MenuChild {
   label: string;
   tab: TabKey;
   params?: NavParams;
+  /** So do cua muc con (menu_badges) - muc cha chi hien tong khi dang dong. */
+  badgeKey?: string;
+  /** Tham so them khi bam luc co so do (vd loc san phieu cho duyet). */
+  badgeParams?: NavParams;
   show: (u: AppUser) => boolean;
 }
 
@@ -68,7 +72,14 @@ export const MENU: MenuItem[] = [
     badgeKey: "cap-phat",
     show: (u) => laQuanTri(u) || coKho(u),
     children: [
-      { label: "Phiếu cấp phát & chuyển kho", tab: "cap-phat", params: { tab: "phieu" }, show: moiNguoi },
+      {
+        label: "Phiếu cấp phát & chuyển kho",
+        tab: "cap-phat",
+        params: { tab: "phieu" },
+        badgeKey: "cap-phat",
+        badgeParams: { trang_thai: "Cho ke toan duyet", thang: "" },
+        show: moiNguoi,
+      },
       { label: "Tồn kho tiêu hao", tab: "cap-phat", params: { tab: "ton-kho" }, show: moiNguoi },
       { label: "Danh mục vật tư", tab: "cap-phat", params: { tab: "danh-muc" }, show: moiNguoi },
     ],

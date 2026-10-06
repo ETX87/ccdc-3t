@@ -52,7 +52,7 @@ function SidebarItem({
           <span className="nav-label">{item.label}</span>
         </div>
         <div className="nav-item-right">
-          {badge > 0 && <span className="nav-badge-red">{badge > 99 ? "99+" : badge}</span>}
+          {badge > 0 && !(item.children && open) && <span className="nav-badge-red">{badge > 99 ? "99+" : badge}</span>}
           {item.children && (open ? <ChevronDown size={14} className="nav-arrow" /> : <ChevronRight size={14} className="nav-arrow" />)}
         </div>
       </button>
@@ -60,17 +60,19 @@ function SidebarItem({
         <div className="sidebar-subnav">
           {item.children.map((c) => {
             const on = tab === c.tab && (!c.params?.tab || (params.tab ?? c.params.tab) === c.params.tab);
+            const soCon = c.badgeKey ? badges[c.badgeKey] ?? 0 : 0;
             return (
               <button
                 key={c.label}
                 type="button"
                 className={`sidebar-subnav-item ${on ? "active" : ""}`}
                 onClick={() => {
-                  navigate(c.tab, c.params);
+                  navigate(c.tab, soCon > 0 ? { ...c.params, ...c.badgeParams } : c.params);
                   onPicked();
                 }}
               >
-                {c.label}
+                <span>{c.label}</span>
+                {soCon > 0 && <span className="nav-badge-red">{soCon > 99 ? "99+" : soCon}</span>}
               </button>
             );
           })}

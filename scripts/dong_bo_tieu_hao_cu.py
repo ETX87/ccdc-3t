@@ -4,8 +4,8 @@ Dong bo GIAO DICH TIEU HAO MOI tu he thong cu (AppSheet, Google Sheet xuat TSV) 
 24/09 (user yeu cau 2026-10-02: "dong bo du lieu moi nhat theo database nay"). Chi lam phan CHENH LECH:
   1. Giao dich co ID chua co tren production (so luong > 0) -> them phieu_chuyen_kho (+ _ct, _log), giu
      ma_phieu = ID cu nhu lan import (generate_import_sql.py).
-  2. Giao dich da co ma TRANG THAI cu doi (vd Cho quan ly xac nhan -> Quan ly da xac nhan) -> cap nhat
-     trang thai, CHI khi production van o trang thai luc import (khong de len thao tac da lam tren app moi).
+  2. Giao dich he cu da XONG (vd Cho quan ly xac nhan -> Quan ly da xac nhan) ma production van dang cho ->
+     cap nhat trang thai, CHI phieu do he thong tao (nguoi_lap = SYS; khong de len thao tac tren app moi).
 TSCD: doi chieu tung dong voi nguon import 24/09 - khong co thay doi thi khong dong cham.
 
 Quy tac anh xa GIONG generate_import_sql.py, nhung tra theo danh ba / kho HIEN TAI (da ghep ETX 2 dot):
@@ -13,7 +13,11 @@ Quy tac anh xa GIONG generate_import_sql.py, nhung tra theo danh ba / kho HIEN T
     Kho van Mien Nam, nguoi khac co kho QL (tra theo chu kho / ten kho "Kho QL - <ten>").
   - Nguoi nhan: ten tu do da tung gan ho so (dot 1/2) -> dung lai; "(ma) ..." -> ma do (qua nhat ky doi ma neu
     da gop); trung DUY NHAT 1 ho so dang lam theo ho ten -> ho so do; con lai giu ten tu do.
-  - Loai phieu: tu Kho mua -> Nhap mua; toi 1 kho -> Chuyen kho; toi nguoi / Kho tieu hao -> Cap phat NV.
+  - Loai phieu: tu Kho mua -> Nhap mua; toi 1 kho (khac kho di) -> Chuyen kho NEU cot "Phan loai" he cu = "Nhap
+    kho" HOAC kho do dang xuat hang (HCNS / Mien / kho QL da tung xuat); con lai -> Cap phat NV.
+    (2026-10-06: import 24/09 bo qua cot "Phan loai" -> 22 phieu Nhap kho vao kho QL GS DVBH bi ghi thanh cap
+    phat tieu hao, kho Nguyen Thi Xuan am khi bat dau xuat. Cot "Thuoc ve kho" chi la email nguoi nhan, KHONG
+    phai dau hieu nhap kho.)
   - Trang thai: da xong -> Da nhan / Da giao; KT tu choi -> Ke toan tu choi / Bi tu choi; dang cho -> Cho ke
     toan duyet (nhap mua) / Dang chuyen (chuyen kho) / Da giao (cap phat).
 Vat tu chua co trong danh muc -> tao vt_tieu_hao toi thieu (ten + don gia tu giao dich), HCNS bo sung sau.
@@ -28,10 +32,8 @@ import sys
 import unicodedata
 from collections import Counter
 
-import openpyxl
 
 DIR = sys.argv[1] if len(sys.argv) > 1 else "../_backup_ccdc/dong_bo_1002"
-NGUON_CU = "CCDC_data_da_lam_sach.xlsx"  # nguon da import 24/09 - de biet giao dich nao moi / doi trang thai
 SHEET_TH = "sheet_1813749378.tsv"
 SYS = "nhap-du-lieu-cu@he-thong.local"
 XONG = {"Quản lý đã bàn giao", "Kế toán đã xác nhận", "Quản lý đã xác nhận"}
@@ -122,7 +124,8 @@ def main():
     def tim_kho(raw):
         r = low(bo_hau_to(raw))
         r2 = low(re.sub(r"^(GS[^-]*)\s*-\s*", "", bo_hau_to(raw)))
-        for t in (r, r2):
+        # "Hoang Ngoc Nhat Tam - ptdv" -> thu tung phan (giong canon() cua generate_import_sql.py).
+        for t in [r, r2] + [x.strip() for x in re.split(r"\s+-\s*", r)]:
             if t in KHO_THEO_TEN:
                 return KHO_THEO_TEN[t]
             if t in kho_ten:
@@ -132,11 +135,10 @@ def main():
         m, _ = tim_nguoi(raw)
         return kho_chu.get(m) if m else None
 
-    wb = openpyxl.load_workbook(NGUON_CU, read_only=True, data_only=True)
-    rows = list(wb["QL_tieu_hao_sach"].iter_rows(values_only=True))
-    h = list(rows[0])
-    cu = {r[0]: S(r[h.index("Trạng thái")]) for r in rows[1:]}
     th = [r for r in csv.DictReader(open(f"{DIR}/{SHEET_TH}", encoding="utf-8"), delimiter="\t") if S(r["ID"])]
+    # Kho dang xuat hang: nhan "Tieu hao" van coi la chuyen kho (nguoi nhan se xuat tiep tu kho minh).
+    kho_xuat = {r["id"] for r in kho if r["loai"] in ("HCNS", "Mien") or r.get("so_xuat")}
+    kho_xuat |= {k for k in (tim_kho(r["Kho đi"]) for r in th) if k}
 
     out = ["-- Sinh boi scripts/dong_bo_tieu_hao_cu.py - dong bo giao dich tieu hao moi tu he thong cu.", "PRAGMA defer_foreign_keys = true;"]
     bc = Counter()
@@ -146,15 +148,14 @@ def main():
         gd = S(r["ID"])
         tt_goc = S(r["Trạng thái"])
         if gd in pck:
-            # 2. Doi trang thai giao dich da import.
-            if gd in cu and cu[gd] != tt_goc and tt_goc in XONG:
-                p = pck[gd]
+            # 2. He cu da xong ma production (phieu he thong tao) van dang cho -> cap nhat.
+            p = pck[gd]
+            if tt_goc in XONG and p["nguoi_lap"] == SYS:
                 if p["loai"] == "Cap phat NV" and p["trang_thai"] == "Da giao" and not p["da_xac_nhan"]:
                     out.append(f"UPDATE phieu_chuyen_kho SET da_xac_nhan = 1, xac_nhan_luc = datetime('now', '+7 hours'), updated_at = datetime('now', '+7 hours'), ghi_chu = 'Du lieu cu: ' || {q(tt_goc)} WHERE id = {q(gd)} AND trang_thai = 'Da giao' AND da_xac_nhan = 0;")
                 elif p["trang_thai"] in ("Dang chuyen", "Cho ke toan duyet"):
                     out.append(f"UPDATE phieu_chuyen_kho SET trang_thai = 'Da nhan', updated_at = datetime('now', '+7 hours'), ghi_chu = 'Du lieu cu: ' || {q(tt_goc)} WHERE id = {q(gd)} AND trang_thai = {q(p['trang_thai'])};")
                 else:
-                    can_xem.append(f"{gd}: doi '{cu[gd]}' -> '{tt_goc}' nhung production dang '{p['trang_thai']}' - bo qua")
                     continue
                 out.append(f"INSERT INTO phieu_chuyen_kho_log (phieu_id, trang_thai, nguoi_xu_ly, ngay_xu_ly, ghi_chu) VALUES ({q(gd)}, 'Da nhan', {q(SYS)}, datetime('now', '+7 hours'), {q('Dong bo he thong cu: ' + tt_goc)});")
                 bc["doi trang thai"] += 1
@@ -173,9 +174,11 @@ def main():
         den_nv, tu_do, cach = None, None, ""
         if tu == 1:
             loai, den_kho = "Nhap mua", den_kho or 2
-        elif den_kho and den_kho != tu:
+        elif den_kho and den_kho != tu and (S(r["Phân loại"]) == "Nhập kho" or den_kho in kho_xuat):
             loai = "Chuyen kho"
         else:
+            if S(r["Phân loại"]) == "Nhập kho" and not den_kho and low(den_raw) != "kho tiêu hao":
+                can_xem.append(f"{gd}: he cu 'Nhap kho' toi '{den_raw}' nhung nguoi nay chua co kho QL -> ghi cap phat")
             loai, den_kho = "Cap phat NV", None
             if low(den_raw) == "kho tiêu hao":
                 tu_do, cach = "Kho tiêu hao", "kho ao tieu hao"

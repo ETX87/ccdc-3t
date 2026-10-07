@@ -56,6 +56,10 @@ state đang dùng.
   bảng gán riêng `kho_thu_kho` (kho, email), độc lập vai trò; QL tự là thủ kho kho QL của mình.
 - Kho: `Mua hang` (id 1, nguồn ảo, không tính tồn) → `HCNS` (id 2) → `Mien` → `Quan ly` (1 kho/QL,
   `nhan_vien_id` UNIQUE) → NV. Tồn tiêu hao tính động qua view `v_ton_kho` (không denormalize).
+- **Đổi loại kho QL ↔ Miền** (2026-10-07, `POST /kho/:id/doi-loai`, nút "→ Kho miền" ở Cấu hình kho): giữ id,
+  tồn, lịch sử và `nhan_vien_id` (= "người phụ trách", vẫn là thủ kho mặc nhiên qua `khoPhuTrach` với MỌI loại
+  kho; giữ để ETX/gán quản lý không tự tạo lại "Kho QL - …" nhờ `ON CONFLICT(nhan_vien_id)`). Kho miền cấp phát
+  cho mọi nhân viên, chuyển được sang kho QL; thủ kho kho miền xem mọi tài sản + điều chuyển TSCĐ toàn hệ thống.
 - Mọi kiểm quyền theo kho/nhóm ở server (`backend/src/lib/quyen.ts`) — không tin `kho_id` client gửi.
 - Chống xuất vượt tồn khi 2 phiếu đồng thời: bảng `batch_guard` (`CHECK (x = 1)`) — chèn
   `CASE WHEN tồn < 0 THEN 0 ELSE 1 END` cuối `db.batch()` để ép rollback cả batch.

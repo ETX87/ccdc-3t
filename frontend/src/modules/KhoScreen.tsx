@@ -319,6 +319,7 @@ function CauHinhKho() {
   const [loaiMoi, setLoaiMoi] = useState<LoaiKho>("Mien");
   const [emailThuKho, setEmailThuKho] = useState<Record<number, string>>({});
   const [xoa, setXoa] = useState<{ kho: KhoRow; email: string } | null>(null);
+  const [doiLoai, setDoiLoai] = useState<{ kho: KhoRow; ten: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [showQl, setShowQl] = useState(false);
@@ -405,6 +406,7 @@ function CauHinhKho() {
                 <td data-label={t("Thủ kho")}>
                   <div className="cell-stack">
                     {k.loai === "Quan ly" && k.nhan_vien_ten && <div className="muted small">{t("Quản lý chủ kho:")} {k.nhan_vien_ten}</div>}
+                    {k.loai === "Mien" && k.nhan_vien_ten && <div className="muted small">{t("Người phụ trách:")} {k.nhan_vien_ten}</div>}
                     {k.loai === "HCNS" && <div className="muted small">{t("Mọi tài khoản HCNS / Admin")}</div>}
                     {k.loai === "Mua hang" && <div className="muted small">{t("Kho nguồn ảo - chỉ dùng cho phiếu nhập mua")}</div>}
                     {k.thu_kho.length > 0 && (
@@ -449,6 +451,11 @@ function CauHinhKho() {
                   <StatusBadge label={k.bat_tat ? t("Hoạt động") : t("Ngừng")} tone={k.bat_tat ? "success" : "neutral"} />
                 </td>
                 <td data-label={t("Thao tác")} style={{ textAlign: "right" }}>
+                  {(k.loai === "Quan ly" || (k.loai === "Mien" && k.nhan_vien_id)) && (
+                    <button className="btn btn-outline btn-sm" style={{ marginRight: 6 }} onClick={() => setDoiLoai({ kho: k, ten: k.ten_kho })}>
+                      {k.loai === "Quan ly" ? t("→ Kho miền") : t("→ Kho quản lý")}
+                    </button>
+                  )}
                   {k.id > 2 && (
                     <button
                       className={`btn btn-outline btn-sm ${k.bat_tat ? "danger-outline" : ""}`}
@@ -501,6 +508,42 @@ function CauHinhKho() {
               }
             >
               {t("Lưu kho")}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {doiLoai && (
+        <Modal
+          title={doiLoai.kho.loai === "Quan ly" ? t("Chuyển thành kho miền") : t("Chuyển về kho quản lý")}
+          onClose={() => setDoiLoai(null)}
+        >
+          <div className="alert alert-info">
+            {doiLoai.kho.loai === "Quan ly"
+              ? t("Kho miền được nhận hàng từ HCNS / kho miền khác, chuyển tiếp cho mọi kho và cấp phát / bàn giao cho TẤT CẢ nhân viên (không giới hạn nhóm). Tồn kho, lịch sử phiếu giữ nguyên; {nv} vẫn là người phụ trách (thủ kho) của kho.", { nv: doiLoai.kho.nhan_vien_ten ?? "" })
+              : t("Kho quản lý chỉ cấp phát cho {nv} và nhân viên cấp dưới trực tiếp, không chuyển sang kho quản lý khác. Tồn kho, lịch sử phiếu giữ nguyên.", { nv: doiLoai.kho.nhan_vien_ten ?? "" })}
+          </div>
+          <div className="field-group">
+            <label className="field-label">{t("Tên kho *")}</label>
+            <input type="text" value={doiLoai.ten} onChange={(e) => setDoiLoai({ ...doiLoai, ten: e.target.value })} autoFocus />
+          </div>
+          <div className="modal-actions">
+            <button className="btn" onClick={() => setDoiLoai(null)}>
+              {t("Hủy")}
+            </button>
+            <button
+              className="btn btn-primary"
+              disabled={!doiLoai.ten.trim()}
+              onClick={() => {
+                const { kho: k, ten } = doiLoai;
+                const loai = k.loai === "Quan ly" ? "Mien" : "Quan ly";
+                run(async () => {
+                  await api.post(`/kho/${k.id}/doi-loai`, { loai, ten_kho: ten.trim() });
+                  setDoiLoai(null);
+                }, t("Đã chuyển {ten} thành {loai}.", { ten: ten.trim(), loai: LOAI_KHO[loai] }));
+              }}
+            >
+              {t("Xác nhận chuyển")}
             </button>
           </div>
         </Modal>

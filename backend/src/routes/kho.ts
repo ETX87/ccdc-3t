@@ -103,6 +103,22 @@ kho.put("/:id", requireRole("Admin", "HCNS"), async (c) => {
   return c.json({ ok: true });
 });
 
+// Doi loai kho QL <-> Mien (vd kho QL phat cho MOI nhan vien, khong chi nhom). Giu nguyen id, ton, lich su
+// va nhan_vien_id (nguoi phu trach - van la thu kho mac nhien; giu de dong bo ETX / gan quan ly khong tu tao
+// lai "Kho QL - ..." moi nho ON CONFLICT(nhan_vien_id)). Chi anh huong quy tac cua phieu lap SAU khi doi.
+kho.post("/:id/doi-loai", requireRole("Admin", "HCNS"), async (c) => {
+  const id = Number(c.req.param("id"));
+  const body = await c.req.json<{ loai?: LoaiKho; ten_kho?: string }>().catch(() => null);
+  if (body?.loai !== "Mien" && body?.loai !== "Quan ly") return c.json({ error: "MISSING_FIELDS" }, 400);
+  const k = await c.env.DB.prepare("SELECT id, ten_kho, loai, nhan_vien_id FROM kho WHERE id = ?").bind(id).first<{ ten_kho: string; loai: LoaiKho; nhan_vien_id: string | null }>();
+  if (!k) return c.json({ error: "NOT_FOUND" }, 404);
+  if (k.loai !== "Mien" && k.loai !== "Quan ly") return c.json({ error: "CHI_DOI_KHO_QL_MIEN" }, 400);
+  if (body.loai === "Quan ly" && !k.nhan_vien_id) return c.json({ error: "MISSING_NHAN_VIEN" }, 400);
+  const ten = body.ten_kho?.trim() || k.ten_kho;
+  await c.env.DB.prepare("UPDATE kho SET loai = ?, ten_kho = ?, updated_at = ? WHERE id = ?").bind(body.loai, ten, nowVN(), id).run();
+  return c.json({ ok: true });
+});
+
 // Gan / bo thu kho. Email phai la user da dang nhap it nhat 1 lan (FK users) - nguoi chua co tai
 // khoan thi chua gan duoc (giong ly do email_dang_nhap cua nhan_vien).
 kho.post("/:id/thu-kho", requireRole("Admin", "HCNS"), async (c) => {

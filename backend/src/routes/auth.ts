@@ -156,7 +156,7 @@ auth.get("/me", verifySessionMiddleware, loadUser, async (c) => {
     ? await c.env.DB.prepare("SELECT 1 AS ok FROM nhan_vien WHERE quan_ly_id = ? AND dang_lam_viec = 1 LIMIT 1").bind(user.ma_nv).first()
     : null;
   return c.json({
-    user: { ...user, kho_phu_trach: kho.map((k) => ({ id: k.id, ten_kho: k.ten_kho, loai: k.loai })), co_cap_duoi: !!capDuoi },
+    user: { ...user, kho_phu_trach: kho.map((k) => ({ id: k.id, ten_kho: k.ten_kho, loai: k.loai, nhan_vien_id: k.nhan_vien_id })), co_cap_duoi: !!capDuoi },
   });
 });
 

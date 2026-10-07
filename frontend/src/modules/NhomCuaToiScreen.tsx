@@ -44,7 +44,8 @@ export function NhomCuaToiScreen() {
   const user = auth.status === "authenticated" ? auth.user : null;
   const { navigate } = useNav();
   const { moTaiSan } = useChiTiet();
-  const khoQl = user?.kho_phu_trach.find((k) => k.loai === "Quan ly") ?? null;
+  // Kho cua chinh minh: kho QL, hoac kho QL da doi thanh kho mien (van giu nguoi phu trach).
+  const khoQl = user?.kho_phu_trach.find((k) => k.loai === "Quan ly") ?? user?.kho_phu_trach.find((k) => !!user.ma_nv && k.nhan_vien_id === user.ma_nv) ?? null;
 
   const [ds, setDs] = useState<CapDuoiRow[] | null>(null);
   const [soTsToi, setSoTsToi] = useState(0);

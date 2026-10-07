@@ -30,7 +30,8 @@ export function laHcns(user: AppUser): boolean {
 //   - Admin: moi kho dang hoat dong.
 //   - HCNS: moi kho loai 'HCNS' + 'Mua hang' (lap phieu nhap mua) - khong can gan tay.
 //   - Thu kho duoc gan (kho_thu_kho) - doc lap vai tro.
-//   - QL: kho loai 'Quan ly' co nhan_vien_id = ho so nhan vien cua chinh ho.
+//   - Nguoi phu trach kho: kho co nhan_vien_id = ho so nhan vien cua chinh ho (kho QL, hoac kho QL da
+//     doi thanh kho Mien - POST /kho/:id/doi-loai - van giu nguoi phu trach).
 export async function khoPhuTrach(db: D1Database, user: AppUser): Promise<KhoRow[]> {
   if (user.vai_tro === "Admin") {
     const { results } = await db.prepare("SELECT id, ten_kho, loai, nhan_vien_id, bat_tat FROM kho WHERE bat_tat = 1 ORDER BY id").all<KhoRow>();
@@ -41,7 +42,7 @@ export async function khoPhuTrach(db: D1Database, user: AppUser): Promise<KhoRow
       `SELECT id, ten_kho, loai, nhan_vien_id, bat_tat FROM kho
        WHERE bat_tat = 1 AND (
          id IN (SELECT kho_id FROM kho_thu_kho WHERE email = ?)
-         OR (loai = 'Quan ly' AND nhan_vien_id IS NOT NULL AND nhan_vien_id = ?)
+         OR (nhan_vien_id IS NOT NULL AND nhan_vien_id = ?)
          OR (? = 1 AND loai IN ('HCNS', 'Mua hang'))
        )
        ORDER BY id`,

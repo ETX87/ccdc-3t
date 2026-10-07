@@ -94,6 +94,7 @@ const LOI: Record<string, string> = {
   XAC_NHAN_HO_CAN_GHI_CHU: t("Xác nhận hộ kho nhận bắt buộc ghi chú lý do."),
   TRUNG_KHO: t("Kho nguồn và kho đích trùng nhau."),
   QL_KHONG_CHUYEN_SANG_KHO_QL_KHAC: t("Kho quản lý chỉ trả về kho HCNS/miền."),
+  CHI_DOI_KHO_QL_MIEN: t("Chỉ đổi qua lại được giữa kho quản lý và kho miền."),
   USER_CHUA_DANG_NHAP: t("Email này chưa từng đăng nhập hệ thống - cần đăng nhập 1 lần trước khi gán."),
   ID_EXISTS: t("Mã này đã tồn tại."),
   FORBIDDEN: t("Bạn không có quyền thực hiện thao tác này."),

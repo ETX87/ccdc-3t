@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import type { ReactNode } from "react";
 import { fmtSo } from "../lib/format";
 
@@ -30,7 +31,7 @@ export function KpiCard({
   label,
   value,
   xuHuong,
-  moTaXuHuong = "so với kỳ trước",
+  moTaXuHuong = t("so với kỳ trước"),
   trend,
   subtext,
   tangLaXau = false,
@@ -54,7 +55,7 @@ export function KpiCard({
     if (xuHuong.pct == null) {
       dongXuHuong = (
         <div className="kpi-trend">
-          <span className="trend-sub">{xuHuong.truoc == null ? "Chưa có số liệu kỳ trước" : `Kỳ trước: ${fmtSo(xuHuong.truoc)}`}</span>
+          <span className="trend-sub">{xuHuong.truoc == null ? t("Chưa có số liệu kỳ trước") : t("Kỳ trước: {x}", { x: fmtSo(xuHuong.truoc) })}</span>
         </div>
       );
     } else {

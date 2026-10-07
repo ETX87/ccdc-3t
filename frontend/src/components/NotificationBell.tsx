@@ -1,3 +1,4 @@
+import { t, tS } from "../lib/i18n";
 import { useState } from "react";
 import { Bell } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
@@ -24,7 +25,7 @@ export function NotificationBell() {
 
   return (
     <div className="bell-wrap">
-      <button type="button" className="notification-bell-btn" aria-label={`Thông báo (${so})`} onClick={() => setOpen(!open)}>
+      <button type="button" className="notification-bell-btn" aria-label={t("Thông báo ({so})", { so })} onClick={() => setOpen(!open)}>
         <Bell size={20} />
         {so > 0 && <span className="bell-badge">{so > 99 ? "99+" : so}</span>}
       </button>
@@ -33,11 +34,11 @@ export function NotificationBell() {
           <div className="dropdown-backdrop" onClick={() => setOpen(false)} />
           <div className="bell-panel">
             <div className="bell-panel-head">
-              <span className="strong">Thông báo</span>
-              <span className="muted small">{so} việc đang chờ bạn</span>
+              <span className="strong">{t("Thông báo")}</span>
+              <span className="muted small">{so} {t("việc đang chờ bạn")}</span>
             </div>
-            {loi && <div className="search-empty">Không tải được thông báo.</div>}
-            {!loi && rows.length === 0 && <div className="search-empty">Không có việc nào cần xử lý.</div>}
+            {loi && <div className="search-empty">{t("Không tải được thông báo.")}</div>}
+            {!loi && rows.length === 0 && <div className="search-empty">{t("Không có việc nào cần xử lý.")}</div>}
             {rows.map((r) => (
               <button
                 key={r.key}
@@ -49,13 +50,13 @@ export function NotificationBell() {
                 }}
               >
                 <div className="bell-item-top">
-                  <span className="strong">{r.loai}</span>
+                  <span className="strong">{tS(r.loai)}</span>
                   {r.ma_phieu && <span className="code-link">{r.ma_phieu}</span>}
                 </div>
-                <div className="bell-item-text">{r.noi_dung}</div>
+                <div className="bell-item-text">{tS(r.noi_dung)}</div>
                 <div className="muted small">
                   {fmtNgayGio(r.thoi_gian)}
-                  {r.qua_han && <span className="text-red"> · Quá hạn 48 giờ</span>}
+                  {r.qua_han && <span className="text-red"> {t("· Quá hạn 48 giờ")}</span>}
                 </div>
               </button>
             ))}
@@ -68,7 +69,7 @@ export function NotificationBell() {
                   navigate("viec-can-lam");
                 }}
               >
-                Xem tất cả việc cần làm
+                {t("Xem tất cả việc cần làm")}
               </button>
               {canhBao > 0 && (
                 <button
@@ -79,7 +80,7 @@ export function NotificationBell() {
                     navigate("canh-bao");
                   }}
                 >
-                  {canhBao} loại cảnh báo
+                  {canhBao} {t("loại cảnh báo")}
                 </button>
               )}
             </div>

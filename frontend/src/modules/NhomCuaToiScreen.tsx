@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRightLeft, Archive, Package, Search, UserX, Users } from "lucide-react";
 import { api } from "../api/client";
@@ -75,7 +76,7 @@ export function NhomCuaToiScreen() {
       setTon(tk.rows);
       setCapNhatLuc(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
     } catch (e) {
-      setLoi(thongBaoLoi(e, "Không tải được nhóm."));
+      setLoi(thongBaoLoi(e, t("Không tải được nhóm.")));
       setDs([]);
     } finally {
       setDangTai(false);
@@ -114,9 +115,9 @@ export function NhomCuaToiScreen() {
     [user, ds, soTsToi],
   );
 
-  const t = tim.trim().toLowerCase();
-  const dsHien = nhom.filter((n) => !t || `${n.ma_nv} ${n.ten_nv} ${n.bo_phan ?? ""}`.toLowerCase().includes(t));
-  const tNhom = useTrangKhach(dsHien, [t]);
+  const tuKhoa = tim.trim().toLowerCase();
+  const dsHien = nhom.filter((n) => !tuKhoa || `${n.ma_nv} ${n.ten_nv} ${n.bo_phan ?? ""}`.toLowerCase().includes(tuKhoa));
+  const tNhom = useTrangKhach(dsHien, [tuKhoa]);
   const tTsNv = useTrangKhach(ts, [chon]);
 
   if (!user) return null;
@@ -138,7 +139,7 @@ export function NhomCuaToiScreen() {
         ghi_chu: ghiChu.trim() || undefined,
         items: [{ ccdc_id: chuyen.id }],
       });
-      setMsg(`Đã lập phiếu điều chuyển ${chuyen.id} cho ${nhom.find((n) => n.ma_nv === den)?.ten_nv ?? den} - chờ người nhận xác nhận.`);
+      setMsg(t("Đã lập phiếu điều chuyển {id} cho {x} - chờ người nhận xác nhận.", { id: chuyen.id, x: nhom.find((n) => n.ma_nv === den)?.ten_nv ?? den }));
       setChuyen(null);
       baoThayDoi();
       await Promise.all([load(), loadTs()]);
@@ -152,16 +153,16 @@ export function NhomCuaToiScreen() {
   return (
     <div className="dashboard-container">
       <PageHeader
-        title="Nhóm của tôi"
-        filters={khoQl ? <span className="muted small">Thủ kho: {khoQl.ten_kho}</span> : undefined}
+        title={t("Nhóm của tôi")}
+        filters={khoQl ? <span className="muted small">{t("Thủ kho:")} {khoQl.ten_kho}</span> : undefined}
         actions={
           khoQl && (
             <>
               <button className="btn btn-outline" onClick={() => navigate("cap-phat", { tab: "ton-kho", kho_id: String(khoQl.id) })}>
-                <Archive size={14} /> Tồn kho nhóm
+                <Archive size={14} /> {t("Tồn kho nhóm")}
               </button>
               <button className="btn btn-primary" onClick={() => navigate("cap-phat", { tab: "phieu" })}>
-                <ArrowRightLeft size={14} /> Cấp phát tiêu hao
+                <ArrowRightLeft size={14} /> {t("Cấp phát tiêu hao")}
               </button>
             </>
           )
@@ -170,7 +171,7 @@ export function NhomCuaToiScreen() {
         onRefresh={load}
         dangTai={dangTai}
       />
-      {!user.ma_nv && <div className="alert alert-error">Tài khoản chưa liên kết hồ sơ nhân viên - nhờ HCNS liên kết ở màn Nhân viên.</div>}
+      {!user.ma_nv && <div className="alert alert-error">{t("Tài khoản chưa liên kết hồ sơ nhân viên - nhờ HCNS liên kết ở màn Nhân viên.")}</div>}
       {msg && <div className="alert alert-success">{msg}</div>}
       {loi && <div className="alert alert-error">{loi}</div>}
 
@@ -179,34 +180,34 @@ export function NhomCuaToiScreen() {
           tone="cyan"
           icon={<Users size={20} className="text-white" />}
           watermark={<Users size={52} />}
-          label="Cấp dưới trực tiếp"
+          label={t("Cấp dưới trực tiếp")}
           value={fmtSo(ds?.length ?? 0)}
-          trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(new Set((ds ?? []).map((d) => d.bo_phan).filter(Boolean)).size)} bộ phận</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(new Set((ds ?? []).map((d) => d.bo_phan).filter(Boolean)).size)} {t("bộ phận")}</span></div>}
         />
         <KpiCard
           tone="blue-light"
           icon={<Package size={20} className="text-white" />}
           watermark={<Package size={52} />}
-          label="Tài sản nhóm đang giữ"
+          label={t("Tài sản nhóm đang giữ")}
           value={fmtSo(tongTs)}
-          trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(soTsToi)} của tôi · {fmtSo(tongTs - soTsToi)} của cấp dưới</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(soTsToi)} {t("của tôi ·")} {fmtSo(tongTs - soTsToi)} {t("của cấp dưới")}</span></div>}
         />
         <KpiCard
           tone="purple"
           icon={<Archive size={20} className="text-white" />}
           watermark={<Archive size={52} />}
-          label="Tồn tiêu hao kho nhóm"
+          label={t("Tồn tiêu hao kho nhóm")}
           value={khoQl ? fmtGiaTri(conTon.reduce((s, r) => s + r.ton * (r.don_gia_tham_khao ?? 0), 0)) : "-"}
-          trend={<div className="kpi-trend"><span className="trend-sub">{khoQl ? `${fmtSo(conTon.length)} mặt hàng còn tồn` : "Chưa có kho quản lý"}</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{khoQl ? t("{x} mặt hàng còn tồn", { x: fmtSo(conTon.length) }) : t("Chưa có kho quản lý")}</span></div>}
           onClick={khoQl ? () => navigate("cap-phat", { tab: "ton-kho", kho_id: String(khoQl.id) }) : undefined}
         />
         <KpiCard
           tone={chuaTk.length ? "yellow" : "blue"}
           icon={<UserX size={20} className="text-white" />}
           watermark={<UserX size={52} />}
-          label="Cấp dưới chưa có tài khoản"
+          label={t("Cấp dưới chưa có tài khoản")}
           value={fmtSo(chuaTk.length)}
-          trend={<div className="kpi-trend"><span className="trend-sub">Chưa tự xác nhận nhận hàng được</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{t("Chưa tự xác nhận nhận hàng được")}</span></div>}
         />
       </div>
 
@@ -215,52 +216,52 @@ export function NhomCuaToiScreen() {
           <div className="card-header">
             <div className="card-title-wrap">
               <Users size={17} className="card-title-icon text-teal" />
-              <h2 className="card-title">Thành viên nhóm</h2>
+              <h2 className="card-title">{t("Thành viên nhóm")}</h2>
             </div>
             <div className="topbar-search filter-search">
               <Search size={15} className="search-icon" />
-              <input className="search-input" placeholder="Tìm tên, mã NV..." value={tim} onChange={(e) => setTim(e.target.value)} />
+              <input className="search-input" placeholder={t("Tìm tên, mã NV...")} value={tim} onChange={(e) => setTim(e.target.value)} />
             </div>
           </div>
           <div className="task-table-wrapper table-scroll-y">
             <table className="task-table">
               <thead>
                 <tr>
-                  <th>Nhân viên</th>
-                  <th style={{ width: 70, textAlign: "right" }}>TS giữ</th>
+                  <th>{t("Nhân viên")}</th>
+                  <th style={{ width: 70, textAlign: "right" }}>{t("TS giữ")}</th>
                 </tr>
               </thead>
               <tbody>
                 {ds === null && (
                   <tr>
                     <td colSpan={2} className="task-empty">
-                      Đang tải…
+                      {t("Đang tải…")}
                     </td>
                   </tr>
                 )}
                 {ds !== null && dsHien.length === 0 && (
                   <tr>
                     <td colSpan={2} className="task-empty">
-                      {nhom.length ? "Không tìm thấy thành viên." : "Bạn chưa có cấp dưới trực tiếp nào."}
+                      {nhom.length ? t("Không tìm thấy thành viên.") : t("Bạn chưa có cấp dưới trực tiếp nào.")}
                     </td>
                   </tr>
                 )}
                 {tNhom.dongTrang.map((n) => (
                   <tr key={n.ma_nv} className={`row-clickable${chon === n.ma_nv ? " row-selected" : ""}`} onClick={() => setChon(n.ma_nv)}>
-                    <td data-label="Nhân viên">
+                    <td data-label={t("Nhân viên")}>
                       <div className="cell-stack">
                         <span className="strong">
                           {n.ten_nv}
-                          {n.la_toi && " (tôi)"}
+                          {n.la_toi && t(" (tôi)")}
                         </span>
                         <span className="small text-secondary">
                           {n.ma_nv}
                           {n.bo_phan && ` · ${n.bo_phan}`}
-                          {!n.email_dang_nhap && " · chưa có tài khoản"}
+                          {!n.email_dang_nhap && t(" · chưa có tài khoản")}
                         </span>
                       </div>
                     </td>
-                    <td data-label="TS giữ" style={{ textAlign: "right" }} className="strong">
+                    <td data-label={t("TS giữ")} style={{ textAlign: "right" }} className="strong">
                       {fmtSo(n.so_ts_dang_giu)}
                     </td>
                   </tr>
@@ -268,71 +269,71 @@ export function NhomCuaToiScreen() {
               </tbody>
             </table>
           </div>
-          <PhanTrang trang={tNhom.trang} tong={tNhom.tong} onDoi={tNhom.setTrang} donVi="nhân viên" />
+          <PhanTrang trang={tNhom.trang} tong={tNhom.tong} onDoi={tNhom.setTrang} donVi={t("nhân viên")} />
         </div>
 
         <div className="content-card">
           <div className="card-header">
             <div className="card-title-wrap">
               <Package size={17} className="card-title-icon text-teal" />
-              <h2 className="card-title">{nguoiChon ? `Tài sản của ${nguoiChon.la_toi ? "tôi" : nguoiChon.ten_nv}` : "Tài sản đang giữ"}</h2>
+              <h2 className="card-title">{nguoiChon ? t("Tài sản của {x}", { x: nguoiChon.la_toi ? t("tôi") : nguoiChon.ten_nv }) : t("Tài sản đang giữ")}</h2>
             </div>
           </div>
           <div className="task-table-wrapper table-scroll-y">
             <table className="task-table">
               <thead>
                 <tr>
-                  <th style={{ width: "26%" }}>Mã tài sản</th>
-                  <th>Tên tài sản</th>
-                  <th style={{ width: "18%", textAlign: "center" }}>Trạng thái</th>
-                  <th style={{ width: "24%", textAlign: "right" }}>Thao tác</th>
+                  <th style={{ width: "26%" }}>{t("Mã tài sản")}</th>
+                  <th>{t("Tên tài sản")}</th>
+                  <th style={{ width: "18%", textAlign: "center" }}>{t("Trạng thái")}</th>
+                  <th style={{ width: "24%", textAlign: "right" }}>{t("Thao tác")}</th>
                 </tr>
               </thead>
               <tbody>
                 {!chon && (
                   <tr>
                     <td colSpan={4} className="task-empty">
-                      Chọn 1 thành viên để xem tài sản đang giữ.
+                      {t("Chọn 1 thành viên để xem tài sản đang giữ.")}
                     </td>
                   </tr>
                 )}
                 {chon && ts === null && (
                   <tr>
                     <td colSpan={4} className="task-empty">
-                      Đang tải…
+                      {t("Đang tải…")}
                     </td>
                   </tr>
                 )}
                 {chon && ts?.length === 0 && (
                   <tr>
                     <td colSpan={4} className="task-empty">
-                      Không giữ tài sản cố định nào.
+                      {t("Không giữ tài sản cố định nào.")}
                     </td>
                   </tr>
                 )}
                 {tTsNv.dongTrang.map((c) => (
                   <tr key={c.id}>
-                    <td data-label="Mã tài sản">
+                    <td data-label={t("Mã tài sản")}>
                       <span className="code-link" onClick={() => moTaiSan(c.id)}>
                         {c.id}
                       </span>
                     </td>
-                    <td data-label="Tên tài sản">
+                    <td data-label={t("Tên tài sản")}>
                       <div className="cell-stack">
                         <span>{c.ten_ccdc}</span>
                         {c.nguyen_gia ? <span className="small text-secondary">{fmtGiaTri(c.nguyen_gia)}</span> : null}
                       </div>
                     </td>
-                    <td data-label="Trạng thái" style={{ textAlign: "center" }}>
+                    <td data-label={t("Trạng thái")} style={{ textAlign: "center" }}>
                       <StatusBadge label={TRANG_THAI_TS[c.trang_thai_hien_tai]?.label ?? c.trang_thai_hien_tai} tone={TRANG_THAI_TS[c.trang_thai_hien_tai]?.tone} />
                     </td>
-                    <td data-label="Thao tác" style={{ textAlign: "right" }}>
+                    <td data-label={t("Thao tác")} style={{ textAlign: "right" }}>
                       {c.trang_thai_hien_tai === "Dang cap phat" && (
                         <div className="row-actions">
                           <button
                             className="btn btn-outline btn-sm"
                             disabled={nhom.length < 2}
-                            title={nhom.length < 2 ? "Nhóm chưa có người khác để nhận" : undefined}
+                            title={nhom.length < 2 ? t("Nhóm chưa có người khác để nhận") : undefined}
                             onClick={() => {
                               setChuyen(c);
                               setDen("");
@@ -340,10 +341,10 @@ export function NhomCuaToiScreen() {
                               setLoiChuyen(null);
                             }}
                           >
-                            Điều chuyển
+                            {t("Điều chuyển")}
                           </button>
                           <button className="btn btn-outline btn-sm danger-outline" onClick={() => moTaiSan(c.id)}>
-                            Báo hỏng
+                            {t("Báo hỏng")}
                           </button>
                         </div>
                       )}
@@ -353,42 +354,42 @@ export function NhomCuaToiScreen() {
               </tbody>
             </table>
           </div>
-          <PhanTrang trang={tTsNv.trang} tong={tTsNv.tong} onDoi={tTsNv.setTrang} donVi="tài sản" />
+          <PhanTrang trang={tTsNv.trang} tong={tTsNv.tong} onDoi={tTsNv.setTrang} donVi={t("tài sản")} />
         </div>
       </div>
 
       {chuyen && nguoiChon && (
-        <Modal title="Điều chuyển tài sản trong nhóm" onClose={() => setChuyen(null)}>
+        <Modal title={t("Điều chuyển tài sản trong nhóm")} onClose={() => setChuyen(null)}>
           <p>
             <b>{chuyen.id}</b> - {chuyen.ten_ccdc}
             <br />
-            <span className="muted small">Đang giữ: {nguoiChon.la_toi ? "tôi" : nguoiChon.ten_nv}</span>
+            <span className="muted small">{t("Đang giữ:")} {nguoiChon.la_toi ? t("tôi") : nguoiChon.ten_nv}</span>
           </p>
           <div className="field-group">
-            <label className="field-label">Chuyển cho *</label>
+            <label className="field-label">{t("Chuyển cho *")}</label>
             <select value={den} onChange={(e) => setDen(e.target.value)}>
-              <option value="">-- Chọn người nhận --</option>
+              <option value="">{t("-- Chọn người nhận --")}</option>
               {nhom
                 .filter((n) => n.ma_nv !== chon)
                 .map((n) => (
                   <option key={n.ma_nv} value={n.ma_nv}>
                     {n.ten_nv}
-                    {n.la_toi ? " (tôi)" : ""}
+                    {n.la_toi ? t(" (tôi)") : ""}
                   </option>
                 ))}
             </select>
           </div>
           <div className="field-group">
-            <label className="field-label">Ghi chú</label>
-            <input type="text" value={ghiChu} onChange={(e) => setGhiChu(e.target.value)} placeholder="Lý do điều chuyển, tình trạng bàn giao..." />
+            <label className="field-label">{t("Ghi chú")}</label>
+            <input type="text" value={ghiChu} onChange={(e) => setGhiChu(e.target.value)} placeholder={t("Lý do điều chuyển, tình trạng bàn giao...")} />
           </div>
           {loiChuyen && <div className="alert alert-error">{loiChuyen}</div>}
           <div className="modal-actions">
             <button className="btn" onClick={() => setChuyen(null)}>
-              Huỷ
+              {t("Huỷ")}
             </button>
             <button className="btn btn-primary" disabled={busy || !den} onClick={xacNhanChuyen}>
-              {busy ? "Đang lập phiếu..." : "Lập phiếu điều chuyển"}
+              {busy ? t("Đang lập phiếu...") : t("Lập phiếu điều chuyển")}
             </button>
           </div>
         </Modal>

@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowLeftRight, ChevronDown, Clock, Download, PackagePlus, Plus, ShoppingCart, Tag, Truck } from "lucide-react";
 import { api } from "../api/client";
@@ -76,7 +77,7 @@ interface Dong {
 function denLabel(p: PhieuRow) {
   if (p.den_kho_ten) return p.den_kho_ten;
   if (p.den_nhan_vien_ten) return `NV: ${p.den_nhan_vien_ten}`;
-  if (p.nguoi_nhan_ten_tu_do) return `${p.nguoi_nhan_ten_tu_do} (ngoài danh bạ)`;
+  if (p.nguoi_nhan_ten_tu_do) return t("{nguoi_nhan_ten_tu_do} (ngoài danh bạ)", { nguoi_nhan_ten_tu_do: p.nguoi_nhan_ten_tu_do });
   return "-";
 }
 
@@ -148,7 +149,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
       setTong(list.total);
       setCapNhatLuc(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
     } catch (e) {
-      setLoi(thongBaoLoi(e, "Không tải được danh sách phiếu."));
+      setLoi(thongBaoLoi(e, t("Không tải được danh sách phiếu.")));
       setRows([]);
     } finally {
       setDangTai(false);
@@ -165,7 +166,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
       setChoNhan(cho.rows);
       setThongKe(tk);
     } catch (e) {
-      setLoi(thongBaoLoi(e, "Không tải được số liệu phiếu."));
+      setLoi(thongBaoLoi(e, t("Không tải được số liệu phiếu.")));
     }
   }, [filter.thang, filter.kho_id]);
 
@@ -188,7 +189,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
         setNvs(n.rows);
         setCapDuoi(cd.rows);
       })
-      .catch((e) => setLoi(thongBaoLoi(e, "Không tải được danh mục kho / vật tư.")));
+      .catch((e) => setLoi(thongBaoLoi(e, t("Không tải được danh mục kho / vật tư."))));
   }, []);
 
   useEffect(() => {
@@ -244,7 +245,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
     () =>
       vts
         .filter((v) => loai === "Nhap mua" || (tonNguon[v.id] ?? 0) > 0)
-        .map((v) => ({ value: v.id, label: `${v.ten_vt} (${v.id})${loai !== "Nhap mua" ? ` — tồn ${tonNguon[v.id] ?? 0}` : ""}` })),
+        .map((v) => ({ value: v.id, label: `${v.ten_vt} (${v.id})${loai !== "Nhap mua" ? t(" — tồn {x}", { x: tonNguon[v.id] ?? 0 }) : ""}` })),
     [vts, tonNguon, loai],
   );
 
@@ -252,10 +253,10 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
     const items = dongs
       .filter((d) => d.vt_id)
       .map((d) => ({ vt_id: d.vt_id, so_luong: Number(d.so_luong), don_gia: d.don_gia ? Number(d.don_gia) : null }));
-    if (!tuKho) return setFormErr("Chọn kho nguồn.");
-    if (items.length === 0 || items.some((i) => !(i.so_luong > 0))) return setFormErr("Nhập vật tư và số lượng > 0 cho từng dòng.");
-    if (loai !== "Cap phat NV" && !denKho) return setFormErr("Chọn kho đích.");
-    if (loai === "Cap phat NV" && !(dungTuDo ? tuDo.trim() : denNv)) return setFormErr("Chọn người nhận.");
+    if (!tuKho) return setFormErr(t("Chọn kho nguồn."));
+    if (items.length === 0 || items.some((i) => !(i.so_luong > 0))) return setFormErr(t("Nhập vật tư và số lượng > 0 cho từng dòng."));
+    if (loai !== "Cap phat NV" && !denKho) return setFormErr(t("Chọn kho đích."));
+    if (loai === "Cap phat NV" && !(dungTuDo ? tuDo.trim() : denNv)) return setFormErr(t("Chọn người nhận."));
     setSaving(true);
     setFormErr(null);
     try {
@@ -272,12 +273,12 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
       const loiTep = r?.id && tep.length ? await taiLenTepCho("chuyen_kho", r.id, tep) : 0;
       setShowForm(false);
       setMsg(
-        (loiTep ? `${loiTep} tệp đính kèm chưa tải được - mở phiếu để tải lại. ` : "") +
+        (loiTep ? t("{loiTep} tệp đính kèm chưa tải được - mở phiếu để tải lại. ", { loiTep }) : "") +
         (loai === "Nhap mua"
-          ? "Đã lập phiếu nhập mua - chờ Kế toán duyệt."
+          ? t("Đã lập phiếu nhập mua - chờ Kế toán duyệt.")
           : loai === "Chuyen kho"
-            ? "Đã lập phiếu chuyển kho - hàng trừ kho nguồn, chờ kho đích xác nhận nhận."
-            : "Đã lập phiếu cấp phát."),
+            ? t("Đã lập phiếu chuyển kho - hàng trừ kho nguồn, chờ kho đích xác nhận nhận.")
+            : t("Đã lập phiếu cấp phát.")),
       );
       baoThayDoi();
       await reloadViec();
@@ -294,7 +295,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
     setLoi(null);
     try {
       await api.post(`/phieu-chuyen-kho/${encodeURIComponent(p.id)}/nhan`, {});
-      setMsg(`Đã xác nhận nhận hàng phiếu ${p.ma_phieu ?? p.id.slice(0, 8)}.`);
+      setMsg(t("Đã xác nhận nhận hàng phiếu {x}.", { x: p.ma_phieu ?? p.id.slice(0, 8) }));
       baoThayDoi();
       await reloadViec();
     } catch (e) {
@@ -311,7 +312,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
     try {
       tatCa = (await api.get<{ rows: PhieuRow[] }>(`/phieu-chuyen-kho?${qsLoc}&limit=5000`)).rows;
     } catch (e) {
-      return setLoi(thongBaoLoi(e, "Không tải được dữ liệu xuất Excel."));
+      return setLoi(thongBaoLoi(e, t("Không tải được dữ liệu xuất Excel.")));
     }
     await exportRowsToExcel(
       tatCa.map((p) => ({
@@ -327,7 +328,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
       })),
       `Phieu_tieu_hao_${filter.thang || homNayVN()}.xlsx`,
       "Phieu tieu hao",
-      { ma_phieu: "Mã phiếu", loai: "Loại", tu: "Từ", den: "Đến", hang: "Hàng", tong_tien: "Tổng tiền", trang_thai: "Trạng thái", nguoi_lap: "Người lập", ngay: "Ngày" },
+      { ma_phieu: t("Mã phiếu"), loai: t("Loại"), tu: t("Từ"), den: t("Đến"), hang: t("Hàng"), tong_tien: t("Tổng tiền"), trang_thai: t("Trạng thái"), nguoi_lap: t("Người lập"), ngay: t("Ngày") },
     );
   }
 
@@ -344,25 +345,25 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
   return (
     <div className="dashboard-container">
       <PageHeader
-        title="Cấp phát tiêu hao"
+        title={t("Cấp phát tiêu hao")}
         filters={tabs}
         actions={
           <>
             <button className="btn btn-outline" onClick={exportExcel} disabled={!tong}>
-              <Download size={14} /> Xuất Excel
+              <Download size={14} /> {t("Xuất Excel")}
             </button>
             {isHcns(user) && (
               <button className="btn btn-outline" onClick={() => moForm("Nhap mua")}>
-                <ShoppingCart size={14} /> Nhập mua
+                <ShoppingCart size={14} /> {t("Nhập mua")}
               </button>
             )}
             {coKhoXuat && (
               <>
                 <button className="btn btn-outline" onClick={() => moForm("Chuyen kho")}>
-                  <ArrowLeftRight size={14} /> Chuyển kho
+                  <ArrowLeftRight size={14} /> {t("Chuyển kho")}
                 </button>
                 <button className="btn btn-primary" onClick={() => moForm("Cap phat NV")}>
-                  <Plus size={15} /> Cấp phát NV
+                  <Plus size={15} /> {t("Cấp phát NV")}
                 </button>
               </>
             )}
@@ -378,48 +379,48 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
           tone="purple"
           icon={<Tag size={20} className="text-white" />}
           watermark={<Tag size={52} />}
-          label={`Cấp phát NV tháng ${tenThang}`}
+          label={t("Cấp phát NV tháng {tenThang}", { tenThang })}
           value={fmtSo(cpNay?.so_phieu ?? 0)}
           xuHuong={xuHuong(cpNay?.so_phieu ?? 0, cpTruoc?.so_phieu ?? 0)}
-          moTaXuHuong="so với tháng trước"
-          subtext={`${fmtSo(cpNay?.so_luong ?? 0)} đơn vị · ${fmtGiaTriDong(cpNay?.gia_tri ?? 0)}`}
+          moTaXuHuong={t("so với tháng trước")}
+          subtext={t("{x} đơn vị · {x2}", { x: fmtSo(cpNay?.so_luong ?? 0), x2: fmtGiaTriDong(cpNay?.gia_tri ?? 0) })}
           onClick={() => doiLoc({ ...filter, loai: "Cap phat NV", trang_thai: "" })}
         />
         <KpiCard
           tone="cyan"
           icon={<PackagePlus size={20} className="text-white" />}
           watermark={<PackagePlus size={52} />}
-          label={`Nhập mua tháng ${tenThang}`}
+          label={t("Nhập mua tháng {tenThang}", { tenThang })}
           value={fmtSo(nmNay?.so_phieu ?? 0)}
           xuHuong={xuHuong(nmNay?.gia_tri ?? 0, nmTruoc?.gia_tri ?? 0)}
-          moTaXuHuong="giá trị so với tháng trước"
-          subtext={`Giá trị: ${fmtGiaTriDong(nmNay?.gia_tri ?? 0)} · ${fmtSo(ckNay?.so_phieu ?? 0)} phiếu chuyển kho`}
+          moTaXuHuong={t("giá trị so với tháng trước")}
+          subtext={t("Giá trị: {x} · {x2} phiếu chuyển kho", { x: fmtGiaTriDong(nmNay?.gia_tri ?? 0), x2: fmtSo(ckNay?.so_phieu ?? 0) })}
           onClick={() => doiLoc({ ...filter, loai: "Nhap mua", trang_thai: "" })}
         />
         <KpiCard
           tone="yellow"
           icon={<Clock size={20} className="text-white" />}
           watermark={<Clock size={52} />}
-          label="Chờ Kế toán duyệt"
+          label={t("Chờ Kế toán duyệt")}
           value={fmtSo(thongKe?.cho_kt ?? 0)}
           tangLaXau
-          trend={<div className="kpi-trend trend-warning"><span className="trend-sub">Phiếu nhập mua chưa vào tồn</span></div>}
-          subtext={`Giá trị: ${fmtGiaTriDong(thongKe?.cho_kt_gt ?? 0)}`}
+          trend={<div className="kpi-trend trend-warning"><span className="trend-sub">{t("Phiếu nhập mua chưa vào tồn")}</span></div>}
+          subtext={t("Giá trị: {x}", { x: fmtGiaTriDong(thongKe?.cho_kt_gt ?? 0) })}
           onClick={() => doiLoc({ ...filter, loai: "", trang_thai: "Cho ke toan duyet", thang: "" })}
         />
         <KpiCard
           tone={thongKe?.dang_chuyen_qua_han ? "red" : "blue"}
           icon={<Truck size={20} className="text-white" />}
           watermark={<Truck size={52} />}
-          label="Đang chuyển chưa nhận"
+          label={t("Đang chuyển chưa nhận")}
           value={fmtSo(thongKe?.dang_chuyen ?? 0)}
           trend={
             <div className={`kpi-trend ${thongKe?.dang_chuyen_qua_han ? "trend-danger" : ""}`}>
               <span className="trend-bold">{fmtSo(thongKe?.dang_chuyen_qua_han ?? 0)}</span>
-              <span className="trend-sub">quá 48 giờ</span>
+              <span className="trend-sub">{t("quá 48 giờ")}</span>
             </div>
           }
-          subtext={`${fmtSo(thongKe?.cho_nv_xac_nhan ?? 0)} phiếu cấp phát NV chưa xác nhận`}
+          subtext={t("{x} phiếu cấp phát NV chưa xác nhận", { x: fmtSo(thongKe?.cho_nv_xac_nhan ?? 0) })}
           onClick={() => doiLoc({ ...filter, loai: "", trang_thai: "Dang chuyen", thang: "" })}
         />
       </div>
@@ -430,8 +431,8 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
       <div className="content-card task-card-full">
         <div className="filter-bar">
           <label className="header-dropdown select-dropdown">
-            <select value={filter.kho_id} onChange={(e) => doiLoc({ ...filter, kho_id: e.target.value })} aria-label="Kho">
-              <option value="">Tất cả kho</option>
+            <select value={filter.kho_id} onChange={(e) => doiLoc({ ...filter, kho_id: e.target.value })} aria-label={t("Kho")}>
+              <option value="">{t("Tất cả kho")}</option>
               {khoAll
                 .filter((k) => k.loai !== "Mua hang")
                 .map((k) => (
@@ -443,8 +444,8 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
           <label className="header-dropdown select-dropdown">
-            <select value={filter.loai} onChange={(e) => doiLoc({ ...filter, loai: e.target.value })} aria-label="Loại phiếu">
-              <option value="">Tất cả loại</option>
+            <select value={filter.loai} onChange={(e) => doiLoc({ ...filter, loai: e.target.value })} aria-label={t("Loại phiếu")}>
+              <option value="">{t("Tất cả loại")}</option>
               {Object.entries(LOAI_PHIEU_CK).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
@@ -454,8 +455,8 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
           <label className="header-dropdown select-dropdown">
-            <select value={filter.trang_thai} onChange={(e) => doiLoc({ ...filter, trang_thai: e.target.value })} aria-label="Trạng thái">
-              <option value="">Tất cả trạng thái</option>
+            <select value={filter.trang_thai} onChange={(e) => doiLoc({ ...filter, trang_thai: e.target.value })} aria-label={t("Trạng thái")}>
+              <option value="">{t("Tất cả trạng thái")}</option>
               {Object.entries(TRANG_THAI_CK).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v.label}
@@ -464,16 +465,16 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             </select>
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
-          <input type="month" value={filter.thang} onChange={(e) => doiLoc({ ...filter, thang: e.target.value })} aria-label="Tháng" />
+          <input type="month" value={filter.thang} onChange={(e) => doiLoc({ ...filter, thang: e.target.value })} aria-label={t("Tháng")} />
           {filter.thang && (
             <button className="btn btn-sm" onClick={() => doiLoc({ ...filter, thang: "" })}>
-              Mọi tháng
+              {t("Mọi tháng")}
             </button>
           )}
           {filter.vt_id && (
             <span className="chip">
-              Vật tư: {vts.find((v) => v.id === filter.vt_id)?.ten_vt ?? filter.vt_id}
-              <button type="button" className="chip-remove" aria-label="Bỏ lọc vật tư" onClick={() => doiLoc({ ...filter, vt_id: "" })}>
+              {t("Vật tư:")} {vts.find((v) => v.id === filter.vt_id)?.ten_vt ?? filter.vt_id}
+              <button type="button" className="chip-remove" aria-label={t("Bỏ lọc vật tư")} onClick={() => doiLoc({ ...filter, vt_id: "" })}>
                 ×
               </button>
             </span>
@@ -484,54 +485,54 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
           <table className="task-table">
             <thead>
               <tr>
-                <th style={{ width: "12%" }}>Mã phiếu</th>
-                <th style={{ width: "10%" }}>Loại</th>
-                <th style={{ width: "14%" }}>Từ</th>
-                <th style={{ width: "16%" }}>Đến</th>
-                <th>Hàng</th>
-                <th style={{ width: "10%", textAlign: "right" }}>Giá trị</th>
-                <th style={{ width: "11%", textAlign: "center" }}>Trạng thái</th>
-                <th style={{ width: "11%" }}>Ngày</th>
+                <th style={{ width: "12%" }}>{t("Mã phiếu")}</th>
+                <th style={{ width: "10%" }}>{t("Loại")}</th>
+                <th style={{ width: "14%" }}>{t("Từ")}</th>
+                <th style={{ width: "16%" }}>{t("Đến")}</th>
+                <th>{t("Hàng")}</th>
+                <th style={{ width: "10%", textAlign: "right" }}>{t("Giá trị")}</th>
+                <th style={{ width: "11%", textAlign: "center" }}>{t("Trạng thái")}</th>
+                <th style={{ width: "11%" }}>{t("Ngày")}</th>
               </tr>
             </thead>
             <tbody>
               {rows === null && (
                 <tr>
                   <td colSpan={8} className="task-empty">
-                    Đang tải…
+                    {t("Đang tải…")}
                   </td>
                 </tr>
               )}
               {rows !== null && rows.length === 0 && (
                 <tr>
                   <td colSpan={8} className="task-empty">
-                    Không có phiếu nào khớp bộ lọc.
+                    {t("Không có phiếu nào khớp bộ lọc.")}
                   </td>
                 </tr>
               )}
               {rows?.map((p) => (
                 <tr key={p.id}>
-                  <td data-label="Mã phiếu">
+                  <td data-label={t("Mã phiếu")}>
                     <span className="code-link" role="button" tabIndex={0} onClick={() => moPhieu("chuyen_kho", p.id)}>
                       {p.ma_phieu ?? p.id.slice(0, 8)}
                     </span>
                   </td>
-                  <td data-label="Loại">{LOAI_PHIEU_CK[p.loai] ?? p.loai}</td>
-                  <td data-label="Từ" className="text-secondary">
+                  <td data-label={t("Loại")}>{LOAI_PHIEU_CK[p.loai] ?? p.loai}</td>
+                  <td data-label={t("Từ")} className="text-secondary">
                     {p.tu_kho_ten}
                   </td>
-                  <td data-label="Đến">{denLabel(p)}</td>
-                  <td data-label="Hàng">{p.tom_tat}</td>
-                  <td data-label="Giá trị" style={{ textAlign: "right" }}>
+                  <td data-label={t("Đến")}>{denLabel(p)}</td>
+                  <td data-label={t("Hàng")}>{p.tom_tat}</td>
+                  <td data-label={t("Giá trị")} style={{ textAlign: "right" }}>
                     {p.tong_tien != null ? fmtSo(p.tong_tien) : "-"}
                   </td>
-                  <td data-label="Trạng thái" style={{ textAlign: "center" }}>
+                  <td data-label={t("Trạng thái")} style={{ textAlign: "center" }}>
                     <StatusBadge label={TRANG_THAI_CK[p.trang_thai]?.label ?? p.trang_thai} tone={TRANG_THAI_CK[p.trang_thai]?.tone} />
                     {p.loai === "Cap phat NV" && p.den_nhan_vien_id && (
-                      <div className="muted small">{p.da_xac_nhan ? "NV đã xác nhận" : "NV chưa xác nhận"}</div>
+                      <div className="muted small">{p.da_xac_nhan ? t("NV đã xác nhận") : t("NV chưa xác nhận")}</div>
                     )}
                   </td>
-                  <td data-label="Ngày" className="text-secondary">
+                  <td data-label={t("Ngày")} className="text-secondary">
                     {fmtNgayGio(p.created_at)}
                   </td>
                 </tr>
@@ -539,7 +540,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             </tbody>
           </table>
         </div>
-        <PhanTrang trang={trang} tong={tong} onDoi={setTrang} donVi="phiếu" />
+        <PhanTrang trang={trang} tong={tong} onDoi={setTrang} donVi={t("phiếu")} />
       </div>
 
       {choNhan.length > 0 && (
@@ -547,42 +548,42 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
           <div className="card-header">
             <div className="card-title-wrap">
               <Truck size={17} className="card-title-icon text-teal" />
-              <h2 className="card-title">Hàng đang chuyển tới kho của tôi ({choNhan.length})</h2>
+              <h2 className="card-title">{t("Hàng đang chuyển tới kho của tôi (")}{choNhan.length})</h2>
             </div>
           </div>
           <div className="task-table-wrapper">
             <table className="task-table">
               <thead>
                 <tr>
-                  <th>Mã phiếu</th>
-                  <th>Từ kho</th>
-                  <th>Đến kho</th>
-                  <th>Hàng</th>
-                  <th>Ngày lập</th>
-                  <th style={{ textAlign: "right" }}>Thao tác</th>
+                  <th>{t("Mã phiếu")}</th>
+                  <th>{t("Từ kho")}</th>
+                  <th>{t("Đến kho")}</th>
+                  <th>{t("Hàng")}</th>
+                  <th>{t("Ngày lập")}</th>
+                  <th style={{ textAlign: "right" }}>{t("Thao tác")}</th>
                 </tr>
               </thead>
               <tbody>
                 {tChoNhan.dongTrang.map((p) => (
                   <tr key={p.id}>
-                    <td data-label="Mã phiếu">
+                    <td data-label={t("Mã phiếu")}>
                       <span className="code-link" onClick={() => moPhieu("chuyen_kho", p.id)}>
                         {p.ma_phieu ?? p.id.slice(0, 8)}
                       </span>
                     </td>
-                    <td data-label="Từ kho">{p.tu_kho_ten}</td>
-                    <td data-label="Đến kho">{p.den_kho_ten}</td>
-                    <td data-label="Hàng">{p.tom_tat}</td>
-                    <td data-label="Ngày lập" className="text-secondary">
+                    <td data-label={t("Từ kho")}>{p.tu_kho_ten}</td>
+                    <td data-label={t("Đến kho")}>{p.den_kho_ten}</td>
+                    <td data-label={t("Hàng")}>{p.tom_tat}</td>
+                    <td data-label={t("Ngày lập")} className="text-secondary">
                       {fmtNgayGio(p.created_at)}
                     </td>
-                    <td data-label="Thao tác" style={{ textAlign: "right" }}>
+                    <td data-label={t("Thao tác")} style={{ textAlign: "right" }}>
                       <div className="row-actions">
                         <button className="btn btn-primary btn-sm" disabled={busy !== null} onClick={() => nhanNhanh(p)}>
-                          {busy === p.id ? "…" : "Đã nhận đủ"}
+                          {busy === p.id ? "…" : t("Đã nhận đủ")}
                         </button>
                         <button className="btn btn-outline btn-sm danger-outline" onClick={() => moPhieu("chuyen_kho", p.id)}>
-                          Từ chối…
+                          {t("Từ chối…")}
                         </button>
                       </div>
                     </td>
@@ -591,15 +592,15 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
               </tbody>
             </table>
           </div>
-          <PhanTrang trang={tChoNhan.trang} tong={tChoNhan.tong} onDoi={tChoNhan.setTrang} donVi="phiếu" />
+          <PhanTrang trang={tChoNhan.trang} tong={tChoNhan.tong} onDoi={tChoNhan.setTrang} donVi={t("phiếu")} />
         </div>
       )}
 
       {showForm && (
-        <Modal size="lg" title={`Lập phiếu: ${LOAI_PHIEU_CK[loai]}`} onClose={() => setShowForm(false)}>
+        <Modal size="lg" title={t("Lập phiếu: {x}", { x: LOAI_PHIEU_CK[loai] })} onClose={() => setShowForm(false)}>
           <div className="form-grid">
             <div className="field-group">
-              <label className="field-label">Kho nguồn</label>
+              <label className="field-label">{t("Kho nguồn")}</label>
               <select value={tuKho} onChange={(e) => setTuKho(Number(e.target.value))}>
                 {khoNguonHopLe.map((k) => (
                   <option key={k.id} value={k.id}>
@@ -610,9 +611,9 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             </div>
             {loai !== "Cap phat NV" && (
               <div className="field-group">
-                <label className="field-label">Kho đích</label>
+                <label className="field-label">{t("Kho đích")}</label>
                 <select value={denKho} onChange={(e) => setDenKho(e.target.value ? Number(e.target.value) : "")}>
-                  <option value="">-- Chọn kho --</option>
+                  <option value="">{t("-- Chọn kho --")}</option>
                   {khoDichHopLe.map((k) => (
                     <option key={k.id} value={k.id}>
                       {k.ten_kho} ({LOAI_KHO[k.loai]})
@@ -623,34 +624,34 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             )}
             {loai === "Cap phat NV" && (
               <div className="field-group">
-                <label className="field-label">Người nhận</label>
+                <label className="field-label">{t("Người nhận")}</label>
                 {!dungTuDo && (
                   <SearchSelect
                     options={nvHopLe.map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` }))}
                     value={denNv}
                     onChange={setDenNv}
-                    placeholder="Tìm nhân viên..."
+                    placeholder={t("Tìm nhân viên...")}
                   />
                 )}
-                {dungTuDo && <input type="text" value={tuDo} onChange={(e) => setTuDo(e.target.value)} placeholder="Tên KTV/CTV ngoài danh bạ..." />}
+                {dungTuDo && <input type="text" value={tuDo} onChange={(e) => setTuDo(e.target.value)} placeholder={t("Tên KTV/CTV ngoài danh bạ...")} />}
                 {tuKhoRow?.loai !== "Quan ly" && (
                   <label className="check-label" style={{ marginTop: 4 }}>
                     <input type="checkbox" checked={dungTuDo} onChange={(e) => setDungTuDo(e.target.checked)} />
-                    Người nhận không có trong danh bạ (KTV/CTV)
+                    {t("Người nhận không có trong danh bạ (KTV/CTV)")}
                   </label>
                 )}
-                {tuKhoRow?.loai === "Quan ly" && <div className="field-hint">Kho quản lý chỉ cấp cho bản thân và nhân viên cấp dưới trực tiếp.</div>}
+                {tuKhoRow?.loai === "Quan ly" && <div className="field-hint">{t("Kho quản lý chỉ cấp cho bản thân và nhân viên cấp dưới trực tiếp.")}</div>}
               </div>
             )}
             {loai === "Nhap mua" && (
               <div className="field-group">
-                <label className="field-label">Nhà cung cấp</label>
+                <label className="field-label">{t("Nhà cung cấp")}</label>
                 <input type="text" value={ncc} onChange={(e) => setNcc(e.target.value)} />
               </div>
             )}
           </div>
           <div className="field-group">
-            <label className="field-label">Hàng hoá</label>
+            <label className="field-label">{t("Hàng hoá")}</label>
             {dongs.map((d, i) => (
               <div key={i} className="dong-hang">
                 <div className="dong-hang-vt">
@@ -661,13 +662,13 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                       const vt = vts.find((x) => x.id === v);
                       setDongs(dongs.map((x, j) => (j === i ? { ...x, vt_id: v, don_gia: x.don_gia || (vt?.don_gia_tham_khao ? String(vt.don_gia_tham_khao) : "") } : x)));
                     }}
-                    placeholder="Tìm vật tư..."
+                    placeholder={t("Tìm vật tư...")}
                   />
                 </div>
                 <input
                   type="number"
                   min={0}
-                  placeholder="SL"
+                  placeholder={t("SL")}
                   value={d.so_luong}
                   onChange={(e) => setDongs(dongs.map((x, j) => (j === i ? { ...x, so_luong: e.target.value } : x)))}
                 />
@@ -675,34 +676,34 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                   <input
                     type="number"
                     min={0}
-                    placeholder="Đơn giá"
+                    placeholder={t("Đơn giá")}
                     value={d.don_gia}
                     onChange={(e) => setDongs(dongs.map((x, j) => (j === i ? { ...x, don_gia: e.target.value } : x)))}
                   />
                 )}
-                <button className="btn btn-outline btn-sm btn-icon" aria-label="Xoá dòng" disabled={dongs.length === 1} onClick={() => setDongs(dongs.filter((_, j) => j !== i))}>
+                <button className="btn btn-outline btn-sm btn-icon" aria-label={t("Xoá dòng")} disabled={dongs.length === 1} onClick={() => setDongs(dongs.filter((_, j) => j !== i))}>
                   ×
                 </button>
               </div>
             ))}
             <button className="btn btn-outline btn-sm" onClick={() => setDongs([...dongs, { vt_id: "", so_luong: "", don_gia: "" }])}>
-              + Thêm dòng
+              {t("+ Thêm dòng")}
             </button>
           </div>
           <div className="field-group">
-            <label className="field-label">Ghi chú</label>
+            <label className="field-label">{t("Ghi chú")}</label>
             <textarea rows={2} value={ghiChu} onChange={(e) => setGhiChu(e.target.value)} />
           </div>
           <ChonTep tep={tep} onDoi={setTep} loaiMacDinh={loai === "Nhap mua" ? "Hoa don" : "Chung tu"} />
-          {loai === "Chuyen kho" && <div className="field-hint">Hàng trừ khỏi kho nguồn ngay; cộng vào kho đích khi thủ kho đích xác nhận đã nhận.</div>}
-          {loai === "Nhap mua" && <div className="field-hint">Hàng chỉ vào tồn kho HCNS sau khi Kế toán duyệt.</div>}
+          {loai === "Chuyen kho" && <div className="field-hint">{t("Hàng trừ khỏi kho nguồn ngay; cộng vào kho đích khi thủ kho đích xác nhận đã nhận.")}</div>}
+          {loai === "Nhap mua" && <div className="field-hint">{t("Hàng chỉ vào tồn kho HCNS sau khi Kế toán duyệt.")}</div>}
           {formErr && <div className="alert alert-error">{formErr}</div>}
           <div className="modal-actions">
             <button className="btn" onClick={() => setShowForm(false)}>
-              Huỷ
+              {t("Huỷ")}
             </button>
             <button className="btn btn-primary" disabled={saving} onClick={luu}>
-              {saving ? "Đang lưu..." : "Lập phiếu"}
+              {saving ? t("Đang lưu...") : t("Lập phiếu")}
             </button>
           </div>
         </Modal>

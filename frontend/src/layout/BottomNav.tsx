@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { Bell, ClipboardCheck, Clock, Home, Laptop, Menu as MenuIcon } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useNav, type TabKey } from "../lib/navigation";
@@ -17,14 +18,14 @@ export function BottomNav({ onMenu }: { onMenu: () => void }) {
 
   const muc: { tab: TabKey; label: string; icon: typeof Home; badge?: number }[] = tongHop
     ? [
-        { tab: "tong-quan", label: "Tổng quan", icon: Home },
-        { tab: "viec-can-lam", label: "Việc cần làm", icon: ClipboardCheck, badge: badges["viec-can-lam"] },
-        { tab: "canh-bao", label: "Cảnh báo", icon: Bell, badge: badges["canh-bao"] },
+        { tab: "tong-quan", label: t("Tổng quan"), icon: Home },
+        { tab: "viec-can-lam", label: t("Việc cần làm"), icon: ClipboardCheck, badge: badges["viec-can-lam"] },
+        { tab: "canh-bao", label: t("Cảnh báo"), icon: Bell, badge: badges["canh-bao"] },
       ]
     : [
-        { tab: "viec-can-lam", label: "Việc cần làm", icon: ClipboardCheck, badge: badges["viec-can-lam"] },
-        { tab: "ca-nhan", label: "Tài sản", icon: Laptop },
-        { tab: "bao-hong", label: "Báo hỏng", icon: Clock },
+        { tab: "viec-can-lam", label: t("Việc cần làm"), icon: ClipboardCheck, badge: badges["viec-can-lam"] },
+        { tab: "ca-nhan", label: t("Tài sản"), icon: Laptop },
+        { tab: "bao-hong", label: t("Báo hỏng"), icon: Clock },
       ];
 
   const nut = (m: (typeof muc)[number]) => {
@@ -41,7 +42,7 @@ export function BottomNav({ onMenu }: { onMenu: () => void }) {
   };
 
   return (
-    <nav className="bottom-nav" aria-label="Điều hướng nhanh">
+    <nav className="bottom-nav" aria-label={t("Điều hướng nhanh")}>
       {nut(muc[0])}
       {nut(muc[1])}
       <QrScanButton compact />

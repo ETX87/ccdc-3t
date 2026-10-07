@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useEffect, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, Menu as MenuIcon } from "lucide-react";
 import { useAuth, useRefreshUser } from "../auth/AuthContext";
@@ -10,6 +11,7 @@ import { useDuLieuChung } from "../lib/duLieuChung";
 import { GlobalSearch } from "../components/GlobalSearch";
 import { QrScanButton } from "../components/QrScanner";
 import { NotificationBell } from "../components/NotificationBell";
+import { ChonNgonNgu } from "../components/ChonNgonNgu";
 import { BottomNav } from "./BottomNav";
 import { CaiDatAppButton } from "../components/CaiDatAppButton";
 
@@ -137,20 +139,21 @@ export function Layout({ children }: { children: ReactNode }) {
             </defs>
           </svg>
           <div className="sidebar-slogan">
-            <div className="slogan-line1">Quản lý tài sản hiệu quả</div>
-            <div className="slogan-line2">Kiến tạo giá trị bền vững</div>
+            <div className="slogan-line1">{t("Quản lý tài sản hiệu quả")}</div>
+            <div className="slogan-line2">{t("Kiến tạo giá trị bền vững")}</div>
           </div>
         </div>
       </aside>
 
       <div className="main-area">
         <header className="topbar">
-          <button type="button" className="topbar-menu-btn" onClick={() => setDrawer(true)} aria-label="Mở menu">
+          <button type="button" className="topbar-menu-btn" onClick={() => setDrawer(true)} aria-label={t("Mở menu")}>
             <MenuIcon size={20} />
           </button>
           <GlobalSearch />
 
           <div className="topbar-right">
+            <ChonNgonNgu />
             <QrScanButton />
             <NotificationBell />
             <div className="user-profile-menu" onClick={() => setUserMenu(!userMenu)}>
@@ -173,10 +176,10 @@ export function Layout({ children }: { children: ReactNode }) {
                         navigate("ca-nhan");
                       }}
                     >
-                      Tài sản của tôi
+                      {t("Tài sản của tôi")}
                     </button>
                     <button className="dropdown-item text-danger" onClick={logout}>
-                      Đăng xuất
+                      {t("Đăng xuất")}
                     </button>
                   </div>
                 </>

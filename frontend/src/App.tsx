@@ -1,3 +1,4 @@
+import { t } from "./lib/i18n";
 import { useCallback, useMemo, useState } from "react";
 import { useAuth } from "./auth/AuthContext";
 import { LoginScreen } from "./login/LoginScreen";
@@ -70,7 +71,7 @@ function AuthenticatedApp({ user }: { user: AppUser }) {
 export function App() {
   const state = useAuth();
 
-  if (state.status === "loading") return <div className="app-shell">Đang tải…</div>;
+  if (state.status === "loading") return <div className="app-shell">{t("Đang tải…")}</div>;
   if (state.status === "authenticated") return <AuthenticatedApp user={state.user} />;
   if (state.status === "pending") return <LoginScreen variant="pending" />;
   if (state.status === "rejected") return <LoginScreen variant="rejected" />;

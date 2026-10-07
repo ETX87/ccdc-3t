@@ -136,6 +136,23 @@ khoản Google THẬT do Admin kết nối (thẻ "Lưu trữ hóa đơn…" ở
   phiếu: chọn trước, tải lên SAU khi phiếu tạo xong qua `taiLenTepCho`). Phiếu Nhập mua chưa có Hóa đơn → nhắc.
 - Không test upload thật ở local được (cần OAuth + redirect URI đúng origin) — local chỉ test nhánh "chưa kết nối".
 
+## Đa ngôn ngữ VI / EN / ID (2026-10-07)
+
+`frontend/src/lib/i18n.ts`, kiểu gettext: **khoá = chính chuỗi tiếng Việt gốc** — `t("Tổng quan")`,
+`t("Đã thêm {ten}.", { ten })`. Từ điển `lib/i18n/en.ts`, `lib/i18n/id.ts` (thiếu khoá → hiện tiếng Việt).
+Ngôn ngữ lưu `localStorage.ccdc_lang` (mặc định `vi`), đổi qua ô `ChonNgonNgu` (topbar + màn đăng nhập) =
+lưu rồi **tải lại trang** — nhờ vậy các hằng nhãn cấp module (`nhan.ts`, `menu.ts`…) gọi `t()` lúc import vẫn
+đúng ngôn ngữ. Số/tiền định dạng theo `LOCALE`.
+- Chuỗi UI MỚI (JSX text, `placeholder`/`title`/`aria-label`/`data-label`, toast, nhãn) PHẢI bọc `t()` rồi
+  thêm bản dịch vào CẢ `en.ts` và `id.ts`. Không ghép câu bằng `+`/template — dùng tham số `{x}`.
+- Chuỗi tiếng Việt do BACKEND gửi về và hiển thị nguyên văn (việc cần làm, cảnh báo, nhãn KPI, nhật ký…) bọc
+  `tS()` ở frontend + khai báo chuỗi/mẫu (`{tham_so}`) trong `lib/i18n/server.ts` + dịch. Sửa câu chữ backend
+  thì sửa luôn ở đây. Dữ liệu người dùng nhập (tên kho, nhóm, vật tư) KHÔNG dịch.
+- Kiểm tra: `python scripts/i18n_kiem_tra.py` (thiếu bản dịch / lệch tham số / chuỗi có dấu chưa bọc `t()`;
+  `--json` xuất khoá thiếu). Script KHÔNG bắt được chuỗi tiếng Việt không dấu ("Kho", "Trong kho") — tự soát.
+  `scripts/i18n_boc.py` là công cụ bọc tự động dùng 1 lần, không chạy lại trên code đã bọc.
+- Không đặt biến cục bộ tên `t` trong file đã import `t` (che hàm dịch).
+
 ## Tài liệu hướng dẫn sử dụng (DOCX, 2026-10-01)
 
 `scripts/huong_dan/`: chụp màn hình thật bằng Playwright (Chrome cài sẵn, `pip install playwright`) trên **bản

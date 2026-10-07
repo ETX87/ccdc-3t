@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useEffect, useRef, useState } from "react";
 import { Calendar, ChevronDown } from "lucide-react";
 import { fmtNgay, homNayVN } from "../lib/format";
@@ -40,11 +41,11 @@ export function khoangMacDinh(ma: "nam-nay" | "thang-nay" | "quy-nay" | "thang-t
 }
 
 const MOC: { ma: Parameters<typeof khoangMacDinh>[0]; nhan: string }[] = [
-  { ma: "thang-nay", nhan: "Tháng này" },
-  { ma: "thang-truoc", nhan: "Tháng trước" },
-  { ma: "quy-nay", nhan: "Quý này" },
-  { ma: "nam-nay", nhan: "Năm nay" },
-  { ma: "12-thang", nhan: "12 tháng gần nhất" },
+  { ma: "thang-nay", nhan: t("Tháng này") },
+  { ma: "thang-truoc", nhan: t("Tháng trước") },
+  { ma: "quy-nay", nhan: t("Quý này") },
+  { ma: "nam-nay", nhan: t("Năm nay") },
+  { ma: "12-thang", nhan: t("12 tháng gần nhất") },
 ];
 
 // Bo loc ngay tren tieu de man hinh (kieu .header-dropdown cua mau): bam mo bang chon moc + tuy chon.
@@ -88,17 +89,17 @@ export function DateRangeFilter({ value, onChange }: { value: KhoangNgay; onChan
           </div>
           <div className="form-grid">
             <div className="field-group">
-              <label className="field-label">Từ ngày</label>
+              <label className="field-label">{t("Từ ngày")}</label>
               <input type="date" value={nhap.tu} max={nhap.den} onChange={(e) => setNhap({ ...nhap, tu: e.target.value })} />
             </div>
             <div className="field-group">
-              <label className="field-label">Đến ngày</label>
+              <label className="field-label">{t("Đến ngày")}</label>
               <input type="date" value={nhap.den} min={nhap.tu} onChange={(e) => setNhap({ ...nhap, den: e.target.value })} />
             </div>
           </div>
           <div className="modal-actions" style={{ marginTop: 0 }}>
             <button type="button" className="btn btn-sm" onClick={() => setMo(false)}>
-              Hủy
+              {t("Hủy")}
             </button>
             <button
               type="button"
@@ -109,7 +110,7 @@ export function DateRangeFilter({ value, onChange }: { value: KhoangNgay; onChan
                 setMo(false);
               }}
             >
-              Áp dụng
+              {t("Áp dụng")}
             </button>
           </div>
         </div>

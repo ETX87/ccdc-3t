@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useMemo, useState } from "react";
 import { AlertTriangle, ChevronDown, ClipboardCheck, Clock, UserCheck } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
@@ -47,12 +48,12 @@ export function ViecCanLamScreen() {
   return (
     <div className="dashboard-container">
       <PageHeader
-        title="Việc cần làm"
+        title={t("Việc cần làm")}
         filters={
           <>
             <label className="header-dropdown select-dropdown">
-              <select value={loai} onChange={(e) => setLoai(e.target.value)} aria-label="Loại việc">
-                <option value="">Tất cả loại việc</option>
+              <select value={loai} onChange={(e) => setLoai(e.target.value)} aria-label={t("Loại việc")}>
+                <option value="">{t("Tất cả loại việc")}</option>
                 {dsLoai.map((l) => (
                   <option key={l} value={l}>
                     {l}
@@ -62,10 +63,10 @@ export function ViecCanLamScreen() {
               <ChevronDown size={13} className="dropdown-arrow" />
             </label>
             <label className="header-dropdown select-dropdown">
-              <select value={thoiHan} onChange={(e) => setThoiHan(e.target.value as typeof thoiHan)} aria-label="Thời hạn">
-                <option value="">Mọi thời hạn</option>
-                <option value="qua-han">Quá hạn 48 giờ</option>
-                <option value="hom-nay">Phát sinh hôm nay</option>
+              <select value={thoiHan} onChange={(e) => setThoiHan(e.target.value as typeof thoiHan)} aria-label={t("Thời hạn")}>
+                <option value="">{t("Mọi thời hạn")}</option>
+                <option value="qua-han">{t("Quá hạn 48 giờ")}</option>
+                <option value="hom-nay">{t("Phát sinh hôm nay")}</option>
               </select>
               <ChevronDown size={13} className="dropdown-arrow" />
             </label>
@@ -75,67 +76,67 @@ export function ViecCanLamScreen() {
         onRefresh={lamMoi}
         dangTai={dangTai}
       />
-      {loi && <div className="alert alert-error">Không tải được danh sách việc - thử làm mới.</div>}
+      {loi && <div className="alert alert-error">{t("Không tải được danh sách việc - thử làm mới.")}</div>}
 
       <div className="kpi-grid kpi-grid-4">
         <KpiCard
           tone="cyan"
           icon={<ClipboardCheck size={20} className="text-white" />}
           watermark={<ClipboardCheck size={52} />}
-          label="Tổng việc cần làm"
+          label={t("Tổng việc cần làm")}
           value={fmtSo(all.length)}
           trend={
             <div className="kpi-trend trend-up">
               <span className="trend-bold">{fmtSo(moiHomNay(all))}</span>
-              <span className="trend-sub">việc phát sinh hôm nay</span>
+              <span className="trend-sub">{t("việc phát sinh hôm nay")}</span>
             </div>
           }
-          subtext={`${fmtSo(viec?.tabs.khac ?? 0)} việc khác (hoàn tất, kiểm kê, bị từ chối)`}
+          subtext={t("{x} việc khác (hoàn tất, kiểm kê, bị từ chối)", { x: fmtSo(viec?.tabs.khac ?? 0) })}
           onClick={() => setTab("tat-ca")}
         />
         <KpiCard
           tone="yellow"
           icon={<Clock size={20} className="text-white" />}
           watermark={<Clock size={52} />}
-          label="Chờ Kế toán duyệt"
+          label={t("Chờ Kế toán duyệt")}
           value={fmtSo(choDuyet.length)}
           trend={
             <div className="kpi-trend trend-warning">
               <span className="trend-bold">{fmtSo(moiHomNay(choDuyet))}</span>
-              <span className="trend-sub">phiếu mới tạo hôm nay</span>
+              <span className="trend-sub">{t("phiếu mới tạo hôm nay")}</span>
             </div>
           }
-          subtext={`${fmtSo(choDuyet.filter((r) => r.qua_han).length)} phiếu chờ quá 48 giờ`}
+          subtext={t("{x} phiếu chờ quá 48 giờ", { x: fmtSo(choDuyet.filter((r) => r.qua_han).length) })}
           onClick={() => setTab("cho-duyet")}
         />
         <KpiCard
           tone="blue"
           icon={<UserCheck size={20} className="text-white" />}
           watermark={<UserCheck size={52} />}
-          label="Chờ bàn giao / nhận"
+          label={t("Chờ bàn giao / nhận")}
           value={fmtSo(choNhan.length)}
           trend={
             <div className="kpi-trend">
               <span className="trend-bold">{fmtSo(viec?.tabs["cap-phat"] ?? 0)}</span>
-              <span className="trend-sub">cấp phát chờ xác nhận</span>
+              <span className="trend-sub">{t("cấp phát chờ xác nhận")}</span>
             </div>
           }
-          subtext={`${fmtSo(viec?.tabs["ban-giao"] ?? 0)} phiếu chuyển / điều chuyển chờ nhận`}
+          subtext={t("{x} phiếu chuyển / điều chuyển chờ nhận", { x: fmtSo(viec?.tabs["ban-giao"] ?? 0) })}
           onClick={() => setTab("ban-giao")}
         />
         <KpiCard
           tone="red"
           icon={<AlertTriangle size={20} className="text-white" />}
           watermark={<AlertTriangle size={52} />}
-          label="Quá hạn xử lý"
+          label={t("Quá hạn xử lý")}
           value={fmtSo(quaHan)}
           trend={
             <div className="kpi-trend trend-danger">
-              <span className="trend-bold">Quá 48 giờ</span>
-              <span className="trend-sub">chưa xử lý</span>
+              <span className="trend-bold">{t("Quá 48 giờ")}</span>
+              <span className="trend-sub">{t("chưa xử lý")}</span>
             </div>
           }
-          subtext={quaHan ? "Cần đôn đốc ngay" : "Không có việc quá hạn"}
+          subtext={quaHan ? t("Cần đôn đốc ngay") : t("Không có việc quá hạn")}
           onClick={() => setThoiHan("qua-han")}
         />
       </div>
@@ -144,24 +145,24 @@ export function ViecCanLamScreen() {
         <div className="card-header">
           <div className="card-title-wrap">
             <ClipboardCheck size={18} className="card-title-icon text-teal" />
-            <h2 className="card-title">Danh sách công việc & phiếu cần xử lý</h2>
+            <h2 className="card-title">{t("Danh sách công việc & phiếu cần xử lý")}</h2>
           </div>
           <FilterTabs<TabViec>
             value={tab}
             onChange={setTab}
             tabs={[
-              { key: "tat-ca", label: "Tất cả", count: viec?.tabs["tat-ca"] ?? 0 },
-              { key: "cho-duyet", label: "Chờ duyệt", count: viec?.tabs["cho-duyet"] ?? 0 },
-              { key: "cap-phat", label: "Cấp phát", count: viec?.tabs["cap-phat"] ?? 0 },
-              { key: "ban-giao", label: "Bàn giao", count: viec?.tabs["ban-giao"] ?? 0 },
-              { key: "khac", label: "Khác", count: viec?.tabs.khac ?? 0 },
+              { key: "tat-ca", label: t("Tất cả"), count: viec?.tabs["tat-ca"] ?? 0 },
+              { key: "cho-duyet", label: t("Chờ duyệt"), count: viec?.tabs["cho-duyet"] ?? 0 },
+              { key: "cap-phat", label: t("Cấp phát"), count: viec?.tabs["cap-phat"] ?? 0 },
+              { key: "ban-giao", label: t("Bàn giao"), count: viec?.tabs["ban-giao"] ?? 0 },
+              { key: "khac", label: t("Khác"), count: viec?.tabs.khac ?? 0 },
             ]}
           />
         </div>
         <ViecTable
           rows={rows}
           coThaoTac
-          trong={!viec ? "Đang tải…" : loai || thoiHan ? "Không có việc khớp bộ lọc." : "Không có việc cần xử lý - bạn đã làm hết!"}
+          trong={!viec ? t("Đang tải…") : loai || thoiHan ? t("Không có việc khớp bộ lọc.") : t("Không có việc cần xử lý - bạn đã làm hết!")}
         />
       </div>
     </div>

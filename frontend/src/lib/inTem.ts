@@ -1,18 +1,19 @@
+import { lang, t } from "./i18n";
 // In tem QR tai san (quet bang nut "Quet QR" tren topbar -> mo dung tai san). QR chua dung ma tai san.
 // Tra ve thong bao loi (hien trong man goi) hoac null neu da mo cua so in. Mo cua so NGAY (dong bo, truoc
 // await) - trinh duyet chan pop-up mo sau await vi mat "user activation".
 export async function inTemQr(items: { id: string; ten: string }[]): Promise<string | null> {
-  if (!items.length) return "Chưa chọn tài sản nào để in tem.";
+  if (!items.length) return t("Chưa chọn tài sản nào để in tem.");
   const w = window.open("", "_blank", "width=900,height=700");
-  if (!w) return "Trình duyệt đã chặn cửa sổ in - hãy cho phép cửa sổ bật lên (pop-up) cho trang này.";
-  w.document.write("<p style='font-family:system-ui;padding:16px'>Đang tạo tem QR…</p>");
+  if (!w) return t("Trình duyệt đã chặn cửa sổ in - hãy cho phép cửa sổ bật lên (pop-up) cho trang này.");
+  w.document.write(`<p style='font-family:system-ui;padding:16px'>${t("Đang tạo tem QR…")}</p>`);
   const QR = await import("qrcode");
   const tems = await Promise.all(
     items.map(async (it) => ({ ...it, qr: await QR.toDataURL(it.id, { margin: 1, width: 220, errorCorrectionLevel: "M" }) })),
   );
   w.document.open();
   const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]!);
-  w.document.write(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Tem QR tài sản</title>
+  w.document.write(`<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>${t("Tem QR tài sản")}</title>
 <style>
   @page { margin: 8mm; }
   body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; margin: 0; color: #0f172a; }
@@ -24,7 +25,7 @@ export async function inTemQr(items: { id: string; ten: string }[]): Promise<str
   .ten { font-size: 8pt; color: #334155; line-height: 1.25; }
 </style></head><body><div class="grid">${tems
     .map(
-      (t) => `<div class="tem"><img class="qr" src="${t.qr}" alt=""><div><div class="brand">3T Asset</div><div class="ma">${esc(t.id)}</div><div class="ten">${esc(t.ten)}</div></div></div>`,
+      (tem) => `<div class="tem"><img class="qr" src="${tem.qr}" alt=""><div><div class="brand">3T Asset</div><div class="ma">${esc(tem.id)}</div><div class="ten">${esc(tem.ten)}</div></div></div>`,
     )
     .join("")}</div><script>window.onload = () => { window.print(); };</script></body></html>`);
   w.document.close();

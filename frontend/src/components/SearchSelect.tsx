@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useMemo, useState } from "react";
 
 export interface SearchSelectOption {
@@ -33,7 +34,7 @@ export function SearchSelect({
     <div style={{ position: "relative" }}>
       <input
         type="text"
-        placeholder={placeholder ?? "Tìm kiếm..."}
+        placeholder={placeholder ?? t("Tìm kiếm...")}
         value={open ? query : (selected?.label ?? "")}
         onFocus={() => {
           setOpen(true);
@@ -58,7 +59,7 @@ export function SearchSelect({
             boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
           }}
         >
-          {filtered.length === 0 && <div style={{ padding: 8, fontSize: 13, color: "#8393ac" }}>Không tìm thấy</div>}
+          {filtered.length === 0 && <div style={{ padding: 8, fontSize: 13, color: "#8393ac" }}>{t("Không tìm thấy")}</div>}
           {filtered.map((o) => (
             <div
               key={o.value}

@@ -1,3 +1,4 @@
+import { t, tS } from "../lib/i18n";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -84,7 +85,7 @@ function NhatKy({ log, nhan }: { log: Row[]; nhan: Record<string, { label: strin
   return (
     <>
       <div className="section-title" style={{ marginTop: 14 }}>
-        Nhật ký xử lý
+        {t("Nhật ký xử lý")}
       </div>
       <div className="timeline">
         {log.map((l, i) => (
@@ -94,7 +95,7 @@ function NhatKy({ log, nhan }: { log: Row[]; nhan: Record<string, { label: strin
               <div className="strong">{nhan[s(l.trang_thai)]?.label ?? s(l.trang_thai)}</div>
               <div className="muted small">
                 {fmtNgayGio(s(l.ngay_xu_ly))} · {s(l.nguoi_xu_ly)}
-                {l.ghi_chu ? ` · ${s(l.ghi_chu)}` : ""}
+                {l.ghi_chu ? ` · ${tS(s(l.ghi_chu))}` : ""}
               </div>
             </div>
           </div>
@@ -121,19 +122,19 @@ function tinhHanhDong(loai: LoaiPhieu, row: Row, user: AppUser): HanhDong[] {
   if (loai === "chuyen_kho") {
     const base = `/phieu-chuyen-kho/${id}`;
     if (row.trang_thai === "Cho ke toan duyet" && isKeToan(user)) {
-      ds.push({ key: "duyet", nhan: "Duyệt", kieu: "primary", path: `${base}/ke-toan-duyet` });
-      ds.push({ key: "tu-choi", nhan: "Từ chối", kieu: "danger", canLyDo: "Lý do từ chối", path: `${base}/ke-toan-tu-choi` });
+      ds.push({ key: "duyet", nhan: t("Duyệt"), kieu: "primary", path: `${base}/ke-toan-duyet` });
+      ds.push({ key: "tu-choi", nhan: t("Từ chối"), kieu: "danger", canLyDo: t("Lý do từ chối"), path: `${base}/ke-toan-tu-choi` });
     }
     if (row.trang_thai === "Dang chuyen") {
       if (khoCuaToi.has(n(row.den_kho_id))) {
-        ds.push({ key: "nhan", nhan: "Xác nhận đã nhận", kieu: "primary", path: `${base}/nhan` });
-        ds.push({ key: "tu-choi-nhan", nhan: "Từ chối nhận", kieu: "danger", canLyDo: "Lý do từ chối nhận", path: `${base}/tu-choi-nhan` });
+        ds.push({ key: "nhan", nhan: t("Xác nhận đã nhận"), kieu: "primary", path: `${base}/nhan` });
+        ds.push({ key: "tu-choi-nhan", nhan: t("Từ chối nhận"), kieu: "danger", canLyDo: t("Lý do từ chối nhận"), path: `${base}/tu-choi-nhan` });
       } else if (khoCuaToi.has(n(row.tu_kho_id))) {
-        ds.push({ key: "nhan-ho", nhan: "Xác nhận hộ kho nhận", kieu: "outline", canLyDo: "Ghi chú lý do xác nhận hộ", path: `${base}/nhan` });
+        ds.push({ key: "nhan-ho", nhan: t("Xác nhận hộ kho nhận"), kieu: "outline", canLyDo: t("Ghi chú lý do xác nhận hộ"), path: `${base}/nhan` });
       }
     }
     if (row.loai === "Cap phat NV" && row.trang_thai === "Da giao" && !n(row.da_xac_nhan) && user.ma_nv && row.den_nhan_vien_id === user.ma_nv) {
-      ds.push({ key: "xac-nhan", nhan: "Xác nhận đã nhận", kieu: "primary", path: `${base}/xac-nhan` });
+      ds.push({ key: "xac-nhan", nhan: t("Xác nhận đã nhận"), kieu: "primary", path: `${base}/xac-nhan` });
     }
   } else if (loai === "giao_nhan") {
     if (!n(row.da_xac_nhan)) {
@@ -141,18 +142,18 @@ function tinhHanhDong(loai: LoaiPhieu, row: Row, user: AppUser): HanhDong[] {
         (row.loai_phieu === "Cap phat" && row.nhan_vien_id === user.ma_nv) || (row.loai_phieu === "Dieu chuyen" && row.nhan_vien_nhan_moi_id === user.ma_nv);
       const nhanKho = (row.loai_phieu === "Thu hoi" || row.loai_phieu === "Chuyen kho") && khoCuaToi.has(n(row.den_kho_id));
       if ((nhanNV && user.ma_nv) || nhanKho)
-        ds.push({ key: "xac-nhan", nhan: "Xác nhận đã nhận", kieu: "primary", path: `/phieu-giao-nhan/${id}/xac-nhan` });
+        ds.push({ key: "xac-nhan", nhan: t("Xác nhận đã nhận"), kieu: "primary", path: `/phieu-giao-nhan/${id}/xac-nhan` });
     }
   } else {
     const base = `/phieu-xu-ly-ts/${id}`;
     if (row.trang_thai === "Cho ke toan duyet" && isKeToan(user)) {
-      ds.push({ key: "duyet", nhan: "Duyệt", kieu: "primary", path: `${base}/ke-toan-duyet` });
-      ds.push({ key: "tu-choi", nhan: "Từ chối", kieu: "danger", canLyDo: "Lý do từ chối", path: `${base}/ke-toan-tu-choi` });
+      ds.push({ key: "duyet", nhan: t("Duyệt"), kieu: "primary", path: `${base}/ke-toan-duyet` });
+      ds.push({ key: "tu-choi", nhan: t("Từ chối"), kieu: "danger", canLyDo: t("Lý do từ chối"), path: `${base}/ke-toan-tu-choi` });
     }
     if (row.trang_thai === "Da duyet" && isHcns(user) && (row.loai === "Thanh ly" || row.loai === "Tieu huy")) {
       ds.push({
         key: "hoan-tat",
-        nhan: row.loai === "Thanh ly" ? "Hoàn tất thanh lý" : "Hoàn tất tiêu hủy",
+        nhan: row.loai === "Thanh ly" ? t("Hoàn tất thanh lý") : t("Hoàn tất tiêu hủy"),
         kieu: "primary",
         canGiaTri: row.loai === "Thanh ly",
         path: `${base}/hoan-tat`,
@@ -173,7 +174,7 @@ function ThanhHanhDong({ ds, onDone }: { ds: HanhDong[]; onDone: () => void }) {
 
   async function gui(h: HanhDong) {
     if (h.canLyDo && !ghiChu.trim()) {
-      setErr(`Vui lòng nhập ${h.canLyDo.toLowerCase()}.`);
+      setErr(t("Vui lòng nhập {x}.", { x: h.canLyDo.toLowerCase() }));
       return;
     }
     setBusy(true);
@@ -199,12 +200,12 @@ function ThanhHanhDong({ ds, onDone }: { ds: HanhDong[]; onDone: () => void }) {
         <div className="form-grid">
           {chon.canGiaTri && (
             <div className="field-group">
-              <label className="field-label">Giá trị thu hồi (đ)</label>
+              <label className="field-label">{t("Giá trị thu hồi (đ)")}</label>
               <input type="number" min={0} value={giaTri} onChange={(e) => setGiaTri(e.target.value)} placeholder="0" />
             </div>
           )}
           <div className="field-group" style={{ gridColumn: chon.canGiaTri ? undefined : "1 / -1" }}>
-            <label className="field-label">{chon.canLyDo ?? "Ghi chú"}</label>
+            <label className="field-label">{chon.canLyDo ?? t("Ghi chú")}</label>
             <input type="text" value={ghiChu} onChange={(e) => setGhiChu(e.target.value)} autoFocus />
           </div>
         </div>
@@ -213,10 +214,10 @@ function ThanhHanhDong({ ds, onDone }: { ds: HanhDong[]; onDone: () => void }) {
         {chon ? (
           <>
             <button type="button" className="btn" onClick={() => setChon(null)} disabled={busy}>
-              Quay lại
+              {t("Quay lại")}
             </button>
             <button type="button" className={`btn ${chon.kieu === "danger" ? "btn-danger" : "btn-primary"}`} onClick={() => gui(chon)} disabled={busy}>
-              {busy ? "Đang gửi…" : `Xác nhận: ${chon.nhan}`}
+              {busy ? t("Đang gửi…") : t("Xác nhận: {nhan}", { nhan: chon.nhan })}
             </button>
           </>
         ) : (
@@ -248,13 +249,13 @@ function PhieuModal({ loai, id, onClose }: { loai: LoaiPhieu; id: string; onClos
     api
       .get<{ row: Row; items: Row[]; log?: Row[] }>(url)
       .then(setData)
-      .catch((e) => setErr(thongBaoLoi(e, "Không tải được phiếu.")));
+      .catch((e) => setErr(thongBaoLoi(e, t("Không tải được phiếu."))));
   }, [url]);
   useEffect(load, [load]);
 
   const user = auth.status === "authenticated" ? auth.user : null;
   const row = data?.row;
-  let tieuDe = "Phiếu";
+  let tieuDe = t("Phiếu");
   let trangThai: { label: string; tone: Tone } | null = null;
   let info: [string, ReactNode][] = [];
   if (row) {
@@ -263,34 +264,34 @@ function PhieuModal({ loai, id, onClose }: { loai: LoaiPhieu; id: string; onClos
       tieuDe = `${LOAI_PHIEU_CK[s(row.loai)] ?? s(row.loai)} · ${ma}`;
       trangThai = TRANG_THAI_CK[s(row.trang_thai)] ?? { label: s(row.trang_thai), tone: "neutral" };
       info = [
-        ["Từ kho", s(row.tu_kho_ten)],
-        ["Đến", s(row.den_kho_ten) || s(row.den_nhan_vien_ten) || s(row.nguoi_nhan_ten_tu_do)],
-        ["Nhà cung cấp", s(row.nha_cung_cap)],
-        ["Người lập", s(row.nguoi_lap)],
-        ["Ngày lập", fmtNgayGio(s(row.created_at))],
-        ["NV xác nhận", row.loai === "Cap phat NV" ? (n(row.da_xac_nhan) ? `Đã xác nhận ${fmtNgayGio(s(row.xac_nhan_luc))}` : "Chưa xác nhận") : ""],
-        ["Ghi chú", s(row.ghi_chu)],
+        [t("Từ kho"), s(row.tu_kho_ten)],
+        [t("Đến"), s(row.den_kho_ten) || s(row.den_nhan_vien_ten) || s(row.nguoi_nhan_ten_tu_do)],
+        [t("Nhà cung cấp"), s(row.nha_cung_cap)],
+        [t("Người lập"), s(row.nguoi_lap)],
+        [t("Ngày lập"), fmtNgayGio(s(row.created_at))],
+        [t("NV xác nhận"), row.loai === "Cap phat NV" ? (n(row.da_xac_nhan) ? t("Đã xác nhận {x}", { x: fmtNgayGio(s(row.xac_nhan_luc)) }) : t("Chưa xác nhận")) : ""],
+        [t("Ghi chú"), s(row.ghi_chu)],
       ];
     } else if (loai === "giao_nhan") {
-      tieuDe = `${LOAI_GIAO_NHAN[s(row.loai_phieu)] ?? s(row.loai_phieu)} TSCĐ · ${ma}`;
-      trangThai = n(row.da_xac_nhan) ? { label: "Đã xác nhận", tone: "success" } : { label: "Chờ xác nhận", tone: "warning" };
+      tieuDe = t("{x} TSCĐ · {ma}", { x: LOAI_GIAO_NHAN[s(row.loai_phieu)] ?? s(row.loai_phieu), ma });
+      trangThai = n(row.da_xac_nhan) ? { label: t("Đã xác nhận"), tone: "success" } : { label: t("Chờ xác nhận"), tone: "warning" };
       info = [
-        ["Từ", s(row.tu_kho_ten) || s(row.nhan_vien_ten)],
-        ["Đến", s(row.den_kho_ten) || s(row.nhan_vien_nhan_moi_ten) || (row.loai_phieu === "Cap phat" ? s(row.nhan_vien_ten) : "")],
-        ["Người lập", s(row.nguoi_lap)],
-        ["Ngày lập", fmtNgayGio(s(row.ngay_lap))],
-        ["Xác nhận lúc", n(row.da_xac_nhan) ? fmtNgayGio(s(row.xac_nhan_luc)) : ""],
-        ["Ghi chú", s(row.ghi_chu)],
+        [t("Từ"), s(row.tu_kho_ten) || s(row.nhan_vien_ten)],
+        [t("Đến"), s(row.den_kho_ten) || s(row.nhan_vien_nhan_moi_ten) || (row.loai_phieu === "Cap phat" ? s(row.nhan_vien_ten) : "")],
+        [t("Người lập"), s(row.nguoi_lap)],
+        [t("Ngày lập"), fmtNgayGio(s(row.ngay_lap))],
+        [t("Xác nhận lúc"), n(row.da_xac_nhan) ? fmtNgayGio(s(row.xac_nhan_luc)) : ""],
+        [t("Ghi chú"), s(row.ghi_chu)],
       ];
     } else {
       tieuDe = `${LOAI_XU_LY[s(row.loai)] ?? s(row.loai)} · ${ma}`;
       trangThai = TRANG_THAI_XU_LY[s(row.trang_thai)] ?? { label: s(row.trang_thai), tone: "neutral" };
       info = [
-        ["Lý do", s(row.ly_do)],
-        ["Người đề xuất", s(row.nguoi_de_xuat)],
-        ["Ngày đề xuất", fmtNgayGio(s(row.ngay_de_xuat))],
-        ["Giá trị thu hồi", row.gia_tri_thu_hoi != null ? fmtGiaTri(n(row.gia_tri_thu_hoi)) : ""],
-        ["Ghi chú", s(row.ghi_chu)],
+        [t("Lý do"), s(row.ly_do)],
+        [t("Người đề xuất"), s(row.nguoi_de_xuat)],
+        [t("Ngày đề xuất"), fmtNgayGio(s(row.ngay_de_xuat))],
+        [t("Giá trị thu hồi"), row.gia_tri_thu_hoi != null ? fmtGiaTri(n(row.gia_tri_thu_hoi)) : ""],
+        [t("Ghi chú"), s(row.ghi_chu)],
       ];
     }
   }
@@ -307,29 +308,29 @@ function PhieuModal({ loai, id, onClose }: { loai: LoaiPhieu; id: string; onClos
       }
     >
       {err && <div className="alert alert-error">{err}</div>}
-      {!data && !err && <div className="empty-state">Đang tải…</div>}
+      {!data && !err && <div className="empty-state">{t("Đang tải…")}</div>}
       {row && (
         <>
           <ThongTin items={info} />
           <div className="section-title" style={{ marginTop: 14 }}>
-            {loai === "chuyen_kho" ? "Vật tư" : "Tài sản"} ({items.length})
+            {loai === "chuyen_kho" ? t("Vật tư") : t("Tài sản")} ({items.length})
           </div>
           <div className="table-scroll">
             <table className="data-table">
               <thead>
                 {loai === "chuyen_kho" ? (
                   <tr>
-                    <th>Mã</th>
-                    <th>Tên vật tư</th>
-                    <th className="num">Số lượng</th>
-                    <th className="num">Đơn giá</th>
-                    <th className="num">Thành tiền</th>
+                    <th>{t("Mã")}</th>
+                    <th>{t("Tên vật tư")}</th>
+                    <th className="num">{t("Số lượng")}</th>
+                    <th className="num">{t("Đơn giá")}</th>
+                    <th className="num">{t("Thành tiền")}</th>
                   </tr>
                 ) : (
                   <tr>
-                    <th>Mã tài sản</th>
-                    <th>Tên tài sản</th>
-                    <th>{loai === "xu_ly" ? "Trạng thái hiện tại" : "Tình trạng ghi nhận"}</th>
+                    <th>{t("Mã tài sản")}</th>
+                    <th>{t("Tên tài sản")}</th>
+                    <th>{loai === "xu_ly" ? t("Trạng thái hiện tại") : t("Tình trạng ghi nhận")}</th>
                   </tr>
                 )}
               </thead>
@@ -394,7 +395,7 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
     api
       .get<{ row: Row; lich_su: Row[]; xu_ly: Row[] }>(`/ccdc/${encodeURIComponent(id)}`)
       .then(setData)
-      .catch((e) => setErr((e as { status?: number }).status === 404 ? `Không tìm thấy tài sản có mã "${id}".` : thongBaoLoi(e, "Không tải được tài sản.")));
+      .catch((e) => setErr((e as { status?: number }).status === 404 ? t("Không tìm thấy tài sản có mã \"{id}\".", { id }) : thongBaoLoi(e, t("Không tải được tài sản."))));
   }, [id]);
   useEffect(load, [load]);
   useEffect(() => {
@@ -442,13 +443,13 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
       onClose={onClose}
       title={
         <span className="title-with-badge">
-          Tài sản {id} {tt && <StatusBadge label={tt.label} tone={tt.tone} />}
+          {t("Tài sản")} {id} {tt && <StatusBadge label={tt.label} tone={tt.tone} />}
         </span>
       }
     >
       {err && <div className="alert alert-error">{err}</div>}
       {msg && <div className="alert alert-success">{msg}</div>}
-      {!data && !err && <div className="empty-state">Đang tải…</div>}
+      {!data && !err && <div className="empty-state">{t("Đang tải…")}</div>}
       {row && (
         <>
           <div className="asset-head">
@@ -457,15 +458,15 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
               <div className="asset-name">{s(row.ten_ccdc)}</div>
               <ThongTin
                 items={[
-                  ["Nhóm", s(row.ten_nhom)],
-                  ["Vị trí", s(row.nguoi_dang_giu_ten) ? `Đang giữ: ${s(row.nguoi_dang_giu_ten)}` : s(row.ten_kho)],
-                  ["Nguyên giá", row.nguyen_gia != null ? `${fmtSo(n(row.nguyen_gia))}đ` : ""],
-                  ["Tình trạng", TINH_TRANG_TS[s(row.tinh_trang)] ?? s(row.tinh_trang)],
-                  ["Số seri", s(row.so_seri)],
-                  ["Ngày mua", s(row.ngay_mua) ? fmtNgay(s(row.ngay_mua)) : ""],
-                  ["Nhà cung cấp", s(row.nha_cung_cap)],
-                  ["Hạn bảo hành", s(row.han_bao_hanh) ? fmtNgay(s(row.han_bao_hanh)) : ""],
-                  ["Ghi chú", s(row.ghi_chu)],
+                  [t("Nhóm"), s(row.ten_nhom)],
+                  [t("Vị trí"), s(row.nguoi_dang_giu_ten) ? t("Đang giữ: {x}", { x: s(row.nguoi_dang_giu_ten) }) : s(row.ten_kho)],
+                  [t("Nguyên giá"), row.nguyen_gia != null ? t("{x}đ", { x: fmtSo(n(row.nguyen_gia)) }) : ""],
+                  [t("Tình trạng"), TINH_TRANG_TS[s(row.tinh_trang)] ?? s(row.tinh_trang)],
+                  [t("Số seri"), s(row.so_seri)],
+                  [t("Ngày mua"), s(row.ngay_mua) ? fmtNgay(s(row.ngay_mua)) : ""],
+                  [t("Nhà cung cấp"), s(row.nha_cung_cap)],
+                  [t("Hạn bảo hành"), s(row.han_bao_hanh) ? fmtNgay(s(row.han_bao_hanh)) : ""],
+                  [t("Ghi chú"), s(row.ghi_chu)],
                 ]}
               />
             </div>
@@ -475,22 +476,22 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
           {form === "bao-hong" && (
             <div className="action-panel">
               <div className="field-group">
-                <label className="field-label">Mô tả hư hỏng *</label>
-                <input type="text" value={lyDo} onChange={(e) => setLyDo(e.target.value)} autoFocus placeholder="vd: Màn hình không lên, gãy chân ghế…" />
+                <label className="field-label">{t("Mô tả hư hỏng *")}</label>
+                <input type="text" value={lyDo} onChange={(e) => setLyDo(e.target.value)} autoFocus placeholder={t("vd: Màn hình không lên, gãy chân ghế…")} />
               </div>
               <div className="modal-actions" style={{ marginTop: 0 }}>
                 <button type="button" className="btn" onClick={() => setForm(null)}>
-                  Hủy
+                  {t("Hủy")}
                 </button>
                 <button
                   type="button"
                   className="btn btn-danger"
                   disabled={busy || !lyDo.trim()}
                   onClick={() =>
-                    gui(() => api.post("/phieu-xu-ly-ts", { loai: "Bao hong", ccdc_ids: [id], ly_do: lyDo.trim() }), "Đã gửi báo hỏng - chờ Kế toán duyệt.")
+                    gui(() => api.post("/phieu-xu-ly-ts", { loai: "Bao hong", ccdc_ids: [id], ly_do: lyDo.trim() }), t("Đã gửi báo hỏng - chờ Kế toán duyệt."))
                   }
                 >
-                  Gửi báo hỏng
+                  {t("Gửi báo hỏng")}
                 </button>
               </div>
             </div>
@@ -499,7 +500,7 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
             <div className="action-panel">
               <div className="form-grid">
                 <div className="field-group">
-                  <label className="field-label">Đợt kiểm kê</label>
+                  <label className="field-label">{t("Đợt kiểm kê")}</label>
                   <select value={kk.dot} onChange={(e) => setKk({ ...kk, dot: e.target.value })}>
                     {dotKiemKe.map((d) => (
                       <option key={s(d.id)} value={s(d.id)}>
@@ -509,7 +510,7 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
                   </select>
                 </div>
                 <div className="field-group">
-                  <label className="field-label">Tình trạng thực tế</label>
+                  <label className="field-label">{t("Tình trạng thực tế")}</label>
                   <select value={kk.tinh_trang} onChange={(e) => setKk({ ...kk, tinh_trang: e.target.value })}>
                     {Object.entries(TINH_TRANG_KIEM_KE).map(([k, v]) => (
                       <option key={k} value={k}>
@@ -520,12 +521,12 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
                 </div>
               </div>
               <div className="field-group">
-                <label className="field-label">Ghi chú</label>
+                <label className="field-label">{t("Ghi chú")}</label>
                 <input type="text" value={kk.ghi_chu} onChange={(e) => setKk({ ...kk, ghi_chu: e.target.value })} />
               </div>
               <div className="modal-actions" style={{ marginTop: 0 }}>
                 <button type="button" className="btn" onClick={() => setForm(null)}>
-                  Hủy
+                  {t("Hủy")}
                 </button>
                 <button
                   type="button"
@@ -539,11 +540,11 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
                           tinh_trang_thuc_te: kk.tinh_trang,
                           ghi_chu: kk.ghi_chu.trim() || undefined,
                         }),
-                      "Đã ghi nhận kiểm kê.",
+                      t("Đã ghi nhận kiểm kê."),
                     )
                   }
                 >
-                  Ghi nhận
+                  {t("Ghi nhận")}
                 </button>
               </div>
             </div>
@@ -553,20 +554,20 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
             <div className="action-panel">
               <div className="form-grid">
                 <div className="field-group">
-                  <label className="field-label">Hình thức</label>
+                  <label className="field-label">{t("Hình thức")}</label>
                   <select value={loaiXuLy} onChange={(e) => setLoaiXuLy(e.target.value as "Thanh ly" | "Tieu huy")}>
-                    <option value="Thanh ly">Thanh lý (bán / thu hồi giá trị)</option>
-                    <option value="Tieu huy">Tiêu hủy</option>
+                    <option value="Thanh ly">{t("Thanh lý (bán / thu hồi giá trị)")}</option>
+                    <option value="Tieu huy">{t("Tiêu hủy")}</option>
                   </select>
                 </div>
                 <div className="field-group">
-                  <label className="field-label">Lý do *</label>
+                  <label className="field-label">{t("Lý do *")}</label>
                   <input type="text" value={lyDo} onChange={(e) => setLyDo(e.target.value)} autoFocus />
                 </div>
               </div>
               <div className="modal-actions" style={{ marginTop: 0 }}>
                 <button type="button" className="btn" onClick={() => setForm(null)}>
-                  Hủy
+                  {t("Hủy")}
                 </button>
                 <button
                   type="button"
@@ -575,11 +576,11 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
                   onClick={() =>
                     gui(
                       () => api.post("/phieu-xu-ly-ts", { loai: loaiXuLy, ccdc_ids: [id], ly_do: lyDo.trim() }),
-                      `Đã lập phiếu đề xuất ${loaiXuLy === "Thanh ly" ? "thanh lý" : "tiêu hủy"} - chờ Kế toán duyệt.`,
+                      t("Đã lập phiếu đề xuất {x} - chờ Kế toán duyệt.", { x: loaiXuLy === "Thanh ly" ? t("thanh lý") : t("tiêu hủy") }),
                     )
                   }
                 >
-                  Gửi Kế toán duyệt
+                  {t("Gửi Kế toán duyệt")}
                 </button>
               </div>
             </div>
@@ -592,7 +593,7 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
               </button>
               {coTheBaoHong && (
                 <button type="button" className="btn btn-danger" onClick={() => (setForm("bao-hong"), setLyDo(""), setMsg(null))}>
-                  Báo hỏng
+                  {t("Báo hỏng")}
                 </button>
               )}
               {laHC && row.trang_thai_hien_tai === "Hong" && (
@@ -600,19 +601,19 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
                   type="button"
                   className="btn btn-outline"
                   disabled={busy}
-                  onClick={() => gui(() => api.post(`/ccdc/${encodeURIComponent(id)}/sua-xong`), "Đã đánh dấu sửa xong - tài sản trở lại kho.")}
+                  onClick={() => gui(() => api.post(`/ccdc/${encodeURIComponent(id)}/sua-xong`), t("Đã đánh dấu sửa xong - tài sản trở lại kho."))}
                 >
-                  Sửa xong, đưa lại sử dụng
+                  {t("Sửa xong, đưa lại sử dụng")}
                 </button>
               )}
               {coTheThanhLy && (
                 <button type="button" className="btn btn-outline" onClick={() => (setForm("thanh-ly"), setLyDo(""), setMsg(null))}>
-                  Đề xuất thanh lý / tiêu hủy
+                  {t("Đề xuất thanh lý / tiêu hủy")}
                 </button>
               )}
               {dotKiemKe.length > 0 && (
                 <button type="button" className="btn btn-primary" onClick={() => (setForm("kiem-ke"), setMsg(null))}>
-                  Ghi nhận kiểm kê
+                  {t("Ghi nhận kiểm kê")}
                 </button>
               )}
             </div>
@@ -621,16 +622,16 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
           {(data.xu_ly.length > 0 || data.lich_su.length > 0) && (
             <>
               <div className="section-title" style={{ marginTop: 16 }}>
-                Lịch sử
+                {t("Lịch sử")}
               </div>
               <div className="table-scroll">
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Mã phiếu</th>
-                      <th>Loại</th>
-                      <th>Chi tiết</th>
-                      <th>Ngày</th>
+                      <th>{t("Mã phiếu")}</th>
+                      <th>{t("Loại")}</th>
+                      <th>{t("Chi tiết")}</th>
+                      <th>{t("Ngày")}</th>
                     </tr>
                   </thead>
                   <tbody>

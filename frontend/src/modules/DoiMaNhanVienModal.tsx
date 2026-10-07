@@ -1,3 +1,4 @@
+import { t, tS } from "../lib/i18n";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import { Modal } from "../components/Modal";
@@ -42,16 +43,16 @@ interface LichSu {
 }
 
 const LOI: Record<string, string> = {
-  MA_ETX_KHONG_CO: "Mã ETX này không có trong danh bạ ETX.",
-  ETX_CHUA_DONG_BO: "Chưa có danh bạ ETX - bấm “Đồng bộ ETX” trước.",
-  DA_CO_MA_ETX_NAY: "Hồ sơ đã gắn đúng mã ETX này.",
-  MA_MOI_KHONG_HOP_LE: "Mã mới chỉ gồm chữ, số, dấu chấm, gạch (2-40 ký tự).",
-  TRUNG_MA: "Mã mới trùng mã hiện tại.",
-  DICH_NOT_FOUND: "Không tìm thấy hồ sơ đích.",
-  HAI_MA_ETX_KHAC_NHAU: "Hai hồ sơ gắn 2 mã ETX khác nhau (2 người khác nhau trên ETX) - không gộp được.",
-  DU_LIEU_DA_DOI: "Dữ liệu vừa thay đổi - xem trước lại rồi thực hiện.",
+  MA_ETX_KHONG_CO: t("Mã ETX này không có trong danh bạ ETX."),
+  ETX_CHUA_DONG_BO: t("Chưa có danh bạ ETX - bấm “Đồng bộ ETX” trước."),
+  DA_CO_MA_ETX_NAY: t("Hồ sơ đã gắn đúng mã ETX này."),
+  MA_MOI_KHONG_HOP_LE: t("Mã mới chỉ gồm chữ, số, dấu chấm, gạch (2-40 ký tự)."),
+  TRUNG_MA: t("Mã mới trùng mã hiện tại."),
+  DICH_NOT_FOUND: t("Không tìm thấy hồ sơ đích."),
+  HAI_MA_ETX_KHAC_NHAU: t("Hai hồ sơ gắn 2 mã ETX khác nhau (2 người khác nhau trên ETX) - không gộp được."),
+  DU_LIEU_DA_DOI: t("Dữ liệu vừa thay đổi - xem trước lại rồi thực hiện."),
 };
-const THAO_TAC: Record<string, string> = { "Gop ho so": "Gộp hồ sơ", "Doi ma": "Đổi mã", "Gan ma ETX": "Gắn mã ETX" };
+const THAO_TAC: Record<string, string> = { "Gop ho so": t("Gộp hồ sơ"), "Doi ma": t("Đổi mã"), "Gan ma ETX": t("Gắn mã ETX") };
 
 // Doi ma / gop ho so / gan ma ETX chuan cho 1 nhan vien (backend lib/gopNhanVien.ts). Luon XEM TRUOC (so tai
 // san / phieu / kho se chuyen) roi moi thuc hien - ton kho khong doi, ma cu ghi vao nhat ky.
@@ -108,32 +109,32 @@ export function DoiMaNhanVienModal({ nv, onClose, onXong }: { nv: { ma_nv: strin
       }
     } catch (e) {
       const code = (e as { code?: string })?.code;
-      setLoi((code && LOI[code]) || thongBaoLoi(e, "Không thực hiện được."));
+      setLoi((code && LOI[code]) || thongBaoLoi(e, t("Không thực hiện được.")));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Modal title={`Đổi mã / gộp hồ sơ - ${nv.ten_nv} (${nv.ma_nv})`} onClose={onClose} size="lg">
+    <Modal title={t("Đổi mã / gộp hồ sơ - {ten_nv} ({ma_nv})", { ten_nv: nv.ten_nv, ma_nv: nv.ma_nv })} onClose={onClose} size="lg">
       <FilterTabs<Loai>
         tabs={[
-          { key: "gan-etx", label: "Gắn mã ETX chuẩn" },
-          { key: "gop", label: "Gộp vào hồ sơ khác" },
-          { key: "doi-ma", label: "Đổi mã nội bộ" },
+          { key: "gan-etx", label: t("Gắn mã ETX chuẩn") },
+          { key: "gop", label: t("Gộp vào hồ sơ khác") },
+          { key: "doi-ma", label: t("Đổi mã nội bộ") },
         ]}
         value={loai}
         onChange={setLoai}
       />
       <p className="muted small">
-        Mã ETX hiện tại: <b>{nv.ma_etx ?? "chưa có"}</b>. Mọi tài sản, phiếu, kho QL, cấp dưới của hồ sơ này được chuyển sang hồ sơ đích - tồn kho không đổi, mã cũ ghi vào
-        nhật ký.
+        {t("Mã ETX hiện tại:")} <b>{nv.ma_etx ?? t("chưa có")}</b>{t(". Mọi tài sản, phiếu, kho QL, cấp dưới của hồ sơ này được chuyển sang hồ sơ đích - tồn kho không đổi, mã cũ ghi vào")}
+        {t("nhật ký.")}
       </p>
 
       {loai === "gan-etx" && (
         <div className="field-group">
-          <label className="field-label">Tìm trên danh bạ ETX (mã NS-…, họ tên, Gmail - gồm cả người đã nghỉ)</label>
-          <input type="text" value={timEtx} onChange={(e) => setTimEtx(e.target.value)} placeholder="VD: NS-059 hoặc Phùng Thị Doanh" autoFocus />
+          <label className="field-label">{t("Tìm trên danh bạ ETX (mã NS-…, họ tên, Gmail - gồm cả người đã nghỉ)")}</label>
+          <input type="text" value={timEtx} onChange={(e) => setTimEtx(e.target.value)} placeholder={t("VD: NS-059 hoặc Phùng Thị Doanh")} autoFocus />
           {dsEtx.length > 0 && (
             <div className="task-table-wrapper">
               <table className="task-table">
@@ -148,33 +149,33 @@ export function DoiMaNhanVienModal({ nv, onClose, onXong }: { nv: { ma_nv: strin
                         </div>
                       </td>
                       <td>
-                        <span className={`status-badge ${e.trang_thai_lam_viec === "on" ? "success" : "neutral"}`}>{e.trang_thai_lam_viec === "on" ? "Đang làm" : "Đã nghỉ"}</span>
+                        <span className={`status-badge ${e.trang_thai_lam_viec === "on" ? "success" : "neutral"}`}>{e.trang_thai_lam_viec === "on" ? t("Đang làm") : t("Đã nghỉ")}</span>
                       </td>
-                      <td className="small text-secondary">{e.ho_so_ma_nv ? `Hồ sơ CCDC: ${e.ho_so_ten} (${e.ho_so_ma_nv})` : "Chưa có hồ sơ CCDC"}</td>
+                      <td className="small text-secondary">{e.ho_so_ma_nv ? t("Hồ sơ CCDC: {ho_so_ten} ({ho_so_ma_nv})", { ho_so_ten: e.ho_so_ten, ho_so_ma_nv: e.ho_so_ma_nv }) : t("Chưa có hồ sơ CCDC")}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
-          {maEtx && <div className="small">Đã chọn: <b>{maEtx}</b></div>}
+          {maEtx && <div className="small">{t("Đã chọn:")} <b>{maEtx}</b></div>}
         </div>
       )}
       {loai === "gop" && (
         <div className="field-group">
-          <label className="field-label">Hồ sơ đích (giữ lại) - hồ sơ hiện tại sẽ bị gộp vào và xoá</label>
+          <label className="field-label">{t("Hồ sơ đích (giữ lại) - hồ sơ hiện tại sẽ bị gộp vào và xoá")}</label>
           <SearchSelect
             options={dsNv.filter((n) => n.ma_nv !== nv.ma_nv).map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` }))}
             value={dich}
             onChange={setDich}
-            placeholder="Tìm theo họ tên hoặc mã..."
+            placeholder={t("Tìm theo họ tên hoặc mã...")}
           />
         </div>
       )}
       {loai === "doi-ma" && (
         <div className="field-group">
-          <label className="field-label">Mã nội bộ mới (nếu mã đã có hồ sơ khác sẽ thành gộp vào hồ sơ đó)</label>
-          <input type="text" value={maMoi} onChange={(e) => setMaMoi(e.target.value)} placeholder="VD: thungoc.mn" />
+          <label className="field-label">{t("Mã nội bộ mới (nếu mã đã có hồ sơ khác sẽ thành gộp vào hồ sơ đó)")}</label>
+          <input type="text" value={maMoi} onChange={(e) => setMaMoi(e.target.value)} placeholder={t("VD: thungoc.mn")} />
         </div>
       )}
 
@@ -182,43 +183,43 @@ export function DoiMaNhanVienModal({ nv, onClose, onXong }: { nv: { ma_nv: strin
         <div className="content-card">
           <div className="card-header">
             <h3 className="card-title">
-              Xem trước: {THAO_TAC[keHoach.thaoTac] ?? keHoach.thaoTac} → {keHoach.taiCho ? "gắn tại chỗ" : keHoach.dich ? `${keHoach.dich.ten_nv} (${keHoach.dich.ma_nv})` : `hồ sơ mới ${keHoach.maDich}`}
+              {t("Xem trước:")} {THAO_TAC[keHoach.thaoTac] ?? keHoach.thaoTac} → {keHoach.taiCho ? t("gắn tại chỗ") : keHoach.dich ? `${keHoach.dich.ten_nv} (${keHoach.dich.ma_nv})` : t("hồ sơ mới {maDich}", { maDich: keHoach.maDich })}
             </h3>
           </div>
           <div className="small">
-            Kết quả: <b>{keHoach.ketQua.ten_nv}</b> · mã {keHoach.maDich} · ETX {keHoach.ketQua.ma_etx ?? "-"} · tài khoản {keHoach.ketQua.email_dang_nhap ?? "-"} ·{" "}
-            {keHoach.ketQua.dang_lam_viec ? "đang làm" : "nghỉ việc"}
+            {t("Kết quả:")} <b>{keHoach.ketQua.ten_nv}</b> {t("· mã")} {keHoach.maDich} · ETX {keHoach.ketQua.ma_etx ?? "-"} {t("· tài khoản")} {keHoach.ketQua.email_dang_nhap ?? "-"} ·{" "}
+            {keHoach.ketQua.dang_lam_viec ? t("đang làm") : t("nghỉ việc")}
           </div>
           {keHoach.chuyen.length > 0 ? (
             <ul className="small">
               {keHoach.chuyen.map((c) => (
                 <li key={c.nhan}>
-                  {c.nhan}: <b>{fmtSo(c.so)}</b>
+                  {tS(c.nhan)}: <b>{fmtSo(c.so)}</b>
                 </li>
               ))}
               {keHoach.khoNguon && (
                 <li>
-                  Kho QL “{keHoach.khoNguon.ten_kho}” (tồn tiêu hao {fmtSo(keHoach.khoNguon.ton)}): {keHoach.gopKho ? `gộp vào “${keHoach.khoDich?.ten_kho}”` : "chuyển chủ sang hồ sơ đích"}
+                  Kho QL “{keHoach.khoNguon.ten_kho}{t("” (tồn tiêu hao")} {fmtSo(keHoach.khoNguon.ton)}): {keHoach.gopKho ? t("gộp vào “{ten_kho}”", { ten_kho: keHoach.khoDich?.ten_kho }) : t("chuyển chủ sang hồ sơ đích")}
                 </li>
               )}
             </ul>
           ) : (
-            !keHoach.taiCho && <div className="small muted">Hồ sơ này không có tài sản / phiếu nào cần chuyển.</div>
+            !keHoach.taiCho && <div className="small muted">{t("Hồ sơ này không có tài sản / phiếu nào cần chuyển.")}</div>
           )}
           {keHoach.xungDotEmail && (
             <div className="field-group">
-              <label className="field-label">Hai hồ sơ gắn 2 tài khoản khác nhau - 1 nhân sự chỉ giữ 1 tài khoản:</label>
+              <label className="field-label">{t("Hai hồ sơ gắn 2 tài khoản khác nhau - 1 nhân sự chỉ giữ 1 tài khoản:")}</label>
               <label className="small">
-                <input type="radio" checked={giuEmail === "dich"} onChange={() => setGiuEmail("dich")} /> Giữ {keHoach.xungDotEmail.dich} (hồ sơ đích)
+                <input type="radio" checked={giuEmail === "dich"} onChange={() => setGiuEmail("dich")} /> {t("Giữ")} {keHoach.xungDotEmail.dich} {t("(hồ sơ đích)")}
               </label>
               <label className="small">
-                <input type="radio" checked={giuEmail === "nguon"} onChange={() => setGiuEmail("nguon")} /> Giữ {keHoach.xungDotEmail.nguon} (hồ sơ này)
+                <input type="radio" checked={giuEmail === "nguon"} onChange={() => setGiuEmail("nguon")} /> {t("Giữ")} {keHoach.xungDotEmail.nguon} {t("(hồ sơ này)")}
               </label>
             </div>
           )}
           {keHoach.canhBao.map((c) => (
             <div key={c} className="alert alert-warning">
-              {c}
+              {tS(c)}
             </div>
           ))}
         </div>
@@ -227,22 +228,22 @@ export function DoiMaNhanVienModal({ nv, onClose, onXong }: { nv: { ma_nv: strin
       {loi && <div className="alert alert-error">{loi}</div>}
       <div className="modal-actions">
         <button className="btn" onClick={onClose}>
-          Huỷ
+          {t("Huỷ")}
         </button>
         {!keHoach ? (
           <button className="btn btn-primary" disabled={!body || busy} onClick={() => goi(true)}>
-            {busy ? "Đang kiểm tra..." : "Xem trước"}
+            {busy ? t("Đang kiểm tra...") : t("Xem trước")}
           </button>
         ) : (
           <button className="btn btn-primary" disabled={busy} onClick={() => goi(false)}>
-            {busy ? "Đang thực hiện..." : "Xác nhận thực hiện"}
+            {busy ? t("Đang thực hiện...") : t("Xác nhận thực hiện")}
           </button>
         )}
       </div>
 
       {lichSu.length > 0 && (
         <div className="small muted">
-          <b>Nhật ký đổi mã:</b>
+          <b>{t("Nhật ký đổi mã:")}</b>
           {lichSu.map((h) => (
             <div key={h.id}>
               {fmtNgayGio(h.created_at)} · {THAO_TAC[h.thao_tac] ?? h.thao_tac}: {h.ten_nguon} ({h.ma_nguon}) → {h.ma_dich}

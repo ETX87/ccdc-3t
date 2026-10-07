@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { api } from "../api/client";
@@ -40,14 +41,14 @@ export function GlobalSearch() {
     }
     const lan = ++lanGoi.current;
     setDangTai(true);
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       api
         .get<KetQua>(`/dashboard/tim-kiem?q=${encodeURIComponent(tu)}`)
         .then((r) => lan === lanGoi.current && setKq(r))
         .catch(() => lan === lanGoi.current && setKq({ tai_san: [], vat_tu: [], nhan_vien: [], phieu: [] }))
         .finally(() => lan === lanGoi.current && setDangTai(false));
     }, 250);
-    return () => window.clearTimeout(t);
+    return () => window.clearTimeout(timer);
   }, [q]);
 
   useEffect(() => {
@@ -68,7 +69,7 @@ export function GlobalSearch() {
 
   return (
     <div className={`topbar-search-wrap ${moRong ? "expanded" : ""}`}>
-      <button type="button" className="topbar-search-toggle" aria-label="Tìm kiếm" onClick={() => setMoRong(true)}>
+      <button type="button" className="topbar-search-toggle" aria-label={t("Tìm kiếm")} onClick={() => setMoRong(true)}>
         <Search size={19} />
       </button>
       <div className="topbar-search">
@@ -76,7 +77,7 @@ export function GlobalSearch() {
         <input
           ref={inputRef}
           type="text"
-          placeholder="Tìm kiếm tài sản, phiếu, nhân viên..."
+          placeholder={t("Tìm kiếm tài sản, phiếu, nhân viên...")}
           className="search-input"
           value={q}
           onChange={(e) => {
@@ -87,7 +88,7 @@ export function GlobalSearch() {
           onKeyDown={(e) => e.key === "Escape" && dong()}
         />
         {(q || moRong) && (
-          <button type="button" className="search-clear" aria-label="Xoá" onClick={dong}>
+          <button type="button" className="search-clear" aria-label={t("Xoá")} onClick={dong}>
             <X size={15} />
           </button>
         )}
@@ -97,26 +98,26 @@ export function GlobalSearch() {
         <>
           <div className="dropdown-backdrop" onClick={() => setOpen(false)} />
           <div className="search-results">
-            {dangTai && !kq && <div className="search-empty">Đang tìm…</div>}
-            {kq && tong === 0 && !dangTai && <div className="search-empty">Không tìm thấy kết quả cho "{q.trim()}".</div>}
+            {dangTai && !kq && <div className="search-empty">{t("Đang tìm…")}</div>}
+            {kq && tong === 0 && !dangTai && <div className="search-empty">{t("Không tìm thấy kết quả cho")} "{q.trim()}".</div>}
             {kq && kq.tai_san.length > 0 && (
               <div className="search-group">
-                <div className="search-group-title">Tài sản</div>
-                {kq.tai_san.map((t) => (
+                <div className="search-group-title">{t("Tài sản")}</div>
+                {kq.tai_san.map((ts) => (
                   <button
-                    key={t.id}
+                    key={ts.id}
                     type="button"
                     className="search-item"
                     onClick={() => {
                       dong();
-                      moTaiSan(t.id);
+                      moTaiSan(ts.id);
                     }}
                   >
-                    <span className="search-item-code">{t.id}</span>
-                    <span className="search-item-main">{t.ten}</span>
+                    <span className="search-item-code">{ts.id}</span>
+                    <span className="search-item-main">{ts.ten}</span>
                     <span className="search-item-sub">
-                      {TRANG_THAI_TS[t.trang_thai]?.label ?? t.trang_thai}
-                      {t.vi_tri ? ` · ${t.vi_tri}` : ""}
+                      {TRANG_THAI_TS[ts.trang_thai]?.label ?? ts.trang_thai}
+                      {ts.vi_tri ? ` · ${ts.vi_tri}` : ""}
                     </span>
                   </button>
                 ))}
@@ -124,7 +125,7 @@ export function GlobalSearch() {
             )}
             {kq && kq.phieu.length > 0 && (
               <div className="search-group">
-                <div className="search-group-title">Phiếu</div>
+                <div className="search-group-title">{t("Phiếu")}</div>
                 {kq.phieu.map((p) => (
                   <button
                     key={`${p.loai_phieu}:${p.id}`}
@@ -143,7 +144,7 @@ export function GlobalSearch() {
             )}
             {kq && kq.vat_tu.length > 0 && duocMoTab(user, "cap-phat") && (
               <div className="search-group">
-                <div className="search-group-title">Vật tư tiêu hao</div>
+                <div className="search-group-title">{t("Vật tư tiêu hao")}</div>
                 {kq.vat_tu.map((v) => (
                   <button
                     key={v.id}
@@ -156,14 +157,14 @@ export function GlobalSearch() {
                   >
                     <span className="search-item-code">{v.id}</span>
                     <span className="search-item-main">{v.ten}</span>
-                    <span className="search-item-sub">Xem tồn kho</span>
+                    <span className="search-item-sub">{t("Xem tồn kho")}</span>
                   </button>
                 ))}
               </div>
             )}
             {kq && kq.nhan_vien.length > 0 && moNhanVien && (
               <div className="search-group">
-                <div className="search-group-title">Nhân viên</div>
+                <div className="search-group-title">{t("Nhân viên")}</div>
                 {kq.nhan_vien.map((n) => (
                   <button
                     key={n.id}

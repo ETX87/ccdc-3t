@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { api } from "../api/client";
@@ -31,8 +32,8 @@ export function KhoFilter({ value, onChange }: { value: string; onChange: (khoId
 
   return (
     <label className="header-dropdown unit-dropdown select-dropdown">
-      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Đơn vị">
-        <option value="">Tất cả đơn vị</option>
+      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={t("Đơn vị")}>
+        <option value="">{t("Tất cả đơn vị")}</option>
         {khos.map((k) => (
           <option key={k.id} value={k.id}>
             {k.ten_kho}

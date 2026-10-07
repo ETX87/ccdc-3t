@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Download, ListChecks, Plus, QrCode, Search } from "lucide-react";
 import { api } from "../api/client";
@@ -89,7 +90,7 @@ export function KiemKeScreen() {
       } else setChenhLechGanNhat(0);
       setCapNhatLuc(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
     } catch (e) {
-      setLoi(thongBaoLoi(e, "Không tải được đợt kiểm kê."));
+      setLoi(thongBaoLoi(e, t("Không tải được đợt kiểm kê.")));
       setDots([]);
     } finally {
       setDangTai(false);
@@ -111,11 +112,11 @@ export function KiemKeScreen() {
   return (
     <div className="dashboard-container">
       <PageHeader
-        title="Kiểm kê tài sản"
+        title={t("Kiểm kê tài sản")}
         actions={
           hc && (
             <button className="btn btn-primary" onClick={() => setShowNew(true)}>
-              <Plus size={15} /> Tạo đợt kiểm kê
+              <Plus size={15} /> {t("Tạo đợt kiểm kê")}
             </button>
           )
         }
@@ -130,21 +131,21 @@ export function KiemKeScreen() {
           tone="cyan"
           icon={<ClipboardList size={20} className="text-white" />}
           watermark={<ClipboardList size={52} />}
-          label="Đợt đang thực hiện"
+          label={t("Đợt đang thực hiện")}
           value={fmtSo(dangLam.length)}
-          trend={<div className="kpi-trend"><span className="trend-sub">{dangLam[0] ? dangLam[0].ten_dot : "Không có đợt đang mở"}</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{dangLam[0] ? dangLam[0].ten_dot : t("Không có đợt đang mở")}</span></div>}
           onClick={dangLam[0] ? () => setActiveDotId(dangLam[0].id) : undefined}
         />
         <KpiCard
           tone="blue"
           icon={<ListChecks size={20} className="text-white" />}
           watermark={<ListChecks size={52} />}
-          label="Tiến độ đợt gần nhất"
+          label={t("Tiến độ đợt gần nhất")}
           value={ganNhat && tongTs ? `${fmtSo((ganNhat.so_luong_da_kiem / tongTs) * 100, 1)}%` : "0%"}
           trend={
             <div className="kpi-trend">
               <span className="trend-sub">
-                {fmtSo(ganNhat?.so_luong_da_kiem ?? 0)}/{fmtSo(tongTs ?? 0)} tài sản đã kiểm
+                {fmtSo(ganNhat?.so_luong_da_kiem ?? 0)}/{fmtSo(tongTs ?? 0)} {t("tài sản đã kiểm")}
               </span>
             </div>
           }
@@ -154,19 +155,19 @@ export function KiemKeScreen() {
           tone={chenhLechGanNhat ? "red" : "blue-light"}
           icon={<AlertTriangle size={20} className="text-white" />}
           watermark={<AlertTriangle size={52} />}
-          label="Chênh lệch đợt gần nhất"
+          label={t("Chênh lệch đợt gần nhất")}
           value={fmtSo(chenhLechGanNhat ?? 0)}
           tangLaXau
-          trend={<div className={`kpi-trend ${chenhLechGanNhat ? "trend-danger" : "trend-up"}`}><span className="trend-sub">Thiếu / thừa / hỏng / sai người giữ</span></div>}
+          trend={<div className={`kpi-trend ${chenhLechGanNhat ? "trend-danger" : "trend-up"}`}><span className="trend-sub">{t("Thiếu / thừa / hỏng / sai người giữ")}</span></div>}
           onClick={ganNhat ? () => setActiveDotId(ganNhat.id) : undefined}
         />
         <KpiCard
           tone="purple"
           icon={<CheckCircle2 size={20} className="text-white" />}
           watermark={<CheckCircle2 size={52} />}
-          label="Đợt đã hoàn tất"
+          label={t("Đợt đã hoàn tất")}
           value={fmtSo(xong.length)}
-          trend={<div className="kpi-trend"><span className="trend-sub">{xong[0] ? `Gần nhất: ${fmtNgay(xong[0].ngay_ket_thuc ?? xong[0].ngay_bat_dau)}` : "Chưa có đợt hoàn tất"}</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{xong[0] ? t("Gần nhất: {x}", { x: fmtNgay(xong[0].ngay_ket_thuc ?? xong[0].ngay_bat_dau) }) : t("Chưa có đợt hoàn tất")}</span></div>}
         />
       </div>
 
@@ -174,61 +175,61 @@ export function KiemKeScreen() {
         <div className="card-header">
           <div className="card-title-wrap">
             <ClipboardList size={18} className="card-title-icon text-teal" />
-            <h2 className="card-title">Các đợt kiểm kê</h2>
+            <h2 className="card-title">{t("Các đợt kiểm kê")}</h2>
           </div>
         </div>
         <div className="task-table-wrapper">
           <table className="task-table">
             <thead>
               <tr>
-                <th style={{ width: "13%" }}>Mã đợt</th>
-                <th>Tên đợt</th>
-                <th style={{ width: "13%" }}>Bắt đầu</th>
-                <th style={{ width: "13%" }}>Kết thúc</th>
-                <th style={{ width: "13%", textAlign: "right" }}>Đã kiểm</th>
-                <th style={{ width: "13%", textAlign: "center" }}>Trạng thái</th>
+                <th style={{ width: "13%" }}>{t("Mã đợt")}</th>
+                <th>{t("Tên đợt")}</th>
+                <th style={{ width: "13%" }}>{t("Bắt đầu")}</th>
+                <th style={{ width: "13%" }}>{t("Kết thúc")}</th>
+                <th style={{ width: "13%", textAlign: "right" }}>{t("Đã kiểm")}</th>
+                <th style={{ width: "13%", textAlign: "center" }}>{t("Trạng thái")}</th>
               </tr>
             </thead>
             <tbody>
               {dots === null && (
                 <tr>
                   <td colSpan={6} className="task-empty">
-                    Đang tải…
+                    {t("Đang tải…")}
                   </td>
                 </tr>
               )}
               {dots !== null && dots.length === 0 && (
                 <tr>
                   <td colSpan={6} className="task-empty">
-                    Chưa có đợt kiểm kê nào{hc ? " - bấm “Tạo đợt kiểm kê” để bắt đầu." : "."}
+                    {t("Chưa có đợt kiểm kê nào")}{hc ? t(" - bấm “Tạo đợt kiểm kê” để bắt đầu.") : "."}
                   </td>
                 </tr>
               )}
               {tDot.dongTrang.map((d) => (
                 <tr key={d.id}>
-                  <td data-label="Mã đợt">
+                  <td data-label={t("Mã đợt")}>
                     <span className="code-link" role="button" tabIndex={0} onClick={() => setActiveDotId(d.id)}>
                       {d.ma_phieu ?? d.id.slice(0, 8)}
                     </span>
                   </td>
-                  <td data-label="Tên đợt" className="strong">
+                  <td data-label={t("Tên đợt")} className="strong">
                     {d.ten_dot}
                   </td>
-                  <td data-label="Bắt đầu">{fmtNgay(d.ngay_bat_dau)}</td>
-                  <td data-label="Kết thúc">{d.ngay_ket_thuc ? fmtNgay(d.ngay_ket_thuc) : "-"}</td>
-                  <td data-label="Đã kiểm" style={{ textAlign: "right" }}>
+                  <td data-label={t("Bắt đầu")}>{fmtNgay(d.ngay_bat_dau)}</td>
+                  <td data-label={t("Kết thúc")}>{d.ngay_ket_thuc ? fmtNgay(d.ngay_ket_thuc) : "-"}</td>
+                  <td data-label={t("Đã kiểm")} style={{ textAlign: "right" }}>
                     {fmtSo(d.so_luong_da_kiem)}
                     {tongTs ? <span className="muted small"> / {fmtSo(tongTs)}</span> : null}
                   </td>
-                  <td data-label="Trạng thái" style={{ textAlign: "center" }}>
-                    <StatusBadge label={d.trang_thai === "Da hoan tat" ? "Đã hoàn tất" : "Đang thực hiện"} tone={d.trang_thai === "Da hoan tat" ? "success" : "warning"} />
+                  <td data-label={t("Trạng thái")} style={{ textAlign: "center" }}>
+                    <StatusBadge label={d.trang_thai === "Da hoan tat" ? t("Đã hoàn tất") : t("Đang thực hiện")} tone={d.trang_thai === "Da hoan tat" ? "success" : "warning"} />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <PhanTrang trang={tDot.trang} tong={tDot.tong} onDoi={tDot.setTrang} donVi="đợt" />
+        <PhanTrang trang={tDot.trang} tong={tDot.tong} onDoi={tDot.setTrang} donVi={t("đợt")} />
       </div>
 
       {showNew && (
@@ -247,24 +248,24 @@ export function KiemKeScreen() {
 }
 
 function TaoDotModal({ onClose, onDone }: { onClose: () => void; onDone: (id: string) => void }) {
-  const [tenDot, setTenDot] = useState(`Kiểm kê tháng ${homNayVN().slice(5, 7)}/${homNayVN().slice(0, 4)}`);
+  const [tenDot, setTenDot] = useState(t("Kiểm kê tháng {x}/{x2}", { x: homNayVN().slice(5, 7), x2: homNayVN().slice(0, 4) }));
   const [ngay, setNgay] = useState(homNayVN());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   return (
-    <Modal title="Tạo đợt kiểm kê" onClose={onClose}>
+    <Modal title={t("Tạo đợt kiểm kê")} onClose={onClose}>
       <div className="field-group">
-        <label className="field-label">Tên đợt *</label>
+        <label className="field-label">{t("Tên đợt *")}</label>
         <input type="text" value={tenDot} onChange={(e) => setTenDot(e.target.value)} autoFocus />
       </div>
       <div className="field-group">
-        <label className="field-label">Ngày bắt đầu *</label>
+        <label className="field-label">{t("Ngày bắt đầu *")}</label>
         <input type="date" value={ngay} onChange={(e) => setNgay(e.target.value)} />
       </div>
       {err && <div className="alert alert-error">{err}</div>}
       <div className="modal-actions">
         <button className="btn" onClick={onClose}>
-          Huỷ
+          {t("Huỷ")}
         </button>
         <button
           className="btn btn-primary"
@@ -276,13 +277,13 @@ function TaoDotModal({ onClose, onDone }: { onClose: () => void; onDone: (id: st
               const r = await api.post<{ id: string }>("/dot-kiem-ke", { ten_dot: tenDot.trim(), ngay_bat_dau: ngay });
               onDone(r.id);
             } catch (e) {
-              setErr(thongBaoLoi(e, "Không tạo được đợt kiểm kê."));
+              setErr(thongBaoLoi(e, t("Không tạo được đợt kiểm kê.")));
             } finally {
               setBusy(false);
             }
           }}
         >
-          Tạo đợt
+          {t("Tạo đợt")}
         </button>
       </div>
     </Modal>
@@ -337,15 +338,15 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
   const chenhLech = (items ?? []).filter((i) => i.tinh_trang_thuc_te !== "Dung vi tri");
   const demTT = (k: string) => (items ?? []).filter((i) => i.tinh_trang_thuc_te === k).length;
   const ccdcOptions = useMemo(
-    () => ccdcs.map((c) => ({ value: c.id, label: `${c.id} - ${c.ten_ccdc}${daKiemIds.has(c.id) ? " (đã kiểm - ghi đè)" : ""}` })),
+    () => ccdcs.map((c) => ({ value: c.id, label: `${c.id} - ${c.ten_ccdc}${daKiemIds.has(c.id) ? t(" (đã kiểm - ghi đè)") : ""}` })),
     [ccdcs, daKiemIds],
   );
   const nhanVienOptions = useMemo(() => nhanViens.map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` })), [nhanViens]);
   const dangChon = ccdcs.find((c) => c.id === ccdcId);
 
   async function ghiNhan() {
-    if (!ccdcId) return setError("Chọn hoặc quét tài sản cần ghi nhận.");
-    if (tinhTrang === "Sai nguoi giu" && !nguoiGiu) return setError("Chọn người đang giữ thực tế.");
+    if (!ccdcId) return setError(t("Chọn hoặc quét tài sản cần ghi nhận."));
+    if (tinhTrang === "Sai nguoi giu" && !nguoiGiu) return setError(t("Chọn người đang giữ thực tế."));
     setSaving(true);
     setError(null);
     try {
@@ -355,7 +356,7 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
         nguoi_dang_giu_thuc_te: tinhTrang === "Sai nguoi giu" ? nguoiGiu : undefined,
         ghi_chu: ghiChu.trim() || undefined,
       });
-      setMsg(`Đã ghi nhận ${ccdcId}: ${TINH_TRANG_KIEM_KE[tinhTrang]?.label}.`);
+      setMsg(t("Đã ghi nhận {ccdcId}: {x}.", { ccdcId, x: TINH_TRANG_KIEM_KE[tinhTrang]?.label }));
       setCcdcId("");
       setNguoiGiu("");
       setGhiChu("");
@@ -364,7 +365,7 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
       baoThayDoi();
     } catch (e) {
       const code = (e as { code?: string })?.code;
-      setError(code === "DOT_DA_HOAN_TAT" ? "Đợt kiểm kê này đã hoàn tất." : thongBaoLoi(e));
+      setError(code === "DOT_DA_HOAN_TAT" ? t("Đợt kiểm kê này đã hoàn tất.") : thongBaoLoi(e));
     } finally {
       setSaving(false);
     }
@@ -377,7 +378,7 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
       baoThayDoi();
       await Promise.all([onDoi(), reloadViec()]);
     } catch (e) {
-      setError(thongBaoLoi(e, "Không hoàn tất được."));
+      setError(thongBaoLoi(e, t("Không hoàn tất được.")));
     }
   }
 
@@ -387,24 +388,24 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
         ...(items ?? []).map((i) => ({
           ma: i.ccdc_id,
           ten: i.ten_ccdc,
-          he_thong: i.he_thong_nguoi_giu_ten ?? "Trong kho",
+          he_thong: i.he_thong_nguoi_giu_ten ?? t("Trong kho"),
           thuc_te: TINH_TRANG_KIEM_KE[i.tinh_trang_thuc_te]?.label ?? i.tinh_trang_thuc_te,
           nguoi_giu_thuc_te: i.nguoi_dang_giu_thuc_te_ten ?? "",
           ghi_chu: i.ghi_chu ?? "",
         })),
-        ...chuaKiem.map((c) => ({ ma: c.id, ten: c.ten_ccdc, he_thong: c.nguoi_dang_giu_ten ?? c.ten_kho ?? "", thuc_te: "Chưa kiểm", nguoi_giu_thuc_te: "", ghi_chu: "" })),
+        ...chuaKiem.map((c) => ({ ma: c.id, ten: c.ten_ccdc, he_thong: c.nguoi_dang_giu_ten ?? c.ten_kho ?? "", thuc_te: t("Chưa kiểm"), nguoi_giu_thuc_te: "", ghi_chu: "" })),
       ],
       `Kiem_ke_${(dot.ma_phieu ?? dot.id).replace(/\W+/g, "_")}.xlsx`,
       "Kiem ke",
-      { ma: "Mã tài sản", ten: "Tên tài sản", he_thong: "Hệ thống ghi nhận", thuc_te: "Thực tế", nguoi_giu_thuc_te: "Người giữ thực tế", ghi_chu: "Ghi chú" },
+      { ma: t("Mã tài sản"), ten: t("Tên tài sản"), he_thong: t("Hệ thống ghi nhận"), thuc_te: t("Thực tế"), nguoi_giu_thuc_te: t("Người giữ thực tế"), ghi_chu: t("Ghi chú") },
     );
   }
 
-  const t = tim.trim().toLowerCase();
+  const tuKhoa = tim.trim().toLowerCase();
   const loc = <T extends { ccdc_id?: string; id?: string | number; ten_ccdc: string }>(ds: T[]) =>
-    t ? ds.filter((x) => `${x.ccdc_id ?? x.id} ${x.ten_ccdc}`.toLowerCase().includes(t)) : ds;
+    tuKhoa ? ds.filter((x) => `${x.ccdc_id ?? x.id} ${x.ten_ccdc}`.toLowerCase().includes(tuKhoa)) : ds;
   const tong = ccdcs.length;
-  const tKq = useTrangKhach(loc(tab === "chenh-lech" ? chenhLech : (items ?? [])), [t, tab]);
+  const tKq = useTrangKhach(loc(tab === "chenh-lech" ? chenhLech : (items ?? [])), [tuKhoa, tab]);
   const tChua = useTrangKhach(loc(chuaKiem), [t]);
 
   return (
@@ -413,22 +414,22 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
         title={
           <span className="title-with-badge">
             {dot.ten_dot}
-            <StatusBadge label={moDot ? "Đang thực hiện" : "Đã hoàn tất"} tone={moDot ? "warning" : "success"} />
+            <StatusBadge label={moDot ? t("Đang thực hiện") : t("Đã hoàn tất")} tone={moDot ? "warning" : "success"} />
           </span>
         }
         filters={
           <button className="btn btn-outline btn-sm" onClick={onBack}>
-            <ArrowLeft size={13} /> Các đợt
+            <ArrowLeft size={13} /> {t("Các đợt")}
           </button>
         }
         actions={
           <>
             <button className="btn btn-outline" onClick={exportExcel}>
-              <Download size={14} /> Xuất Excel
+              <Download size={14} /> {t("Xuất Excel")}
             </button>
             {moDot && hc && (
               <button className="btn btn-primary" onClick={() => setXacNhanXong(true)}>
-                <CheckCircle2 size={14} /> Hoàn tất đợt
+                <CheckCircle2 size={14} /> {t("Hoàn tất đợt")}
               </button>
             )}
           </>
@@ -441,49 +442,49 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
           tone="cyan"
           icon={<ListChecks size={20} className="text-white" />}
           watermark={<ListChecks size={52} />}
-          label="Đã kiểm"
+          label={t("Đã kiểm")}
           value={`${fmtSo(items?.length ?? 0)}/${fmtSo(tong)}`}
           trend={
             <div className="kpi-trend trend-up">
               <span className="trend-bold">{tong ? fmtSo(((items?.length ?? 0) / tong) * 100, 1) : 0}%</span>
-              <span className="trend-sub">tài sản đang quản lý</span>
+              <span className="trend-sub">{t("tài sản đang quản lý")}</span>
             </div>
           }
-          subtext={`${dot.ma_phieu ?? ""} · bắt đầu ${fmtNgay(dot.ngay_bat_dau)}`}
+          subtext={t("{x} · bắt đầu {x2}", { x: dot.ma_phieu ?? "", x2: fmtNgay(dot.ngay_bat_dau) })}
           onClick={() => setTab("da-kiem")}
         />
         <KpiCard
           tone="blue-light"
           icon={<CheckCircle2 size={20} className="text-white" />}
           watermark={<CheckCircle2 size={52} />}
-          label="Đúng vị trí"
+          label={t("Đúng vị trí")}
           value={fmtSo(demTT("Dung vi tri"))}
-          trend={<div className="kpi-trend trend-up"><span className="trend-sub">Khớp hệ thống</span></div>}
+          trend={<div className="kpi-trend trend-up"><span className="trend-sub">{t("Khớp hệ thống")}</span></div>}
         />
         <KpiCard
           tone={chenhLech.length ? "red" : "purple"}
           icon={<AlertTriangle size={20} className="text-white" />}
           watermark={<AlertTriangle size={52} />}
-          label="Chênh lệch"
+          label={t("Chênh lệch")}
           value={fmtSo(chenhLech.length)}
           tangLaXau
           trend={
             <div className={`kpi-trend ${chenhLech.length ? "trend-danger" : ""}`}>
               <span className="trend-sub">
-                {demTT("Thieu")} thiếu · {demTT("Thua")} thừa · {demTT("Hong")} hỏng · {demTT("Sai nguoi giu")} sai người giữ
+                {demTT("Thieu")} {t("thiếu ·")} {demTT("Thua")} {t("thừa ·")} {demTT("Hong")} {t("hỏng ·")} {demTT("Sai nguoi giu")} {t("sai người giữ")}
               </span>
             </div>
           }
-          subtext="Sửa thực tế qua phiếu điều chuyển điều chỉnh"
+          subtext={t("Sửa thực tế qua phiếu điều chuyển điều chỉnh")}
           onClick={() => setTab("chenh-lech")}
         />
         <KpiCard
           tone="yellow"
           icon={<ClipboardList size={20} className="text-white" />}
           watermark={<ClipboardList size={52} />}
-          label="Chưa kiểm"
+          label={t("Chưa kiểm")}
           value={fmtSo(chuaKiem.length)}
-          trend={<div className="kpi-trend trend-warning"><span className="trend-sub">{moDot ? "Còn cần đi kiểm" : "Không kiểm trong đợt này"}</span></div>}
+          trend={<div className="kpi-trend trend-warning"><span className="trend-sub">{moDot ? t("Còn cần đi kiểm") : t("Không kiểm trong đợt này")}</span></div>}
           onClick={() => setTab("chua-kiem")}
         />
       </div>
@@ -496,24 +497,24 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
           <div className="card-header">
             <div className="card-title-wrap">
               <ClipboardList size={17} className="card-title-icon text-teal" />
-              <h2 className="card-title">Ghi nhận kiểm kê</h2>
+              <h2 className="card-title">{t("Ghi nhận kiểm kê")}</h2>
             </div>
             <button className="btn btn-outline btn-sm" onClick={() => setQuet(true)}>
-              <QrCode size={13} /> Quét tem QR
+              <QrCode size={13} /> {t("Quét tem QR")}
             </button>
           </div>
           <div className="form-grid">
             <div className="field-group">
-              <label className="field-label">Tài sản</label>
-              <SearchSelect options={ccdcOptions} value={ccdcId} onChange={setCcdcId} placeholder="Tìm mã / tên tài sản..." />
+              <label className="field-label">{t("Tài sản")}</label>
+              <SearchSelect options={ccdcOptions} value={ccdcId} onChange={setCcdcId} placeholder={t("Tìm mã / tên tài sản...")} />
               {dangChon && (
                 <div className="field-hint">
-                  Hệ thống: {TRANG_THAI_TS[dangChon.trang_thai_hien_tai]?.label ?? dangChon.trang_thai_hien_tai} · {dangChon.nguoi_dang_giu_ten ?? dangChon.ten_kho ?? "-"}
+                  {t("Hệ thống:")} {TRANG_THAI_TS[dangChon.trang_thai_hien_tai]?.label ?? dangChon.trang_thai_hien_tai} · {dangChon.nguoi_dang_giu_ten ?? dangChon.ten_kho ?? "-"}
                 </div>
               )}
             </div>
             <div className="field-group">
-              <label className="field-label">Tình trạng thực tế</label>
+              <label className="field-label">{t("Tình trạng thực tế")}</label>
               <select value={tinhTrang} onChange={(e) => setTinhTrang(e.target.value)}>
                 {Object.entries(TINH_TRANG_KIEM_KE).map(([k, v]) => (
                   <option key={k} value={k}>
@@ -524,18 +525,18 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
             </div>
             {tinhTrang === "Sai nguoi giu" && (
               <div className="field-group">
-                <label className="field-label">Người đang giữ thực tế</label>
-                <SearchSelect options={nhanVienOptions} value={nguoiGiu} onChange={setNguoiGiu} placeholder="Tìm nhân viên..." />
+                <label className="field-label">{t("Người đang giữ thực tế")}</label>
+                <SearchSelect options={nhanVienOptions} value={nguoiGiu} onChange={setNguoiGiu} placeholder={t("Tìm nhân viên...")} />
               </div>
             )}
             <div className="field-group">
-              <label className="field-label">Ghi chú</label>
+              <label className="field-label">{t("Ghi chú")}</label>
               <input type="text" value={ghiChu} onChange={(e) => setGhiChu(e.target.value)} />
             </div>
           </div>
           <div className="modal-actions" style={{ marginTop: 4 }}>
             <button className="btn btn-primary" disabled={saving} onClick={ghiNhan}>
-              {saving ? "Đang lưu..." : "Ghi nhận"}
+              {saving ? t("Đang lưu...") : t("Ghi nhận")}
             </button>
           </div>
         </div>
@@ -547,14 +548,14 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
             value={tab}
             onChange={setTab}
             tabs={[
-              { key: "da-kiem", label: "Đã kiểm", count: items?.length ?? 0 },
-              { key: "chenh-lech", label: "Chênh lệch", count: chenhLech.length },
-              { key: "chua-kiem", label: "Chưa kiểm", count: chuaKiem.length },
+              { key: "da-kiem", label: t("Đã kiểm"), count: items?.length ?? 0 },
+              { key: "chenh-lech", label: t("Chênh lệch"), count: chenhLech.length },
+              { key: "chua-kiem", label: t("Chưa kiểm"), count: chuaKiem.length },
             ]}
           />
           <div className="topbar-search filter-search">
             <Search size={15} className="search-icon" />
-            <input className="search-input" placeholder="Tìm mã, tên tài sản..." value={tim} onChange={(e) => setTim(e.target.value)} />
+            <input className="search-input" placeholder={t("Tìm mã, tên tài sản...")} value={tim} onChange={(e) => setTim(e.target.value)} />
           </div>
         </div>
         <div className="task-table-wrapper">
@@ -562,26 +563,26 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
             <table className="task-table">
               <thead>
                 <tr>
-                  <th style={{ width: "14%" }}>Mã tài sản</th>
-                  <th>Tên tài sản</th>
-                  <th style={{ width: "18%" }}>Hệ thống ghi nhận</th>
-                  <th style={{ width: "13%", textAlign: "center" }}>Thực tế</th>
-                  <th style={{ width: "16%" }}>Người giữ thực tế</th>
-                  <th style={{ width: "16%" }}>Ghi chú</th>
+                  <th style={{ width: "14%" }}>{t("Mã tài sản")}</th>
+                  <th>{t("Tên tài sản")}</th>
+                  <th style={{ width: "18%" }}>{t("Hệ thống ghi nhận")}</th>
+                  <th style={{ width: "13%", textAlign: "center" }}>{t("Thực tế")}</th>
+                  <th style={{ width: "16%" }}>{t("Người giữ thực tế")}</th>
+                  <th style={{ width: "16%" }}>{t("Ghi chú")}</th>
                 </tr>
               </thead>
               <tbody>
                 {items === null && (
                   <tr>
                     <td colSpan={6} className="task-empty">
-                      Đang tải…
+                      {t("Đang tải…")}
                     </td>
                   </tr>
                 )}
                 {items !== null && loc(tab === "chenh-lech" ? chenhLech : items).length === 0 && (
                   <tr>
                     <td colSpan={6} className="task-empty">
-                      {tab === "chenh-lech" ? "Không có chênh lệch." : "Chưa ghi nhận tài sản nào."}
+                      {tab === "chenh-lech" ? t("Không có chênh lệch.") : t("Chưa ghi nhận tài sản nào.")}
                     </td>
                   </tr>
                 )}
@@ -589,20 +590,20 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
                   const tt = TINH_TRANG_KIEM_KE[it.tinh_trang_thuc_te];
                   return (
                     <tr key={it.id}>
-                      <td data-label="Mã tài sản">
+                      <td data-label={t("Mã tài sản")}>
                         <span className="code-link" onClick={() => moTaiSan(it.ccdc_id)}>
                           {it.ccdc_id}
                         </span>
                       </td>
-                      <td data-label="Tên tài sản">{it.ten_ccdc}</td>
-                      <td data-label="Hệ thống" className="text-secondary">
-                        {it.he_thong_nguoi_giu_ten ?? "Trong kho"}
+                      <td data-label={t("Tên tài sản")}>{it.ten_ccdc}</td>
+                      <td data-label={t("Hệ thống")} className="text-secondary">
+                        {it.he_thong_nguoi_giu_ten ?? t("Trong kho")}
                       </td>
-                      <td data-label="Thực tế" style={{ textAlign: "center" }}>
+                      <td data-label={t("Thực tế")} style={{ textAlign: "center" }}>
                         <StatusBadge label={tt?.label ?? it.tinh_trang_thuc_te} tone={tt?.tone ?? "neutral"} />
                       </td>
-                      <td data-label="Người giữ thực tế">{it.nguoi_dang_giu_thuc_te_ten ?? "-"}</td>
-                      <td data-label="Ghi chú" className="text-secondary">
+                      <td data-label={t("Người giữ thực tế")}>{it.nguoi_dang_giu_thuc_te_ten ?? "-"}</td>
+                      <td data-label={t("Ghi chú")} className="text-secondary">
                         {it.ghi_chu ?? "-"}
                         {it.kiem_ke_luc && <div className="small">{fmtNgayGio(it.kiem_ke_luc)}</div>}
                       </td>
@@ -615,35 +616,35 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
             <table className="task-table">
               <thead>
                 <tr>
-                  <th style={{ width: "16%" }}>Mã tài sản</th>
-                  <th>Tên tài sản</th>
-                  <th style={{ width: "16%" }}>Trạng thái hệ thống</th>
-                  <th style={{ width: "24%" }}>Vị trí / người giữ</th>
-                  {moDot && hc && <th style={{ width: "12%", textAlign: "right" }}>Ghi nhận</th>}
+                  <th style={{ width: "16%" }}>{t("Mã tài sản")}</th>
+                  <th>{t("Tên tài sản")}</th>
+                  <th style={{ width: "16%" }}>{t("Trạng thái hệ thống")}</th>
+                  <th style={{ width: "24%" }}>{t("Vị trí / người giữ")}</th>
+                  {moDot && hc && <th style={{ width: "12%", textAlign: "right" }}>{t("Ghi nhận")}</th>}
                 </tr>
               </thead>
               <tbody>
                 {loc(chuaKiem).length === 0 && (
                   <tr>
                     <td colSpan={5} className="task-empty">
-                      Đã kiểm hết tài sản.
+                      {t("Đã kiểm hết tài sản.")}
                     </td>
                   </tr>
                 )}
                 {tChua.dongTrang.map((c) => (
                     <tr key={c.id}>
-                      <td data-label="Mã tài sản">
+                      <td data-label={t("Mã tài sản")}>
                         <span className="code-link" onClick={() => moTaiSan(c.id)}>
                           {c.id}
                         </span>
                       </td>
-                      <td data-label="Tên tài sản">{c.ten_ccdc}</td>
-                      <td data-label="Trạng thái">{TRANG_THAI_TS[c.trang_thai_hien_tai]?.label ?? c.trang_thai_hien_tai}</td>
-                      <td data-label="Vị trí" className="text-secondary">
+                      <td data-label={t("Tên tài sản")}>{c.ten_ccdc}</td>
+                      <td data-label={t("Trạng thái")}>{TRANG_THAI_TS[c.trang_thai_hien_tai]?.label ?? c.trang_thai_hien_tai}</td>
+                      <td data-label={t("Vị trí")} className="text-secondary">
                         {c.nguoi_dang_giu_ten ?? c.ten_kho ?? "-"}
                       </td>
                       {moDot && hc && (
-                        <td data-label="Ghi nhận" style={{ textAlign: "right" }}>
+                        <td data-label={t("Ghi nhận")} style={{ textAlign: "right" }}>
                           <button
                             className="btn btn-outline btn-sm"
                             onClick={() => {
@@ -652,7 +653,7 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
                               document.querySelector(".content")?.scrollTo({ top: 0, behavior: "smooth" });
                             }}
                           >
-                            Chọn
+                            {t("Chọn")}
                           </button>
                         </td>
                       )}
@@ -663,9 +664,9 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
           )}
         </div>
         {tab === "chua-kiem" ? (
-          <PhanTrang trang={tChua.trang} tong={tChua.tong} onDoi={tChua.setTrang} donVi="tài sản" />
+          <PhanTrang trang={tChua.trang} tong={tChua.tong} onDoi={tChua.setTrang} donVi={t("tài sản")} />
         ) : (
-          <PhanTrang trang={tKq.trang} tong={tKq.tong} onDoi={tKq.setTrang} donVi="tài sản" />
+          <PhanTrang trang={tKq.trang} tong={tKq.tong} onDoi={tKq.setTrang} donVi={t("tài sản")} />
         )}
       </div>
 
@@ -677,23 +678,23 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
             if (ccdcs.some((c) => c.id === ma)) {
               setCcdcId(ma);
               setError(null);
-            } else setError(`Mã "${ma}" không thuộc danh sách tài sản cần kiểm.`);
+            } else setError(t("Mã \"{ma}\" không thuộc danh sách tài sản cần kiểm.", { ma }));
           }}
         />
       )}
 
       {xacNhanXong && (
-        <Modal title="Hoàn tất đợt kiểm kê" onClose={() => setXacNhanXong(false)}>
+        <Modal title={t("Hoàn tất đợt kiểm kê")} onClose={() => setXacNhanXong(false)}>
           <p>
-            Hoàn tất <b>{dot.ten_dot}</b>? Sau khi hoàn tất không ghi nhận thêm được. Hiện đã kiểm {fmtSo(items?.length ?? 0)}/{fmtSo(tong)} tài sản,{" "}
-            {fmtSo(chenhLech.length)} chênh lệch, {fmtSo(chuaKiem.length)} chưa kiểm.
+            {t("Hoàn tất")} <b>{dot.ten_dot}</b>{t("? Sau khi hoàn tất không ghi nhận thêm được. Hiện đã kiểm")} {fmtSo(items?.length ?? 0)}/{fmtSo(tong)} {t("tài sản,")}{" "}
+            {fmtSo(chenhLech.length)} {t("chênh lệch,")} {fmtSo(chuaKiem.length)} {t("chưa kiểm.")}
           </p>
           <div className="modal-actions">
             <button className="btn" onClick={() => setXacNhanXong(false)}>
-              Huỷ
+              {t("Huỷ")}
             </button>
             <button className="btn btn-primary" onClick={hoanTat}>
-              Hoàn tất đợt
+              {t("Hoàn tất đợt")}
             </button>
           </div>
         </Modal>

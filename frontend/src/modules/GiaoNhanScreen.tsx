@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeftRight, CalendarDays, ChevronDown, Laptop, Plus, UserCheck } from "lucide-react";
 import { api } from "../api/client";
@@ -56,9 +57,9 @@ type Loai = "Cap phat" | "Thu hoi" | "Dieu chuyen" | "Chuyen kho";
 type TabXacNhan = "tat-ca" | "cho" | "xong";
 
 const MO_TA_LOAI: Record<Loai, string> = {
-  "Cap phat": "kho → nhân viên",
-  "Thu hoi": "nhân viên → kho",
-  "Dieu chuyen": "nhân viên → nhân viên",
+  "Cap phat": t("kho → nhân viên"),
+  "Thu hoi": t("nhân viên → kho"),
+  "Dieu chuyen": t("nhân viên → nhân viên"),
   "Chuyen kho": "kho → kho",
 };
 
@@ -108,7 +109,7 @@ export function GiaoNhanScreen() {
       setChoXacNhan(cho.rows);
       setCapNhatLuc(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
     } catch (e) {
-      setLoi(thongBaoLoi(e, "Không tải được danh sách phiếu."));
+      setLoi(thongBaoLoi(e, t("Không tải được danh sách phiếu.")));
       setPhieus([]);
     } finally {
       setDangTai(false);
@@ -124,7 +125,7 @@ export function GiaoNhanScreen() {
   const tGn = useTrangKhach(hienThi, [tabXn]);
   const soTs = (phieus ?? []).reduce((s, p) => s + p.so_luong_ccdc, 0);
   const choQuaHan = choXacNhan.filter((p) => quaHan(p.ngay_lap)).length;
-  const tenThang = thang ? `${thang.slice(5)}/${thang.slice(0, 4)}` : "mọi thời điểm";
+  const tenThang = thang ? `${thang.slice(5)}/${thang.slice(0, 4)}` : t("mọi thời điểm");
 
   if (!user) return null;
   const loaiCoTheChon: Loai[] = myKho.length ? ["Cap phat", "Thu hoi", "Dieu chuyen", "Chuyen kho"] : ["Dieu chuyen"];
@@ -132,13 +133,13 @@ export function GiaoNhanScreen() {
   return (
     <div className="dashboard-container">
       <PageHeader
-        title="Điều chuyển tài sản"
+        title={t("Điều chuyển tài sản")}
         filters={
           <>
-            <input type="month" className="header-month" value={thang} onChange={(e) => setThang(e.target.value)} aria-label="Tháng" />
+            <input type="month" className="header-month" value={thang} onChange={(e) => setThang(e.target.value)} aria-label={t("Tháng")} />
             <label className="header-dropdown select-dropdown">
-              <select value={loaiLoc} onChange={(e) => setLoaiLoc(e.target.value)} aria-label="Loại phiếu">
-                <option value="">Tất cả loại phiếu</option>
+              <select value={loaiLoc} onChange={(e) => setLoaiLoc(e.target.value)} aria-label={t("Loại phiếu")}>
+                <option value="">{t("Tất cả loại phiếu")}</option>
                 {Object.entries(LOAI_GIAO_NHAN).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
@@ -151,7 +152,7 @@ export function GiaoNhanScreen() {
         }
         actions={
           <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-            <Plus size={15} /> Lập phiếu giao nhận
+            <Plus size={15} /> {t("Lập phiếu giao nhận")}
           </button>
         }
         capNhatLuc={capNhatLuc}
@@ -164,7 +165,7 @@ export function GiaoNhanScreen() {
           tone="cyan"
           icon={<CalendarDays size={20} className="text-white" />}
           watermark={<ArrowLeftRight size={52} />}
-          label={`Phiếu ${tenThang}`}
+          label={t("Phiếu {tenThang}", { tenThang })}
           value={fmtSo(phieus?.length ?? 0)}
           trend={
             <div className="kpi-trend">
@@ -181,21 +182,21 @@ export function GiaoNhanScreen() {
           tone="blue"
           icon={<Laptop size={20} className="text-white" />}
           watermark={<Laptop size={52} />}
-          label="Tài sản đã luân chuyển"
+          label={t("Tài sản đã luân chuyển")}
           value={fmtSo(soTs)}
-          trend={<div className="kpi-trend"><span className="trend-sub">Tổng tài sản trên các phiếu {tenThang}</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{t("Tổng tài sản trên các phiếu")} {tenThang}</span></div>}
         />
         <KpiCard
           tone={choQuaHan ? "red" : "yellow"}
           icon={<AlertTriangle size={20} className="text-white" />}
           watermark={<AlertTriangle size={52} />}
-          label="Chưa xác nhận nhận"
+          label={t("Chưa xác nhận nhận")}
           value={fmtSo(choXacNhan.length)}
           tangLaXau
           trend={
             <div className={`kpi-trend ${choQuaHan ? "trend-danger" : ""}`}>
               <span className="trend-bold">{fmtSo(choQuaHan)}</span>
-              <span className="trend-sub">phiếu quá 48 giờ (mọi tháng)</span>
+              <span className="trend-sub">{t("phiếu quá 48 giờ (mọi tháng)")}</span>
             </div>
           }
           onClick={() => (setThang(""), setTabXn("cho"))}
@@ -204,9 +205,9 @@ export function GiaoNhanScreen() {
           tone="purple"
           icon={<UserCheck size={20} className="text-white" />}
           watermark={<UserCheck size={52} />}
-          label="Chờ tôi xác nhận"
+          label={t("Chờ tôi xác nhận")}
           value={fmtSo(choToi.length)}
-          trend={<div className="kpi-trend"><span className="trend-sub">Bấm mã phiếu để xác nhận đã nhận</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{t("Bấm mã phiếu để xác nhận đã nhận")}</span></div>}
           onClick={choToi[0] ? () => moPhieu("giao_nhan", choToi[0].id) : undefined}
         />
       </div>
@@ -218,15 +219,15 @@ export function GiaoNhanScreen() {
         <div className="card-header">
           <div className="card-title-wrap">
             <ArrowLeftRight size={18} className="card-title-icon text-teal" />
-            <h2 className="card-title">Phiếu giao nhận tài sản cố định</h2>
+            <h2 className="card-title">{t("Phiếu giao nhận tài sản cố định")}</h2>
           </div>
           <FilterTabs<TabXacNhan>
             value={tabXn}
             onChange={setTabXn}
             tabs={[
-              { key: "tat-ca", label: "Tất cả", count: phieus?.length ?? 0 },
-              { key: "cho", label: "Chưa xác nhận", count: (phieus ?? []).filter((p) => !p.da_xac_nhan).length },
-              { key: "xong", label: "Đã xác nhận", count: (phieus ?? []).filter((p) => p.da_xac_nhan).length },
+              { key: "tat-ca", label: t("Tất cả"), count: phieus?.length ?? 0 },
+              { key: "cho", label: t("Chưa xác nhận"), count: (phieus ?? []).filter((p) => !p.da_xac_nhan).length },
+              { key: "xong", label: t("Đã xác nhận"), count: (phieus ?? []).filter((p) => p.da_xac_nhan).length },
             ]}
           />
         </div>
@@ -234,27 +235,27 @@ export function GiaoNhanScreen() {
           <table className="task-table">
             <thead>
               <tr>
-                <th style={{ width: "13%" }}>Mã phiếu</th>
-                <th style={{ width: "11%" }}>Loại</th>
-                <th style={{ width: "17%" }}>Từ</th>
-                <th style={{ width: "17%" }}>Đến</th>
-                <th>Tài sản</th>
-                <th style={{ width: "12%" }}>Ngày lập</th>
-                <th style={{ width: "12%", textAlign: "center" }}>Xác nhận</th>
+                <th style={{ width: "13%" }}>{t("Mã phiếu")}</th>
+                <th style={{ width: "11%" }}>{t("Loại")}</th>
+                <th style={{ width: "17%" }}>{t("Từ")}</th>
+                <th style={{ width: "17%" }}>{t("Đến")}</th>
+                <th>{t("Tài sản")}</th>
+                <th style={{ width: "12%" }}>{t("Ngày lập")}</th>
+                <th style={{ width: "12%", textAlign: "center" }}>{t("Xác nhận")}</th>
               </tr>
             </thead>
             <tbody>
               {phieus === null && (
                 <tr>
                   <td colSpan={7} className="task-empty">
-                    Đang tải…
+                    {t("Đang tải…")}
                   </td>
                 </tr>
               )}
               {phieus !== null && hienThi.length === 0 && (
                 <tr>
                   <td colSpan={7} className="task-empty">
-                    Không có phiếu nào {thang ? `trong tháng ${tenThang}` : ""}.
+                    {t("Không có phiếu nào")} {thang ? t("trong tháng {tenThang}", { tenThang }) : ""}.
                   </td>
                 </tr>
               )}
@@ -263,28 +264,28 @@ export function GiaoNhanScreen() {
                 const tre = !p.da_xac_nhan && quaHan(p.ngay_lap);
                 return (
                   <tr key={p.id} className={tre ? "row-overdue" : undefined}>
-                    <td data-label="Mã phiếu">
+                    <td data-label={t("Mã phiếu")}>
                       <span className="code-link" role="button" tabIndex={0} onClick={() => moPhieu("giao_nhan", p.id)}>
                         {p.ma_phieu ?? p.id.slice(0, 8)}
                       </span>
                     </td>
-                    <td data-label="Loại">{LOAI_GIAO_NHAN[p.loai_phieu] ?? p.loai_phieu}</td>
-                    <td data-label="Từ" className="text-secondary">
+                    <td data-label={t("Loại")}>{LOAI_GIAO_NHAN[p.loai_phieu] ?? p.loai_phieu}</td>
+                    <td data-label={t("Từ")} className="text-secondary">
                       {tu ?? "-"}
                     </td>
-                    <td data-label="Đến">{den ?? "-"}</td>
-                    <td data-label="Tài sản">
+                    <td data-label={t("Đến")}>{den ?? "-"}</td>
+                    <td data-label={t("Tài sản")}>
                       <span className="strong">{p.so_luong_ccdc} TS</span>
                       {p.tom_tat && <span className="muted small"> · {p.tom_tat}</span>}
                     </td>
-                    <td data-label="Ngày lập" className="text-secondary">
+                    <td data-label={t("Ngày lập")} className="text-secondary">
                       {fmtNgayGio(p.ngay_lap)}
                     </td>
-                    <td data-label="Xác nhận" style={{ textAlign: "center" }}>
+                    <td data-label={t("Xác nhận")} style={{ textAlign: "center" }}>
                       {p.da_xac_nhan ? (
-                        <StatusBadge label="Đã xác nhận" tone="success" />
+                        <StatusBadge label={t("Đã xác nhận")} tone="success" />
                       ) : (
-                        <StatusBadge label={tre ? "Quá 48 giờ" : "Chờ xác nhận"} tone={tre ? "danger" : "warning"} />
+                        <StatusBadge label={tre ? t("Quá 48 giờ") : t("Chờ xác nhận")} tone={tre ? "danger" : "warning"} />
                       )}
                     </td>
                   </tr>
@@ -293,7 +294,7 @@ export function GiaoNhanScreen() {
             </tbody>
           </table>
         </div>
-        <PhanTrang trang={tGn.trang} tong={tGn.tong} onDoi={tGn.setTrang} donVi="phiếu" />
+        <PhanTrang trang={tGn.trang} tong={tGn.tong} onDoi={tGn.setTrang} donVi={t("phiếu")} />
       </div>
 
       {showForm && (
@@ -304,7 +305,7 @@ export function GiaoNhanScreen() {
           onDone={async (id, loai) => {
             setShowForm(false);
             setMsg(
-              `Đã lập phiếu ${LOAI_GIAO_NHAN[loai].toLowerCase()}${loai === "Cap phat" || loai === "Dieu chuyen" ? " - chờ nhân viên xác nhận đã nhận." : " - chờ kho nhận xác nhận."}`,
+              t("Đã lập phiếu {x}{x2}", { x: LOAI_GIAO_NHAN[loai].toLowerCase(), x2: loai === "Cap phat" || loai === "Dieu chuyen" ? t(" - chờ nhân viên xác nhận đã nhận.") : t(" - chờ kho nhận xác nhận.") }),
             );
             baoThayDoi();
             await reloadViec();
@@ -362,7 +363,7 @@ function LapPhieuModal({
         setCcdcs(cc.rows);
         setKhoAll(k.rows.filter((x) => x.bat_tat && x.loai !== "Mua hang"));
       })
-      .catch((e) => setError(thongBaoLoi(e, "Không tải được dữ liệu.")));
+      .catch((e) => setError(thongBaoLoi(e, t("Không tải được dữ liệu."))));
   }, [toanQuyen, user]);
 
   const nvOptions = useMemo(() => nhanViens.map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` })), [nhanViens]);
@@ -385,11 +386,11 @@ function LapPhieuModal({
   }
 
   async function submit() {
-    if ((loai === "Cap phat" || loai === "Chuyen kho") && !tuKho) return setError("Chọn kho nguồn.");
-    if ((loai === "Thu hoi" || loai === "Chuyen kho") && !denKho) return setError("Chọn kho nhận.");
-    if (loai !== "Chuyen kho" && !nhanVienId) return setError("Chọn nhân viên.");
-    if (loai === "Dieu chuyen" && !nhanVienMoiId) return setError("Chọn nhân viên nhận mới.");
-    if (selected.size === 0) return setError("Chọn ít nhất 1 tài sản.");
+    if ((loai === "Cap phat" || loai === "Chuyen kho") && !tuKho) return setError(t("Chọn kho nguồn."));
+    if ((loai === "Thu hoi" || loai === "Chuyen kho") && !denKho) return setError(t("Chọn kho nhận."));
+    if (loai !== "Chuyen kho" && !nhanVienId) return setError(t("Chọn nhân viên."));
+    if (loai === "Dieu chuyen" && !nhanVienMoiId) return setError(t("Chọn nhân viên nhận mới."));
+    if (selected.size === 0) return setError(t("Chọn ít nhất 1 tài sản."));
     setSaving(true);
     setError(null);
     try {
@@ -406,17 +407,17 @@ function LapPhieuModal({
       if (tep.length) await taiLenTepCho("giao_nhan", r.id, tep);
       onDone(r.id, loai);
     } catch (e) {
-      setError(thongBaoLoi(e, "Không tạo được phiếu - vui lòng thử lại."));
+      setError(thongBaoLoi(e, t("Không tạo được phiếu - vui lòng thử lại.")));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Modal size="lg" title="Lập phiếu giao nhận tài sản" onClose={onClose}>
+    <Modal size="lg" title={t("Lập phiếu giao nhận tài sản")} onClose={onClose}>
       <div className="form-grid">
         <div className="field-group">
-          <label className="field-label">Loại phiếu</label>
+          <label className="field-label">{t("Loại phiếu")}</label>
           <select value={loai} onChange={(e) => doiLoai(e.target.value as Loai)}>
             {loaiCoTheChon.map((l) => (
               <option key={l} value={l}>
@@ -427,7 +428,7 @@ function LapPhieuModal({
         </div>
         {(loai === "Cap phat" || loai === "Chuyen kho") && (
           <div className="field-group">
-            <label className="field-label">Kho nguồn</label>
+            <label className="field-label">{t("Kho nguồn")}</label>
             <select
               value={tuKho}
               onChange={(e) => {
@@ -445,7 +446,7 @@ function LapPhieuModal({
         )}
         {loai !== "Chuyen kho" && (
           <div className="field-group">
-            <label className="field-label">{loai === "Cap phat" ? "Nhân viên nhận" : "Nhân viên đang giữ"}</label>
+            <label className="field-label">{loai === "Cap phat" ? t("Nhân viên nhận") : t("Nhân viên đang giữ")}</label>
             <SearchSelect
               options={nvOptions}
               value={nhanVienId}
@@ -453,21 +454,21 @@ function LapPhieuModal({
                 setNhanVienId(v);
                 setSelected(new Set());
               }}
-              placeholder="Tìm nhân viên..."
+              placeholder={t("Tìm nhân viên...")}
             />
           </div>
         )}
         {loai === "Dieu chuyen" && (
           <div className="field-group">
-            <label className="field-label">Nhân viên nhận mới</label>
-            <SearchSelect options={nvOptions} value={nhanVienMoiId} onChange={setNhanVienMoiId} placeholder="Tìm nhân viên..." />
+            <label className="field-label">{t("Nhân viên nhận mới")}</label>
+            <SearchSelect options={nvOptions} value={nhanVienMoiId} onChange={setNhanVienMoiId} placeholder={t("Tìm nhân viên...")} />
           </div>
         )}
         {(loai === "Thu hoi" || loai === "Chuyen kho") && (
           <div className="field-group">
-            <label className="field-label">Kho nhận</label>
+            <label className="field-label">{t("Kho nhận")}</label>
             <select value={denKho} onChange={(e) => setDenKho(e.target.value ? Number(e.target.value) : "")}>
-              <option value="">-- Chọn kho --</option>
+              <option value="">{t("-- Chọn kho --")}</option>
               {(loai === "Thu hoi" ? myKho : khoAll.filter((k) => k.id !== tuKho)).map((k) => (
                 <option key={k.id} value={k.id}>
                   {k.ten_kho} ({LOAI_KHO[k.loai]})
@@ -480,13 +481,13 @@ function LapPhieuModal({
 
       <div className="field-group">
         <label className="field-label">
-          Chọn tài sản ({selected.size} đã chọn / {eligible.length} phù hợp)
+          {t("Chọn tài sản (")}{selected.size} {t("đã chọn /")} {eligible.length} {t("phù hợp)")}
         </label>
-        <input type="text" placeholder="Lọc theo mã, tên tài sản..." value={timTs} onChange={(e) => setTimTs(e.target.value)} />
+        <input type="text" placeholder={t("Lọc theo mã, tên tài sản...")} value={timTs} onChange={(e) => setTimTs(e.target.value)} />
         <div className="pick-list">
-          {ccdcs === null && <div className="muted small">Đang tải…</div>}
+          {ccdcs === null && <div className="muted small">{t("Đang tải…")}</div>}
           {ccdcs !== null && eligible.length === 0 && (
-            <div className="muted small">{loai === "Cap phat" || loai === "Chuyen kho" ? "Kho nguồn không có tài sản trong kho." : nhanVienId ? "Nhân viên không giữ tài sản nào." : "Chọn nhân viên trước."}</div>
+            <div className="muted small">{loai === "Cap phat" || loai === "Chuyen kho" ? t("Kho nguồn không có tài sản trong kho.") : nhanVienId ? t("Nhân viên không giữ tài sản nào.") : t("Chọn nhân viên trước.")}</div>
           )}
           {eligible.length > 0 && (
             <label className="check-label pick-all">
@@ -499,7 +500,7 @@ function LapPhieuModal({
                   setSelected(n);
                 }}
               />
-              Chọn tất cả đang hiển thị
+              {t("Chọn tất cả đang hiển thị")}
             </label>
           )}
           {eligible.map((c) => (
@@ -521,17 +522,17 @@ function LapPhieuModal({
       </div>
 
       <div className="field-group">
-        <label className="field-label">Ghi chú</label>
+        <label className="field-label">{t("Ghi chú")}</label>
         <textarea rows={2} value={ghiChu} onChange={(e) => setGhiChu(e.target.value)} />
       </div>
       <ChonTep tep={tep} onDoi={setTep} loaiMacDinh="Bang chung" />
       {error && <div className="alert alert-error">{error}</div>}
       <div className="modal-actions">
         <button className="btn" onClick={onClose}>
-          Huỷ
+          {t("Huỷ")}
         </button>
         <button className="btn btn-primary" disabled={saving} onClick={submit}>
-          {saving ? "Đang lưu..." : `Tạo phiếu (${selected.size} TS)`}
+          {saving ? t("Đang lưu...") : t("Tạo phiếu ({size} TS)", { size: selected.size })}
         </button>
       </div>
     </Modal>

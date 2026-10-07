@@ -1,23 +1,24 @@
-// Dinh dang so / tien / ngay gio dung chung (hien thi kieu Viet Nam: 1.286 - 8,42 tỷ - 24/09/2026 10:24).
+import { LOCALE, t } from "./i18n";
+// Dinh dang so / tien / ngay gio dung chung (VI: 1.286 - 8,42 tỷ - 24/09/2026 10:24; so theo LOCALE ngon ngu dang chon).
 
 export function fmtSo(v: number | null | undefined, soLe = 0): string {
   if (v == null || Number.isNaN(v)) return "0";
-  return v.toLocaleString("vi-VN", { maximumFractionDigits: soLe });
+  return v.toLocaleString(LOCALE, { maximumFractionDigits: soLe });
 }
 
 /** Gia tri tien rut gon: 8,42 tỷ / 126,5 triệu / 950.000đ. */
 export function fmtGiaTri(v: number | null | undefined): string {
   const n = v ?? 0;
   const abs = Math.abs(n);
-  if (abs >= 1e9) return `${fmtSo(n / 1e9, 2)} tỷ`;
-  if (abs >= 1e6) return `${fmtSo(n / 1e6, 1)} triệu`;
-  return `${fmtSo(n)}đ`;
+  if (abs >= 1e9) return t("{x} tỷ", { x: fmtSo(n / 1e9, 2) });
+  if (abs >= 1e6) return t("{x} triệu", { x: fmtSo(n / 1e6, 1) });
+  return t("{x}đ", { x: fmtSo(n) });
 }
 
 /** "Giá trị: 8,42 tỷ đồng" (the KPI). */
 export function fmtGiaTriDong(v: number | null | undefined): string {
   const s = fmtGiaTri(v);
-  return s.endsWith("đ") ? s : `${s} đồng`;
+  return Math.abs(v ?? 0) < 1e6 ? s : t("{s} đồng", { s });
 }
 
 /** 'YYYY-MM-DD[ HH:MM[:SS]]' -> 'DD/MM/YYYY[ HH:MM]'. */

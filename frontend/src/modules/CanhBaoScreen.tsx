@@ -1,3 +1,4 @@
+import { t, tS } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Bell, EyeOff, Eye, ListChecks, ShieldAlert, Wand2 } from "lucide-react";
 import { api } from "../api/client";
@@ -62,7 +63,7 @@ export function CanhBaoScreen() {
         else setChiTiet([]);
       } else setChiTiet(r.chi_tiet ?? []);
     } catch (e) {
-      setLoi(thongBaoLoi(e, "Không tải được cảnh báo."));
+      setLoi(thongBaoLoi(e, t("Không tải được cảnh báo.")));
     } finally {
       setDangTai(false);
     }
@@ -100,7 +101,7 @@ export function CanhBaoScreen() {
       baoThayDoi();
       await Promise.all([load(), reloadViec()]);
     } catch (e) {
-      setLoi(thongBaoLoi(e, "Không xử lý được cảnh báo."));
+      setLoi(thongBaoLoi(e, t("Không xử lý được cảnh báo.")));
     } finally {
       setBusy(false);
     }
@@ -110,20 +111,20 @@ export function CanhBaoScreen() {
     loai &&
     goi(async () => {
       await api.post("/dashboard/canh-bao/bo-qua", { loai, khoa });
-      setMsg({ text: `Đã bỏ qua ${fmtSo(khoa.length)} mục.`, hoanTac: { loai, khoa } });
+      setMsg({ text: t("Đã bỏ qua {x} mục.", { x: fmtSo(khoa.length) }), hoanTac: { loai, khoa } });
     });
 
   const hoanTac = (h: { loai: LoaiCanhBao; khoa: string[] }) =>
     goi(async () => {
       await api.post("/dashboard/canh-bao/hoan-tac", h);
-      setMsg({ text: "Đã hoàn tác - các mục hiện lại trong danh sách." });
+      setMsg({ text: t("Đã hoàn tác - các mục hiện lại trong danh sách.") });
     });
 
   const suaGia = (items: { vt_id: string; don_gia: number }[]) =>
     goi(async () => {
       await api.post("/dashboard/canh-bao/sua-gia-tham-khao", { items });
       setApDung(null);
-      setMsg({ text: `Đã sửa giá tham khảo ${fmtSo(items.length)} vật tư (có ghi nhật ký giá cũ/mới). Các dòng khớp giá mới tự hết cảnh báo.` });
+      setMsg({ text: t("Đã sửa giá tham khảo {x} vật tư (có ghi nhật ký giá cũ/mới). Các dòng khớp giá mới tự hết cảnh báo.", { x: fmtSo(items.length) }) });
     });
 
   function moDong(d: CanhBaoChiTiet) {
@@ -135,7 +136,7 @@ export function CanhBaoScreen() {
   return (
     <div className="dashboard-container">
       <PageHeader
-        title="Cảnh báo"
+        title={t("Cảnh báo")}
         filters={<KhoFilter value={khoId} onChange={setKhoId} />}
         capNhatLuc={data?.cap_nhat_luc}
         onRefresh={load}
@@ -148,7 +149,7 @@ export function CanhBaoScreen() {
             {msg.text}
             {msg.hoanTac && (
               <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => msg.hoanTac && hoanTac(msg.hoanTac)}>
-                Hoàn tác
+                {t("Hoàn tác")}
               </button>
             )}
           </span>
@@ -162,8 +163,8 @@ export function CanhBaoScreen() {
           watermark={<AlertTriangle size={52} />}
           label={MUC_DO_NHAN.cao}
           value={fmtSo(dem("cao"))}
-          trend={<div className="kpi-trend trend-warning"><span className="trend-sub">{loaiCo("cao")} loại: chờ bàn giao, quá hạn duyệt, tồn âm</span></div>}
-          subtext={`Quá ${data?.nguong_gio ?? 48} giờ chưa xử lý`}
+          trend={<div className="kpi-trend trend-warning"><span className="trend-sub">{loaiCo("cao")} {t("loại: chờ bàn giao, quá hạn duyệt, tồn âm")}</span></div>}
+          subtext={t("Quá {x} giờ chưa xử lý", { x: data?.nguong_gio ?? 48 })}
         />
         <KpiCard
           tone="yellow"
@@ -171,7 +172,7 @@ export function CanhBaoScreen() {
           watermark={<Bell size={52} />}
           label={MUC_DO_NHAN.trung_binh}
           value={fmtSo(dem("trung_binh"))}
-          trend={<div className="kpi-trend"><span className="trend-sub">{loaiCo("trung_binh")} loại: báo hỏng, chênh lệch kiểm kê</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{loaiCo("trung_binh")} {t("loại: báo hỏng, chênh lệch kiểm kê")}</span></div>}
         />
         <KpiCard
           tone="blue"
@@ -179,15 +180,15 @@ export function CanhBaoScreen() {
           watermark={<ShieldAlert size={52} />}
           label={MUC_DO_NHAN.thap}
           value={fmtSo(dem("thap"))}
-          trend={<div className="kpi-trend"><span className="trend-sub">{loaiCo("thap")} loại: bảo hành, đơn giá bất thường</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{loaiCo("thap")} {t("loại: bảo hành, đơn giá bất thường")}</span></div>}
         />
         <KpiCard
           tone="cyan"
           icon={<ListChecks size={20} className="text-white" />}
           watermark={<ListChecks size={52} />}
-          label="Loại cảnh báo đang có"
+          label={t("Loại cảnh báo đang có")}
           value={`${rows.filter((r) => r.so_luong > 0).length}/${rows.length}`}
-          trend={<div className="kpi-trend trend-up"><span className="trend-sub">{rows.filter((r) => r.so_luong === 0).length} loại không có vấn đề</span></div>}
+          trend={<div className="kpi-trend trend-up"><span className="trend-sub">{rows.filter((r) => r.so_luong === 0).length} {t("loại không có vấn đề")}</span></div>}
         />
       </div>
 
@@ -196,7 +197,7 @@ export function CanhBaoScreen() {
           <div className="card-header">
             <div className="card-title-wrap">
               <AlertTriangle size={17} className="card-title-icon text-red" />
-              <h2 className="card-title">Loại cảnh báo</h2>
+              <h2 className="card-title">{t("Loại cảnh báo")}</h2>
             </div>
           </div>
           <div className="alert-list">
@@ -210,71 +211,71 @@ export function CanhBaoScreen() {
           <div className="card-header">
             <div className="card-title-wrap">
               <Eye size={17} className="card-title-icon text-teal" />
-              <h2 className="card-title">{dangChon ? `${dangChon.tieu_de} (${dangChon.so_luong})` : "Chi tiết"}</h2>
+              <h2 className="card-title">{dangChon ? `${tS(dangChon.tieu_de)} (${dangChon.so_luong})` : t("Chi tiết")}</h2>
             </div>
             {xuLyDuoc && laDonGia && deXuatGia.length > 0 && (
               <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => setApDung(new Map(deXuatGia.map((x) => [x.vt_id, true])))}>
-                <Wand2 size={13} /> Áp dụng đề xuất sửa giá ({fmtSo(deXuatGia.length)} vật tư)
+                <Wand2 size={13} /> {t("Áp dụng đề xuất sửa giá (")}{fmtSo(deXuatGia.length)} {t("vật tư)")}
               </button>
             )}
           </div>
-          {chiTiet && chiTiet.length === 0 && <div className="empty-state">Không có mục nào cần xử lý.</div>}
+          {chiTiet && chiTiet.length === 0 && <div className="empty-state">{t("Không có mục nào cần xử lý.")}</div>}
           {chiTiet && chiTiet.length > 0 && (
             <div className="task-table-wrapper">
               {/* Don gia: bang co dinh be rong cot + cho xuong dong - de xuat dai khong day bang tran ngang */}
               <table className="task-table" style={laDonGia ? { tableLayout: "fixed" } : undefined}>
                 <thead>
                   <tr>
-                    <th style={{ width: laDonGia ? "12%" : "18%" }}>Mã</th>
-                    <th style={{ width: laDonGia ? "15%" : "26%" }}>Đối tượng</th>
-                    <th style={laDonGia ? { width: "18%" } : undefined}>Chi tiết</th>
-                    {laDonGia && <th style={{ width: "25%" }}>Đề xuất</th>}
-                    <th style={{ width: laDonGia ? "12%" : "13%" }}>Thời gian</th>
-                    {xuLyDuoc && <th style={{ width: laDonGia ? "18%" : "12%", textAlign: "right" }}>Thao tác</th>}
+                    <th style={{ width: laDonGia ? "12%" : "18%" }}>{t("Mã")}</th>
+                    <th style={{ width: laDonGia ? "15%" : "26%" }}>{t("Đối tượng")}</th>
+                    <th style={laDonGia ? { width: "18%" } : undefined}>{t("Chi tiết")}</th>
+                    {laDonGia && <th style={{ width: "25%" }}>{t("Đề xuất")}</th>}
+                    <th style={{ width: laDonGia ? "12%" : "13%" }}>{t("Thời gian")}</th>
+                    {xuLyDuoc && <th style={{ width: laDonGia ? "18%" : "12%", textAlign: "right" }}>{t("Thao tác")}</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {tCb.dongTrang.map((d, i) => (
                     <tr key={`${d.ref}:${i}`}>
-                      <td data-label="Mã">
+                      <td data-label={t("Mã")}>
                         <span className="code-link" role="button" tabIndex={0} onClick={() => moDong(d)}>
                           {d.ma ?? d.ref.slice(0, 8)}
                         </span>
                       </td>
-                      <td data-label="Đối tượng" style={laDonGia ? { whiteSpace: "normal" } : undefined}>
-                        {d.ten}
+                      <td data-label={t("Đối tượng")} style={laDonGia ? { whiteSpace: "normal" } : undefined}>
+                        {tS(d.ten)}
                       </td>
-                      <td data-label="Chi tiết" className="text-secondary" style={{ whiteSpace: "normal" }}>
-                        {d.chi_tiet}
+                      <td data-label={t("Chi tiết")} className="text-secondary" style={{ whiteSpace: "normal" }}>
+                        {tS(d.chi_tiet)}
                       </td>
                       {laDonGia && (
-                        <td data-label="Đề xuất" className={`small ${d.de_xuat ? MAU_DE_XUAT[d.de_xuat.kieu] : "muted"}`} style={{ whiteSpace: "normal" }}>
-                          {d.de_xuat?.ly_do ?? "-"}
+                        <td data-label={t("Đề xuất")} className={`small ${d.de_xuat ? MAU_DE_XUAT[d.de_xuat.kieu] : "muted"}`} style={{ whiteSpace: "normal" }}>
+                          {d.de_xuat ? tS(d.de_xuat.ly_do) : "-"}
                         </td>
                       )}
-                      <td data-label="Thời gian" className="text-secondary" style={laDonGia ? { whiteSpace: "normal" } : undefined}>
+                      <td data-label={t("Thời gian")} className="text-secondary" style={laDonGia ? { whiteSpace: "normal" } : undefined}>
                         {d.thoi_gian ? fmtNgayGio(d.thoi_gian) : "-"}
                       </td>
                       {xuLyDuoc && (
-                        <td data-label="Thao tác" style={{ textAlign: "right" }}>
+                        <td data-label={t("Thao tác")} style={{ textAlign: "right" }}>
                           <div className="row-actions" style={laDonGia ? { flexDirection: "column", alignItems: "flex-end" } : undefined}>
                             {d.de_xuat?.kieu === "sua_tham_khao" && d.vt_id && d.de_xuat.gia_de_xuat ? (
                               <button
                                 className="btn btn-primary btn-sm"
                                 disabled={busy}
-                                title={`Sửa giá tham khảo ${fmtGiaTriDong(d.don_gia_tham_khao ?? 0)} → ${fmtGiaTriDong(d.de_xuat.gia_de_xuat)}`}
+                                title={t("Sửa giá tham khảo {x} → {x2}", { x: fmtGiaTriDong(d.don_gia_tham_khao ?? 0), x2: fmtGiaTriDong(d.de_xuat.gia_de_xuat) })}
                                 onClick={() => suaGia([{ vt_id: d.vt_id!, don_gia: d.de_xuat!.gia_de_xuat! }])}
                               >
-                                <Wand2 size={12} /> Sửa → {fmtSo(d.de_xuat.gia_de_xuat)}đ
+                                <Wand2 size={12} /> {t("Sửa →")} {fmtSo(d.de_xuat.gia_de_xuat)}{t("đ")}
                               </button>
                             ) : d.de_xuat?.kieu === "kiem_tra_phieu" ? (
                               <button className="btn btn-outline btn-sm" onClick={() => moDong(d)}>
-                                Xem phiếu
+                                {t("Xem phiếu")}
                               </button>
                             ) : null}
                             {d.khoa && (
-                              <button className="btn btn-outline btn-sm" disabled={busy} title="Đã xem, không cần xử lý - ẩn mục này" onClick={() => boQua([d.khoa!])}>
-                                <EyeOff size={12} /> Bỏ qua
+                              <button className="btn btn-outline btn-sm" disabled={busy} title={t("Đã xem, không cần xử lý - ẩn mục này")} onClick={() => boQua([d.khoa!])}>
+                                <EyeOff size={12} /> {t("Bỏ qua")}
                               </button>
                             )}
                           </div>
@@ -284,10 +285,10 @@ export function CanhBaoScreen() {
                   ))}
                 </tbody>
               </table>
-              <PhanTrang trang={tCb.trang} tong={tCb.tong} onDoi={tCb.setTrang} donVi="mục" />
+              <PhanTrang trang={tCb.trang} tong={tCb.tong} onDoi={tCb.setTrang} donVi={t("mục")} />
               {dangChon && dangChon.so_luong > chiTiet.length && (
                 <p className="muted small" style={{ padding: "8px 4px" }}>
-                  Đang hiển thị {chiTiet.length}/{dangChon.so_luong} mục đầu tiên.
+                  {t("Đang hiển thị")} {chiTiet.length}/{dangChon.so_luong} {t("mục đầu tiên.")}
                 </p>
               )}
             </div>
@@ -296,19 +297,19 @@ export function CanhBaoScreen() {
       </div>
 
       {apDung && (
-        <Modal size="lg" title="Áp dụng đề xuất sửa giá tham khảo" onClose={() => setApDung(null)}>
+        <Modal size="lg" title={t("Áp dụng đề xuất sửa giá tham khảo")} onClose={() => setApDung(null)}>
           <p className="muted small">
-            Giá đề xuất = giá đa số các lần nhập mua thực tế. Bỏ chọn vật tư có giá đề xuất không hợp lý (vd phiếu nhập cũng bị nhập sai) - vật tư đó giữ nguyên.
+            {t("Giá đề xuất = giá đa số các lần nhập mua thực tế. Bỏ chọn vật tư có giá đề xuất không hợp lý (vd phiếu nhập cũng bị nhập sai) - vật tư đó giữ nguyên.")}
           </p>
           <div className="task-table-wrapper table-scroll-y">
             <table className="task-table">
               <thead>
                 <tr>
                   <th style={{ width: 30 }} />
-                  <th>Vật tư</th>
-                  <th style={{ textAlign: "right" }}>Giá tham khảo hiện tại</th>
-                  <th style={{ textAlign: "right" }}>Giá đề xuất</th>
-                  <th style={{ textAlign: "right" }}>Số dòng lệch</th>
+                  <th>{t("Vật tư")}</th>
+                  <th style={{ textAlign: "right" }}>{t("Giá tham khảo hiện tại")}</th>
+                  <th style={{ textAlign: "right" }}>{t("Giá đề xuất")}</th>
+                  <th style={{ textAlign: "right" }}>{t("Số dòng lệch")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -317,19 +318,19 @@ export function CanhBaoScreen() {
                     <td>
                       <input
                         type="checkbox"
-                        aria-label={`Chọn ${x.ten}`}
+                        aria-label={t("Chọn {ten}", { ten: x.ten })}
                         checked={!!apDung.get(x.vt_id)}
                         onChange={(e) => setApDung(new Map(apDung).set(x.vt_id, e.target.checked))}
                       />
                     </td>
-                    <td data-label="Vật tư">{x.ten}</td>
-                    <td data-label="Hiện tại" style={{ textAlign: "right" }} className="text-secondary">
-                      {fmtSo(x.cu)}đ
+                    <td data-label={t("Vật tư")}>{x.ten}</td>
+                    <td data-label={t("Hiện tại")} style={{ textAlign: "right" }} className="text-secondary">
+                      {fmtSo(x.cu)}{t("đ")}
                     </td>
-                    <td data-label="Đề xuất" style={{ textAlign: "right" }} className="strong">
-                      {fmtSo(x.moi)}đ
+                    <td data-label={t("Đề xuất")} style={{ textAlign: "right" }} className="strong">
+                      {fmtSo(x.moi)}{t("đ")}
                     </td>
-                    <td data-label="Số dòng" style={{ textAlign: "right" }}>
+                    <td data-label={t("Số dòng")} style={{ textAlign: "right" }}>
                       {fmtSo(x.so_dong)}
                     </td>
                   </tr>
@@ -339,14 +340,14 @@ export function CanhBaoScreen() {
           </div>
           <div className="modal-actions">
             <button className="btn" onClick={() => setApDung(null)}>
-              Huỷ
+              {t("Huỷ")}
             </button>
             <button
               className="btn btn-primary"
               disabled={busy || ![...apDung.values()].some(Boolean)}
               onClick={() => suaGia(deXuatGia.filter((x) => apDung.get(x.vt_id)).map((x) => ({ vt_id: x.vt_id, don_gia: x.moi })))}
             >
-              {busy ? "Đang sửa..." : `Sửa giá ${fmtSo([...apDung.values()].filter(Boolean).length)} vật tư`}
+              {busy ? t("Đang sửa...") : t("Sửa giá {x} vật tư", { x: fmtSo([...apDung.values()].filter(Boolean).length) })}
             </button>
           </div>
         </Modal>

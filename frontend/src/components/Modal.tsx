@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useEffect, type ReactNode } from "react";
 import { X } from "lucide-react";
 
@@ -23,7 +24,7 @@ export function Modal({
       <div className={`modal-box ${size === "lg" ? "modal-lg" : ""}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="modal-head">
           <div className="modal-title">{title}</div>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Đóng">
+          <button type="button" className="modal-close" onClick={onClose} aria-label={t("Đóng")}>
             <X size={18} />
           </button>
         </div>

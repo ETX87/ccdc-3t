@@ -1,3 +1,4 @@
+import { t, tS } from "../lib/i18n";
 import { AlertTriangle, Clock, ShieldAlert, Store, Tag, TrendingDown, PackageX } from "lucide-react";
 
 // 1 dong canh bao (the Canh bao o Tong quan + danh sach ben trai man Canh bao). Du lieu tu
@@ -51,7 +52,7 @@ const KIEU: Record<LoaiCanhBao, { icon: typeof Clock; nen: string; mau: string }
 
 const BADGE = { cao: "badge-red-count", trung_binh: "badge-amber-count", thap: "badge-blue-count" } as const;
 
-export const MUC_DO_NHAN = { cao: "Nghiêm trọng", trung_binh: "Cần chú ý", thap: "Theo dõi" } as const;
+export const MUC_DO_NHAN = { cao: t("Nghiêm trọng"), trung_binh: t("Cần chú ý"), thap: t("Theo dõi") } as const;
 
 export function CanhBaoRow({ cb, onClick, active = false }: { cb: CanhBao; onClick?: () => void; active?: boolean }) {
   const k = KIEU[cb.loai];
@@ -68,8 +69,8 @@ export function CanhBaoRow({ cb, onClick, active = false }: { cb: CanhBao; onCli
         <Icon size={17} className={k.mau} />
       </div>
       <div className="alert-text-block">
-        <div className="alert-item-title">{cb.tieu_de}</div>
-        <div className="alert-item-desc">{cb.so_luong === 0 ? "Không có" : cb.mo_ta}</div>
+        <div className="alert-item-title">{tS(cb.tieu_de)}</div>
+        <div className="alert-item-desc">{cb.so_luong === 0 ? t("Không có") : tS(cb.mo_ta)}</div>
       </div>
       <div className={`alert-badge ${cb.so_luong === 0 ? "badge-ok-count" : BADGE[cb.muc_do]}`}>{cb.so_luong}</div>
     </div>

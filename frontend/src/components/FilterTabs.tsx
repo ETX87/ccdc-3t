@@ -10,10 +10,10 @@ export function FilterTabs<K extends string>({
 }) {
   return (
     <div className="task-filter-tabs">
-      {tabs.map((t) => (
-        <button key={t.key} type="button" className={`task-tab-btn ${value === t.key ? "active" : ""}`} onClick={() => onChange(t.key)}>
-          {t.label}
-          {t.count != null && ` (${t.count})`}
+      {tabs.map((tab) => (
+        <button key={tab.key} type="button" className={`task-tab-btn ${value === tab.key ? "active" : ""}`} onClick={() => onChange(tab.key)}>
+          {tab.label}
+          {tab.count != null && ` (${tab.count})`}
         </button>
       ))}
     </div>

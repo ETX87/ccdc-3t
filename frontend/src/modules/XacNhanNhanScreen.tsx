@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Inbox, Package, PackageCheck, Search, Wrench } from "lucide-react";
 import { api } from "../api/client";
@@ -55,7 +56,7 @@ interface BaoHongRow {
 }
 
 type Tab = "tscd" | "tieu-hao" | "lich-su";
-const LOAI_GN: Record<string, string> = { "Cap phat": "Cấp phát", "Thu hoi": "Thu hồi", "Dieu chuyen": "Điều chuyển", "Chuyen kho": "Chuyển kho" };
+const LOAI_GN: Record<string, string> = { "Cap phat": t("Cấp phát"), "Thu hoi": t("Thu hồi"), "Dieu chuyen": t("Điều chuyển"), "Chuyen kho": t("Chuyển kho") };
 
 // "Tai san cua toi" cho moi nguoi: TSCD dang giu (+ bao hong qua popup tai san), phieu can xac nhan
 // da nhan (TSCD + tieu hao), lich su giao nhan. Ho so NV lay tu user.ma_nv (nhan_vien.email_dang_nhap).
@@ -95,7 +96,7 @@ export function XacNhanNhanScreen() {
       setBaoHong(bh.rows.filter((r) => r.nguoi_de_xuat === user?.email));
       setCapNhatLuc(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
     } catch (e) {
-      setLoi(thongBaoLoi(e, "Không tải được dữ liệu."));
+      setLoi(thongBaoLoi(e, t("Không tải được dữ liệu.")));
       setCcdcs([]);
     } finally {
       setDangTai(false);
@@ -130,30 +131,30 @@ export function XacNhanNhanScreen() {
     }
   }
 
-  const t = tim.trim().toLowerCase();
-  const dsTs = useMemo(() => (ccdcs ?? []).filter((c) => !t || `${c.id} ${c.ten_ccdc} ${c.so_seri ?? ""}`.toLowerCase().includes(t)), [ccdcs, t]);
-  const dsTh = useMemo(() => tieuHao.filter((p) => !t || `${p.ma_phieu ?? ""} ${p.tom_tat ?? ""}`.toLowerCase().includes(t)), [tieuHao, t]);
-  const dsGn = useMemo(() => gn.filter((p) => !t || `${p.ma_phieu ?? ""} ${p.tom_tat ?? ""}`.toLowerCase().includes(t)), [gn, t]);
+  const tuKhoa = tim.trim().toLowerCase();
+  const dsTs = useMemo(() => (ccdcs ?? []).filter((c) => !tuKhoa || `${c.id} ${c.ten_ccdc} ${c.so_seri ?? ""}`.toLowerCase().includes(tuKhoa)), [ccdcs, tuKhoa]);
+  const dsTh = useMemo(() => tieuHao.filter((p) => !tuKhoa || `${p.ma_phieu ?? ""} ${p.tom_tat ?? ""}`.toLowerCase().includes(tuKhoa)), [tieuHao, tuKhoa]);
+  const dsGn = useMemo(() => gn.filter((p) => !tuKhoa || `${p.ma_phieu ?? ""} ${p.tom_tat ?? ""}`.toLowerCase().includes(tuKhoa)), [gn, tuKhoa]);
   const tCho = useTrangKhach([...gnCho.map((p) => ({ k: "gn" as const, p })), ...thCho.map((p) => ({ k: "th" as const, p }))]);
-  const tTs = useTrangKhach(dsTs, [t]);
-  const tTh = useTrangKhach(dsTh, [t]);
-  const tLs = useTrangKhach(dsGn, [t]);
+  const tTs = useTrangKhach(dsTs, [tuKhoa]);
+  const tTh = useTrangKhach(dsTh, [tuKhoa]);
+  const tLs = useTrangKhach(dsGn, [tuKhoa]);
 
   if (!user) return null;
   // Admin/HCNS/KT "phu trach" moi kho (~70) - liet ke het thanh 1 khoi chu dai: >3 kho chi hien so luong,
   // ten day du o tooltip.
   const khoInfo = user.kho_phu_trach.filter((k) => k.loai !== "Mua hang");
   const tenKho = khoInfo.map((k) => `${k.ten_kho} (${LOAI_KHO[k.loai]})`).join(", ");
-  const moTa = `${tenVaiTro(user.vai_tro)}${khoInfo.length ? ` · Thủ kho: ${khoInfo.length <= 3 ? tenKho : `${fmtSo(khoInfo.length)} kho`}` : ""}`;
+  const moTa = `${tenVaiTro(user.vai_tro)}${khoInfo.length ? t(" · Thủ kho: {x}", { x: khoInfo.length <= 3 ? tenKho : `${fmtSo(khoInfo.length)} kho` }) : ""}`;
   const phuDe = <span className="muted small" title={khoInfo.length > 3 ? tenKho : undefined}>{moTa}</span>;
 
   if (!maNv) {
     return (
       <div className="dashboard-container">
-        <PageHeader title="Tài sản của tôi" filters={phuDe} />
+        <PageHeader title={t("Tài sản của tôi")} filters={phuDe} />
         <div className="content-card task-empty">
-          Tài khoản <b>{user.email}</b> chưa được liên kết với hồ sơ nhân viên nào
-          {isHcns(user) ? " - chọn hồ sơ của bạn bên dưới để liên kết." : " - nhờ HCNS nhập email này vào mục “Email đăng nhập” của bạn ở màn Nhân viên."}
+          {t("Tài khoản")} <b>{user.email}</b> {t("chưa được liên kết với hồ sơ nhân viên nào")}
+          {isHcns(user) ? t(" - chọn hồ sơ của bạn bên dưới để liên kết.") : t(" - nhờ HCNS nhập email này vào mục “Email đăng nhập” của bạn ở màn Nhân viên.")}
         </div>
         {isHcns(user) && <LienKetHoSo email={user.email} />}
       </div>
@@ -166,7 +167,7 @@ export function XacNhanNhanScreen() {
   return (
     <div className="dashboard-container">
       <PageHeader
-        title="Tài sản của tôi"
+        title={t("Tài sản của tôi")}
         filters={phuDe}
         actions={<QrScanButton />}
         capNhatLuc={capNhatLuc}
@@ -181,7 +182,7 @@ export function XacNhanNhanScreen() {
           tone="cyan"
           icon={<Package size={20} className="text-white" />}
           watermark={<Package size={52} />}
-          label="Tài sản cố định đang giữ"
+          label={t("Tài sản cố định đang giữ")}
           value={fmtSo(ccdcs?.length ?? 0)}
           trend={<div className="kpi-trend"><span className="trend-sub">{fmtGiaTriDong(tongGt)}</span></div>}
           onClick={() => setTab("tscd")}
@@ -190,12 +191,12 @@ export function XacNhanNhanScreen() {
           tone={gnCho.length + thCho.length ? "yellow" : "blue-light"}
           icon={<Inbox size={20} className="text-white" />}
           watermark={<Inbox size={52} />}
-          label="Chờ tôi xác nhận đã nhận"
+          label={t("Chờ tôi xác nhận đã nhận")}
           value={fmtSo(gnCho.length + thCho.length)}
           trend={
             <div className="kpi-trend">
               <span className="trend-sub">
-                {fmtSo(gnCho.length)} phiếu TSCĐ · {fmtSo(thCho.length)} phiếu tiêu hao
+                {fmtSo(gnCho.length)} {t("phiếu TSCĐ ·")} {fmtSo(thCho.length)} {t("phiếu tiêu hao")}
               </span>
             </div>
           }
@@ -204,19 +205,19 @@ export function XacNhanNhanScreen() {
           tone="purple"
           icon={<PackageCheck size={20} className="text-white" />}
           watermark={<PackageCheck size={52} />}
-          label="Tiêu hao nhận tháng này"
+          label={t("Tiêu hao nhận tháng này")}
           value={fmtSo(thThang.length)}
-          trend={<div className="kpi-trend"><span className="trend-sub">phiếu · {fmtGiaTri(thThang.reduce((s, p) => s + (p.tong_tien ?? 0), 0))}</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{t("phiếu ·")} {fmtGiaTri(thThang.reduce((s, p) => s + (p.tong_tien ?? 0), 0))}</span></div>}
           onClick={() => setTab("tieu-hao")}
         />
         <KpiCard
           tone={soHong ? "red" : "blue"}
           icon={<Wrench size={20} className="text-white" />}
           watermark={<Wrench size={52} />}
-          label="Báo hỏng chờ kế toán duyệt"
+          label={t("Báo hỏng chờ kế toán duyệt")}
           value={fmtSo(baoHong.length)}
           tangLaXau
-          trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(soHong)} tài sản tôi giữ đang hỏng / chờ duyệt</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(soHong)} {t("tài sản tôi giữ đang hỏng / chờ duyệt")}</span></div>}
         />
       </div>
 
@@ -225,64 +226,64 @@ export function XacNhanNhanScreen() {
           <div className="card-header">
             <div className="card-title-wrap">
               <AlertTriangle size={17} className="card-title-icon text-teal" />
-              <h2 className="card-title">Cần xác nhận đã nhận</h2>
+              <h2 className="card-title">{t("Cần xác nhận đã nhận")}</h2>
             </div>
           </div>
           <div className="task-table-wrapper">
             <table className="task-table">
               <thead>
                 <tr>
-                  <th style={{ width: "14%" }}>Mã phiếu</th>
-                  <th style={{ width: "13%" }}>Loại</th>
-                  <th>Nội dung</th>
-                  <th style={{ width: "18%" }}>Từ</th>
-                  <th style={{ width: "12%" }}>Ngày</th>
-                  <th style={{ width: "12%", textAlign: "right" }}>Thao tác</th>
+                  <th style={{ width: "14%" }}>{t("Mã phiếu")}</th>
+                  <th style={{ width: "13%" }}>{t("Loại")}</th>
+                  <th>{t("Nội dung")}</th>
+                  <th style={{ width: "18%" }}>{t("Từ")}</th>
+                  <th style={{ width: "12%" }}>{t("Ngày")}</th>
+                  <th style={{ width: "12%", textAlign: "right" }}>{t("Thao tác")}</th>
                 </tr>
               </thead>
               <tbody>
                 {tCho.dongTrang.flatMap((x) => (x.k === "gn" ? [x.p] : [])).map((p) => (
                   <tr key={p.id}>
-                    <td data-label="Mã phiếu">
+                    <td data-label={t("Mã phiếu")}>
                       <span className="code-link" onClick={() => moPhieu("giao_nhan", p.id)}>
                         {p.ma_phieu ?? p.id.slice(0, 8)}
                       </span>
                     </td>
-                    <td data-label="Loại">TSCĐ · {LOAI_GN[p.loai_phieu] ?? p.loai_phieu}</td>
-                    <td data-label="Nội dung">
+                    <td data-label={t("Loại")}>{t("TSCĐ ·")} {LOAI_GN[p.loai_phieu] ?? p.loai_phieu}</td>
+                    <td data-label={t("Nội dung")}>
                       {fmtSo(p.so_luong_ccdc)} TS: {p.tom_tat ?? "-"}
                     </td>
-                    <td data-label="Từ">{p.tu_kho_ten ?? p.nhan_vien_ten ?? "-"}</td>
-                    <td data-label="Ngày">{fmtNgay(p.ngay_lap)}</td>
-                    <td data-label="Thao tác" style={{ textAlign: "right" }}>
+                    <td data-label={t("Từ")}>{p.tu_kho_ten ?? p.nhan_vien_ten ?? "-"}</td>
+                    <td data-label={t("Ngày")}>{fmtNgay(p.ngay_lap)}</td>
+                    <td data-label={t("Thao tác")} style={{ textAlign: "right" }}>
                       <button
                         className="btn btn-primary btn-sm"
                         disabled={busy !== null}
-                        onClick={() => xacNhan(`/phieu-giao-nhan/${p.id}/xac-nhan`, `Đã xác nhận nhận ${p.ma_phieu ?? "phiếu"}.`)}
+                        onClick={() => xacNhan(`/phieu-giao-nhan/${p.id}/xac-nhan`, t("Đã xác nhận nhận {x}.", { x: p.ma_phieu ?? t("phiếu") }))}
                       >
-                        <CheckCircle2 size={13} /> Đã nhận
+                        <CheckCircle2 size={13} /> {t("Đã nhận")}
                       </button>
                     </td>
                   </tr>
                 ))}
                 {tCho.dongTrang.flatMap((x) => (x.k === "th" ? [x.p] : [])).map((p) => (
                   <tr key={p.id}>
-                    <td data-label="Mã phiếu">
+                    <td data-label={t("Mã phiếu")}>
                       <span className="code-link" onClick={() => moPhieu("chuyen_kho", p.id)}>
                         {p.ma_phieu ?? p.id.slice(0, 8)}
                       </span>
                     </td>
-                    <td data-label="Loại">Tiêu hao</td>
-                    <td data-label="Nội dung">{p.tom_tat ?? "-"}</td>
-                    <td data-label="Từ">{p.tu_kho_ten ?? "-"}</td>
-                    <td data-label="Ngày">{fmtNgay(p.created_at)}</td>
-                    <td data-label="Thao tác" style={{ textAlign: "right" }}>
+                    <td data-label={t("Loại")}>{t("Tiêu hao")}</td>
+                    <td data-label={t("Nội dung")}>{p.tom_tat ?? "-"}</td>
+                    <td data-label={t("Từ")}>{p.tu_kho_ten ?? "-"}</td>
+                    <td data-label={t("Ngày")}>{fmtNgay(p.created_at)}</td>
+                    <td data-label={t("Thao tác")} style={{ textAlign: "right" }}>
                       <button
                         className="btn btn-primary btn-sm"
                         disabled={busy !== null}
-                        onClick={() => xacNhan(`/phieu-chuyen-kho/${p.id}/xac-nhan`, `Đã xác nhận nhận ${p.ma_phieu ?? "phiếu"}.`)}
+                        onClick={() => xacNhan(`/phieu-chuyen-kho/${p.id}/xac-nhan`, t("Đã xác nhận nhận {x}.", { x: p.ma_phieu ?? t("phiếu") }))}
                       >
-                        <CheckCircle2 size={13} /> Đã nhận
+                        <CheckCircle2 size={13} /> {t("Đã nhận")}
                       </button>
                     </td>
                   </tr>
@@ -290,7 +291,7 @@ export function XacNhanNhanScreen() {
               </tbody>
             </table>
           </div>
-          <PhanTrang trang={tCho.trang} tong={tCho.tong} onDoi={tCho.setTrang} donVi="phiếu" />
+          <PhanTrang trang={tCho.trang} tong={tCho.tong} onDoi={tCho.setTrang} donVi={t("phiếu")} />
         </div>
       )}
 
@@ -300,14 +301,14 @@ export function XacNhanNhanScreen() {
             value={tab}
             onChange={setTab}
             tabs={[
-              { key: "tscd", label: "Tài sản cố định", count: ccdcs?.length ?? 0 },
-              { key: "tieu-hao", label: "Tiêu hao đã nhận", count: tieuHao.length },
-              { key: "lich-su", label: "Lịch sử giao nhận", count: gn.length },
+              { key: "tscd", label: t("Tài sản cố định"), count: ccdcs?.length ?? 0 },
+              { key: "tieu-hao", label: t("Tiêu hao đã nhận"), count: tieuHao.length },
+              { key: "lich-su", label: t("Lịch sử giao nhận"), count: gn.length },
             ]}
           />
           <div className="topbar-search filter-search">
             <Search size={15} className="search-icon" />
-            <input className="search-input" placeholder="Tìm mã, tên..." value={tim} onChange={(e) => setTim(e.target.value)} />
+            <input className="search-input" placeholder={t("Tìm mã, tên...")} value={tim} onChange={(e) => setTim(e.target.value)} />
           </div>
         </div>
         <div className="task-table-wrapper">
@@ -315,59 +316,59 @@ export function XacNhanNhanScreen() {
             <table className="task-table">
               <thead>
                 <tr>
-                  <th style={{ width: "16%" }}>Mã tài sản</th>
-                  <th>Tên tài sản</th>
-                  <th style={{ width: "16%" }}>Nhóm</th>
-                  <th style={{ width: "12%", textAlign: "right" }}>Nguyên giá</th>
-                  <th style={{ width: "15%", textAlign: "center" }}>Trạng thái</th>
-                  <th style={{ width: "12%", textAlign: "right" }}>Thao tác</th>
+                  <th style={{ width: "16%" }}>{t("Mã tài sản")}</th>
+                  <th>{t("Tên tài sản")}</th>
+                  <th style={{ width: "16%" }}>{t("Nhóm")}</th>
+                  <th style={{ width: "12%", textAlign: "right" }}>{t("Nguyên giá")}</th>
+                  <th style={{ width: "15%", textAlign: "center" }}>{t("Trạng thái")}</th>
+                  <th style={{ width: "12%", textAlign: "right" }}>{t("Thao tác")}</th>
                 </tr>
               </thead>
               <tbody>
                 {ccdcs === null && (
                   <tr>
                     <td colSpan={6} className="task-empty">
-                      Đang tải…
+                      {t("Đang tải…")}
                     </td>
                   </tr>
                 )}
                 {ccdcs !== null && dsTs.length === 0 && (
                   <tr>
                     <td colSpan={6} className="task-empty">
-                      {t ? "Không tìm thấy tài sản phù hợp." : "Bạn hiện không giữ tài sản cố định nào."}
+                      {tuKhoa ? t("Không tìm thấy tài sản phù hợp.") : t("Bạn hiện không giữ tài sản cố định nào.")}
                     </td>
                   </tr>
                 )}
                 {tTs.dongTrang.map((c) => (
                   <tr key={c.id}>
-                    <td data-label="Mã tài sản">
+                    <td data-label={t("Mã tài sản")}>
                       <span className="code-link" onClick={() => moTaiSan(c.id)}>
                         {c.id}
                       </span>
                     </td>
-                    <td data-label="Tên tài sản">
+                    <td data-label={t("Tên tài sản")}>
                       <div className="cell-stack">
                         <span className="strong">{c.ten_ccdc}</span>
                         {c.so_seri && <span className="small text-secondary">Seri: {c.so_seri}</span>}
                       </div>
                     </td>
-                    <td data-label="Nhóm" className="text-secondary">
+                    <td data-label={t("Nhóm")} className="text-secondary">
                       {c.ten_nhom ?? "-"}
                     </td>
-                    <td data-label="Nguyên giá" style={{ textAlign: "right" }}>
+                    <td data-label={t("Nguyên giá")} style={{ textAlign: "right" }}>
                       {c.nguyen_gia ? fmtGiaTri(c.nguyen_gia) : "-"}
                     </td>
-                    <td data-label="Trạng thái" style={{ textAlign: "center" }}>
+                    <td data-label={t("Trạng thái")} style={{ textAlign: "center" }}>
                       <StatusBadge label={TRANG_THAI_TS[c.trang_thai_hien_tai]?.label ?? c.trang_thai_hien_tai} tone={TRANG_THAI_TS[c.trang_thai_hien_tai]?.tone} />
                     </td>
-                    <td data-label="Thao tác" style={{ textAlign: "right" }}>
+                    <td data-label={t("Thao tác")} style={{ textAlign: "right" }}>
                       {c.trang_thai_hien_tai === "Dang cap phat" ? (
                         <button className="btn btn-outline btn-sm danger-outline" onClick={() => moTaiSan(c.id)}>
-                          Báo hỏng
+                          {t("Báo hỏng")}
                         </button>
                       ) : (
                         <button className="btn btn-outline btn-sm" onClick={() => moTaiSan(c.id)}>
-                          Chi tiết
+                          {t("Chi tiết")}
                         </button>
                       )}
                     </td>
@@ -381,37 +382,37 @@ export function XacNhanNhanScreen() {
             <table className="task-table">
               <thead>
                 <tr>
-                  <th style={{ width: "14%" }}>Mã phiếu</th>
-                  <th style={{ width: "12%" }}>Ngày</th>
-                  <th>Vật tư</th>
-                  <th style={{ width: "18%" }}>Từ kho</th>
-                  <th style={{ width: "12%", textAlign: "right" }}>Giá trị</th>
-                  <th style={{ width: "14%", textAlign: "center" }}>Xác nhận</th>
+                  <th style={{ width: "14%" }}>{t("Mã phiếu")}</th>
+                  <th style={{ width: "12%" }}>{t("Ngày")}</th>
+                  <th>{t("Vật tư")}</th>
+                  <th style={{ width: "18%" }}>{t("Từ kho")}</th>
+                  <th style={{ width: "12%", textAlign: "right" }}>{t("Giá trị")}</th>
+                  <th style={{ width: "14%", textAlign: "center" }}>{t("Xác nhận")}</th>
                 </tr>
               </thead>
               <tbody>
                 {dsTh.length === 0 && (
                   <tr>
                     <td colSpan={6} className="task-empty">
-                      Chưa có phiếu cấp phát tiêu hao nào cho bạn.
+                      {t("Chưa có phiếu cấp phát tiêu hao nào cho bạn.")}
                     </td>
                   </tr>
                 )}
                 {tTh.dongTrang.map((p) => (
                   <tr key={p.id}>
-                    <td data-label="Mã phiếu">
+                    <td data-label={t("Mã phiếu")}>
                       <span className="code-link" onClick={() => moPhieu("chuyen_kho", p.id)}>
                         {p.ma_phieu ?? p.id.slice(0, 8)}
                       </span>
                     </td>
-                    <td data-label="Ngày">{fmtNgayGio(p.created_at)}</td>
-                    <td data-label="Vật tư">{p.tom_tat ?? "-"}</td>
-                    <td data-label="Từ kho">{p.tu_kho_ten ?? "-"}</td>
-                    <td data-label="Giá trị" style={{ textAlign: "right" }}>
+                    <td data-label={t("Ngày")}>{fmtNgayGio(p.created_at)}</td>
+                    <td data-label={t("Vật tư")}>{p.tom_tat ?? "-"}</td>
+                    <td data-label={t("Từ kho")}>{p.tu_kho_ten ?? "-"}</td>
+                    <td data-label={t("Giá trị")} style={{ textAlign: "right" }}>
                       {p.tong_tien ? fmtGiaTri(p.tong_tien) : "-"}
                     </td>
-                    <td data-label="Xác nhận" style={{ textAlign: "center" }}>
-                      {p.da_xac_nhan ? <StatusBadge label="Đã xác nhận" tone="success" /> : <StatusBadge label="Chưa xác nhận" tone="warning" />}
+                    <td data-label={t("Xác nhận")} style={{ textAlign: "center" }}>
+                      {p.da_xac_nhan ? <StatusBadge label={t("Đã xác nhận")} tone="success" /> : <StatusBadge label={t("Chưa xác nhận")} tone="warning" />}
                     </td>
                   </tr>
                 ))}
@@ -423,44 +424,44 @@ export function XacNhanNhanScreen() {
             <table className="task-table">
               <thead>
                 <tr>
-                  <th style={{ width: "14%" }}>Mã phiếu</th>
-                  <th style={{ width: "12%" }}>Loại</th>
-                  <th>Tài sản</th>
-                  <th style={{ width: "18%" }}>Từ / đến</th>
-                  <th style={{ width: "11%" }}>Ngày</th>
-                  <th style={{ width: "13%", textAlign: "center" }}>Xác nhận</th>
+                  <th style={{ width: "14%" }}>{t("Mã phiếu")}</th>
+                  <th style={{ width: "12%" }}>{t("Loại")}</th>
+                  <th>{t("Tài sản")}</th>
+                  <th style={{ width: "18%" }}>{t("Từ / đến")}</th>
+                  <th style={{ width: "11%" }}>{t("Ngày")}</th>
+                  <th style={{ width: "13%", textAlign: "center" }}>{t("Xác nhận")}</th>
                 </tr>
               </thead>
               <tbody>
                 {dsGn.length === 0 && (
                   <tr>
                     <td colSpan={6} className="task-empty">
-                      Chưa có phiếu giao nhận tài sản nào liên quan đến bạn.
+                      {t("Chưa có phiếu giao nhận tài sản nào liên quan đến bạn.")}
                     </td>
                   </tr>
                 )}
                 {tLs.dongTrang.map((p) => (
                   <tr key={p.id}>
-                    <td data-label="Mã phiếu">
+                    <td data-label={t("Mã phiếu")}>
                       <span className="code-link" onClick={() => moPhieu("giao_nhan", p.id)}>
                         {p.ma_phieu ?? p.id.slice(0, 8)}
                       </span>
                     </td>
-                    <td data-label="Loại">{LOAI_GN[p.loai_phieu] ?? p.loai_phieu}</td>
-                    <td data-label="Tài sản">
+                    <td data-label={t("Loại")}>{LOAI_GN[p.loai_phieu] ?? p.loai_phieu}</td>
+                    <td data-label={t("Tài sản")}>
                       {fmtSo(p.so_luong_ccdc)} TS: {p.tom_tat ?? "-"}
                     </td>
-                    <td data-label="Từ / đến" className="text-secondary">
+                    <td data-label={t("Từ / đến")} className="text-secondary">
                       {p.loai_phieu === "Thu hoi" ? `→ ${p.den_kho_ten ?? "-"}` : `${p.tu_kho_ten ?? p.nhan_vien_ten ?? "-"} →`}
                     </td>
-                    <td data-label="Ngày">{fmtNgay(p.ngay_lap)}</td>
-                    <td data-label="Xác nhận" style={{ textAlign: "center" }}>
+                    <td data-label={t("Ngày")}>{fmtNgay(p.ngay_lap)}</td>
+                    <td data-label={t("Xác nhận")} style={{ textAlign: "center" }}>
                       {p.da_xac_nhan ? (
-                        <StatusBadge label="Đã xác nhận" tone="success" />
+                        <StatusBadge label={t("Đã xác nhận")} tone="success" />
                       ) : laBenNhan(p) ? (
-                        <StatusBadge label="Chờ tôi xác nhận" tone="warning" />
+                        <StatusBadge label={t("Chờ tôi xác nhận")} tone="warning" />
                       ) : (
-                        <StatusBadge label="Chưa xác nhận" tone="neutral" />
+                        <StatusBadge label={t("Chưa xác nhận")} tone="neutral" />
                       )}
                     </td>
                   </tr>
@@ -469,9 +470,9 @@ export function XacNhanNhanScreen() {
             </table>
           )}
         </div>
-        {tab === "tscd" && <PhanTrang trang={tTs.trang} tong={tTs.tong} onDoi={tTs.setTrang} donVi="tài sản" />}
-        {tab === "tieu-hao" && <PhanTrang trang={tTh.trang} tong={tTh.tong} onDoi={tTh.setTrang} donVi="phiếu" />}
-        {tab === "lich-su" && <PhanTrang trang={tLs.trang} tong={tLs.tong} onDoi={tLs.setTrang} donVi="phiếu" />}
+        {tab === "tscd" && <PhanTrang trang={tTs.trang} tong={tTs.tong} onDoi={tTs.setTrang} donVi={t("tài sản")} />}
+        {tab === "tieu-hao" && <PhanTrang trang={tTh.trang} tong={tTh.tong} onDoi={tTh.setTrang} donVi={t("phiếu")} />}
+        {tab === "lich-su" && <PhanTrang trang={tLs.trang} tong={tLs.tong} onDoi={tLs.setTrang} donVi={t("phiếu")} />}
       </div>
     </div>
   );
@@ -490,7 +491,7 @@ function LienKetHoSo({ email }: { email: string }) {
     api
       .get<{ rows: { ma_nv: string; ten_nv: string }[] }>("/nhan-vien?gon=1")
       .then((r) => setDs(r.rows))
-      .catch((e) => setLoi(thongBaoLoi(e, "Không tải được danh sách nhân viên.")));
+      .catch((e) => setLoi(thongBaoLoi(e, t("Không tải được danh sách nhân viên."))));
   }, []);
   const options = useMemo(() => ds.map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` })), [ds]);
 
@@ -502,7 +503,7 @@ function LienKetHoSo({ email }: { email: string }) {
       baoThayDoi();
       await refreshUser();
     } catch (e) {
-      setLoi(thongBaoLoi(e, "Không liên kết được."));
+      setLoi(thongBaoLoi(e, t("Không liên kết được.")));
       setBusy(false);
     }
   }
@@ -510,15 +511,15 @@ function LienKetHoSo({ email }: { email: string }) {
   return (
     <div className="content-card">
       <div className="card-header">
-        <h3 className="card-title">Liên kết hồ sơ nhân viên</h3>
+        <h3 className="card-title">{t("Liên kết hồ sơ nhân viên")}</h3>
       </div>
       {loi && <div className="alert alert-error">{loi}</div>}
       <div className="field-group">
-        <label className="field-label">Hồ sơ của bạn</label>
-        <SearchSelect options={options} value={maNv} onChange={setMaNv} placeholder="Tìm theo họ tên hoặc mã NV..." />
+        <label className="field-label">{t("Hồ sơ của bạn")}</label>
+        <SearchSelect options={options} value={maNv} onChange={setMaNv} placeholder={t("Tìm theo họ tên hoặc mã NV...")} />
       </div>
       <button className="btn btn-primary" disabled={!maNv || busy} onClick={lienKet}>
-        {busy ? "Đang liên kết..." : `Liên kết với ${email}`}
+        {busy ? t("Đang liên kết...") : t("Liên kết với {email}", { email })}
       </button>
     </div>
   );

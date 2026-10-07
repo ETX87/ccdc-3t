@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useEffect, useRef, useState } from "react";
 import { QrCode } from "lucide-react";
 import { Modal } from "./Modal";
@@ -11,12 +12,12 @@ type Detector = { detect: (src: CanvasImageSource) => Promise<{ rawValue: string
 
 /** Tem cua app chi chua ma TS; chap nhan them URL co ?ma=/id cuoi duong dan (tem in tu he thong khac). */
 function layMa(raw: string): string {
-  const t = raw.trim();
+  const s = raw.trim();
   try {
-    const u = new URL(t);
-    return u.searchParams.get("ma") ?? u.searchParams.get("id") ?? decodeURIComponent(u.pathname.split("/").filter(Boolean).pop() ?? t);
+    const u = new URL(s);
+    return u.searchParams.get("ma") ?? u.searchParams.get("id") ?? decodeURIComponent(u.pathname.split("/").filter(Boolean).pop() ?? s);
   } catch {
-    return t;
+    return s;
   }
 }
 
@@ -38,7 +39,7 @@ export function QrScannerModal({ onClose, onResult }: { onClose: () => void; onR
 
     async function batDau() {
       if (!navigator.mediaDevices?.getUserMedia) {
-        setLoi("Trình duyệt không hỗ trợ camera - nhập mã tài sản bên dưới.");
+        setLoi(t("Trình duyệt không hỗ trợ camera - nhập mã tài sản bên dưới."));
         return;
       }
       try {
@@ -47,12 +48,12 @@ export function QrScannerModal({ onClose, onResult }: { onClose: () => void; onR
         const ten = (e as DOMException)?.name;
         setLoi(
           ten === "NotAllowedError"
-            ? "Chưa cấp quyền camera - cho phép camera trong cài đặt trình duyệt, hoặc nhập mã bên dưới."
-            : "Không mở được camera - nhập mã tài sản bên dưới.",
+            ? t("Chưa cấp quyền camera - cho phép camera trong cài đặt trình duyệt, hoặc nhập mã bên dưới.")
+            : t("Không mở được camera - nhập mã tài sản bên dưới."),
         );
         return;
       }
-      if (huy) return stream.getTracks().forEach((t) => t.stop());
+      if (huy) return stream.getTracks().forEach((tr) => tr.stop());
       const video = videoRef.current!;
       video.srcObject = stream;
       await video.play().catch(() => undefined);
@@ -100,19 +101,19 @@ export function QrScannerModal({ onClose, onResult }: { onClose: () => void; onR
     return () => {
       huy = true;
       cancelAnimationFrame(raf);
-      stream?.getTracks().forEach((t) => t.stop());
+      stream?.getTracks().forEach((tr) => tr.stop());
     };
   }, []);
 
   return (
-    <Modal title="Quét mã QR tài sản" onClose={onClose}>
+    <Modal title={t("Quét mã QR tài sản")} onClose={onClose}>
       <div className="qr-video-box">
         <video ref={videoRef} className="qr-video" playsInline muted />
         {dangQuet && <div className="qr-frame" aria-hidden="true" />}
-        {!dangQuet && !loi && <div className="qr-video-note">Đang mở camera…</div>}
+        {!dangQuet && !loi && <div className="qr-video-note">{t("Đang mở camera…")}</div>}
       </div>
       {loi && <div className="alert alert-warning" style={{ marginTop: 10 }}>{loi}</div>}
-      {dangQuet && <p className="muted small" style={{ marginTop: 8 }}>Đưa tem QR vào giữa khung - hệ thống tự nhận.</p>}
+      {dangQuet && <p className="muted small" style={{ marginTop: 8 }}>{t("Đưa tem QR vào giữa khung - hệ thống tự nhận.")}</p>}
       <form
         className="qr-manual"
         onSubmit={(e) => {
@@ -120,9 +121,9 @@ export function QrScannerModal({ onClose, onResult }: { onClose: () => void; onR
           if (maTay.trim()) onResult(layMa(maTay));
         }}
       >
-        <input type="text" placeholder="Hoặc nhập mã tài sản (vd TS3T-000123)" value={maTay} onChange={(e) => setMaTay(e.target.value)} />
+        <input type="text" placeholder={t("Hoặc nhập mã tài sản (vd TS3T-000123)")} value={maTay} onChange={(e) => setMaTay(e.target.value)} />
         <button type="submit" className="btn btn-primary" disabled={!maTay.trim()}>
-          Mở
+          {t("Mở")}
         </button>
       </form>
     </Modal>
@@ -136,7 +137,7 @@ export function QrScanButton({ compact = false }: { compact?: boolean }) {
     <>
       <button type="button" className={compact ? "bottom-nav-item" : "btn-scan-qr"} onClick={() => setOpen(true)}>
         <QrCode size={compact ? 20 : 16} />
-        <span>Quét QR</span>
+        <span>{t("Quét QR")}</span>
       </button>
       {open && (
         <QrScannerModal

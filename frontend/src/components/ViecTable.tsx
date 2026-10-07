@@ -1,3 +1,4 @@
+import { t, tS } from "../lib/i18n";
 import { useState } from "react";
 import { AlertTriangle, ArrowLeftRight, Box, Check, ClipboardList, GitBranch, Tag, Trash2, X } from "lucide-react";
 import { api } from "../api/client";
@@ -35,44 +36,44 @@ function iconCho(r: ViecRow) {
 /** Thao tac nhanh 1 cham (khong can nhap gi); con lai mo popup chi tiet de lam. */
 const NHANH: Partial<Record<ViecRow["hanh_dong"], { nhan: string; path: (id: string) => string; tuChoi?: (id: string) => string; lyDoTuChoi?: string }>> = {
   ke_toan_duyet_ck: {
-    nhan: "Duyệt",
+    nhan: t("Duyệt"),
     path: (id) => `/phieu-chuyen-kho/${id}/ke-toan-duyet`,
     tuChoi: (id) => `/phieu-chuyen-kho/${id}/ke-toan-tu-choi`,
-    lyDoTuChoi: "Lý do từ chối",
+    lyDoTuChoi: t("Lý do từ chối"),
   },
   ke_toan_duyet_xl: {
-    nhan: "Duyệt",
+    nhan: t("Duyệt"),
     path: (id) => `/phieu-xu-ly-ts/${id}/ke-toan-duyet`,
     tuChoi: (id) => `/phieu-xu-ly-ts/${id}/ke-toan-tu-choi`,
-    lyDoTuChoi: "Lý do từ chối",
+    lyDoTuChoi: t("Lý do từ chối"),
   },
   nhan_kho: {
-    nhan: "Nhận",
+    nhan: t("Nhận"),
     path: (id) => `/phieu-chuyen-kho/${id}/nhan`,
     tuChoi: (id) => `/phieu-chuyen-kho/${id}/tu-choi-nhan`,
-    lyDoTuChoi: "Lý do từ chối nhận",
+    lyDoTuChoi: t("Lý do từ chối nhận"),
   },
-  xac_nhan_gn: { nhan: "Xác nhận", path: (id) => `/phieu-giao-nhan/${id}/xac-nhan` },
-  xac_nhan_cp: { nhan: "Xác nhận", path: (id) => `/phieu-chuyen-kho/${id}/xac-nhan` },
+  xac_nhan_gn: { nhan: t("Xác nhận"), path: (id) => `/phieu-giao-nhan/${id}/xac-nhan` },
+  xac_nhan_cp: { nhan: t("Xác nhận"), path: (id) => `/phieu-chuyen-kho/${id}/xac-nhan` },
 };
 
 export function TrangThaiViec({ r }: { r: ViecRow }) {
   if (r.qua_han)
     return (
-      <span className="status-badge badge-warning-dot overdue" title="Quá hạn 48 giờ">
+      <span className="status-badge badge-warning-dot overdue" title={t("Quá hạn 48 giờ")}>
         <span className="dot-red" />
-        {r.trang_thai}
+        {tS(r.trang_thai)}
       </span>
     );
   if (r.trang_thai.startsWith("Chờ kế toán"))
     return (
       <span className="status-badge badge-warning-dot">
         <span className="dot-orange" />
-        {r.trang_thai}
+        {tS(r.trang_thai)}
       </span>
     );
-  if (r.trang_thai === "Bị từ chối") return <span className="status-badge danger">{r.trang_thai}</span>;
-  return <span className="status-badge badge-cyan-solid">{r.trang_thai}</span>;
+  if (r.trang_thai === "Bị từ chối") return <span className="status-badge danger">{tS(r.trang_thai)}</span>;
+  return <span className="status-badge badge-cyan-solid">{tS(r.trang_thai)}</span>;
 }
 
 export function ViecTable({ rows, coThaoTac = false, trong }: { rows: ViecRow[]; coThaoTac?: boolean; trong: string }) {
@@ -106,13 +107,13 @@ export function ViecTable({ rows, coThaoTac = false, trong }: { rows: ViecRow[];
         <table className="task-table">
           <thead>
             <tr>
-              <th style={{ width: coThaoTac ? "16%" : "17%" }}>Loại phiếu</th>
-              <th style={{ width: coThaoTac ? "13%" : "16%" }}>Mã phiếu</th>
-              <th style={{ width: "24%" }}>Nội dung</th>
-              <th style={{ width: coThaoTac ? "17%" : "20%" }}>Đơn vị / Người tạo</th>
-              <th style={{ width: "13%" }}>Thời gian</th>
-              <th style={{ width: coThaoTac ? "14%" : "10%", textAlign: coThaoTac ? "center" : "right" }}>Trạng thái</th>
-              {coThaoTac && <th style={{ width: "13%", textAlign: "right" }}>Thao tác</th>}
+              <th style={{ width: coThaoTac ? "16%" : "17%" }}>{t("Loại phiếu")}</th>
+              <th style={{ width: coThaoTac ? "13%" : "16%" }}>{t("Mã phiếu")}</th>
+              <th style={{ width: "24%" }}>{t("Nội dung")}</th>
+              <th style={{ width: coThaoTac ? "17%" : "20%" }}>{t("Đơn vị / Người tạo")}</th>
+              <th style={{ width: "13%" }}>{t("Thời gian")}</th>
+              <th style={{ width: coThaoTac ? "14%" : "10%", textAlign: coThaoTac ? "center" : "right" }}>{t("Trạng thái")}</th>
+              {coThaoTac && <th style={{ width: "13%", textAlign: "right" }}>{t("Thao tác")}</th>}
             </tr>
           </thead>
           <tbody>
@@ -130,31 +131,31 @@ export function ViecTable({ rows, coThaoTac = false, trong }: { rows: ViecRow[];
               const id = encodeURIComponent(r.id);
               return (
                 <tr key={r.key} className={r.qua_han ? "row-overdue" : undefined}>
-                  <td data-label="Loại phiếu">
+                  <td data-label={t("Loại phiếu")}>
                     <div className="table-type-cell">
                       <span className={`type-icon-dot ${ic.dot}`}>
                         <Icon size={10} className={ic.cls} />
                       </span>
-                      <span>{r.loai}</span>
+                      <span>{tS(r.loai)}</span>
                     </div>
                   </td>
-                  <td data-label="Mã phiếu">
+                  <td data-label={t("Mã phiếu")}>
                     <span className="code-link" onClick={() => moViec(r)} role="button" tabIndex={0}>
-                      {r.ma_phieu ?? (r.loai_phieu === "tai_san" ? `${r.so_luong ?? ""} tài sản` : r.id.slice(0, 8))}
+                      {r.ma_phieu ?? (r.loai_phieu === "tai_san" ? t("{x} tài sản", { x: r.so_luong ?? "" }) : r.id.slice(0, 8))}
                     </span>
                   </td>
-                  <td data-label="Nội dung">{r.noi_dung}</td>
-                  <td data-label="Đơn vị / Người tạo" className="text-secondary">
-                    {r.don_vi_nguoi_tao}
+                  <td data-label={t("Nội dung")}>{tS(r.noi_dung)}</td>
+                  <td data-label={t("Đơn vị / Người tạo")} className="text-secondary">
+                    {tS(r.don_vi_nguoi_tao)}
                   </td>
-                  <td data-label="Thời gian" className="text-secondary">
+                  <td data-label={t("Thời gian")} className="text-secondary">
                     {fmtNgayGio(r.thoi_gian)}
                   </td>
-                  <td data-label="Trạng thái" style={{ textAlign: coThaoTac ? "center" : "right" }}>
+                  <td data-label={t("Trạng thái")} style={{ textAlign: coThaoTac ? "center" : "right" }}>
                     <TrangThaiViec r={r} />
                   </td>
                   {coThaoTac && (
-                    <td data-label="Thao tác" style={{ textAlign: "right" }}>
+                    <td data-label={t("Thao tác")} style={{ textAlign: "right" }}>
                       <div className="row-actions">
                         {nhanh ? (
                           <>
@@ -170,8 +171,8 @@ export function ViecTable({ rows, coThaoTac = false, trong }: { rows: ViecRow[];
                               <button
                                 type="button"
                                 className="btn btn-outline btn-sm btn-icon danger-outline"
-                                title="Từ chối"
-                                aria-label="Từ chối"
+                                title={t("Từ chối")}
+                                aria-label={t("Từ chối")}
                                 disabled={busy !== null}
                                 onClick={() => setTuChoi({ r, lyDo: "" })}
                               >
@@ -181,7 +182,7 @@ export function ViecTable({ rows, coThaoTac = false, trong }: { rows: ViecRow[];
                           </>
                         ) : (
                           <button type="button" className="btn btn-outline btn-sm" onClick={() => moViec(r)}>
-                            {r.hanh_dong === "hoan_tat_xl" ? "Hoàn tất" : r.hanh_dong === "xu_ly_hong" ? "Xử lý" : "Xem"}
+                            {r.hanh_dong === "hoan_tat_xl" ? t("Hoàn tất") : r.hanh_dong === "xu_ly_hong" ? t("Xử lý") : "Xem"}
                           </button>
                         )}
                       </div>
@@ -193,12 +194,12 @@ export function ViecTable({ rows, coThaoTac = false, trong }: { rows: ViecRow[];
           </tbody>
         </table>
       </div>
-      <PhanTrang trang={tViec.trang} tong={tViec.tong} onDoi={tViec.setTrang} donVi="việc" />
+      <PhanTrang trang={tViec.trang} tong={tViec.tong} onDoi={tViec.setTrang} donVi={t("việc")} />
 
       {tuChoi && (
-        <Modal title={`${NHANH[tuChoi.r.hanh_dong]?.lyDoTuChoi ?? "Lý do"} · ${tuChoi.r.ma_phieu ?? ""}`} onClose={() => setTuChoi(null)}>
+        <Modal title={`${NHANH[tuChoi.r.hanh_dong]?.lyDoTuChoi ?? t("Lý do")} · ${tuChoi.r.ma_phieu ?? ""}`} onClose={() => setTuChoi(null)}>
           <p className="muted small" style={{ marginBottom: 10 }}>
-            {tuChoi.r.loai}: {tuChoi.r.noi_dung}
+            {tS(tuChoi.r.loai)}: {tS(tuChoi.r.noi_dung)}
           </p>
           <div className="field-group">
             <label className="field-label">{NHANH[tuChoi.r.hanh_dong]?.lyDoTuChoi} *</label>
@@ -206,7 +207,7 @@ export function ViecTable({ rows, coThaoTac = false, trong }: { rows: ViecRow[];
           </div>
           <div className="modal-actions">
             <button type="button" className="btn" onClick={() => setTuChoi(null)}>
-              Hủy
+              {t("Hủy")}
             </button>
             <button
               type="button"
@@ -217,7 +218,7 @@ export function ViecTable({ rows, coThaoTac = false, trong }: { rows: ViecRow[];
                 if (await gui(tuChoi.r.key, n.tuChoi!(encodeURIComponent(tuChoi.r.id)), tuChoi.lyDo.trim())) setTuChoi(null);
               }}
             >
-              Từ chối
+              {t("Từ chối")}
             </button>
           </div>
         </Modal>

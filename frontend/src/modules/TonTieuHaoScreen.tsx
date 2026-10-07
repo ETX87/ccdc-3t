@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AlertTriangle, ChevronDown, Download, Layers, Package, Search, Truck } from "lucide-react";
 import { api } from "../api/client";
@@ -66,7 +67,7 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       setRows(res.rows);
       setCapNhatLuc(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
     } catch (e) {
-      setLoi(thongBaoLoi(e, "Không tải được tồn kho."));
+      setLoi(thongBaoLoi(e, t("Không tải được tồn kho.")));
       setRows([]);
     } finally {
       setDangTai(false);
@@ -96,7 +97,7 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       tongDangDen: all.reduce((s, r) => s + (r.dang_chuyen_den ?? 0), 0),
     };
   }, [rows]);
-  const tenKho = khos.find((k) => String(k.id) === khoId)?.ten_kho ?? (toanBo ? "Toàn hệ thống" : "Các kho của tôi");
+  const tenKho = khos.find((k) => String(k.id) === khoId)?.ten_kho ?? (toanBo ? t("Toàn hệ thống") : t("Các kho của tôi"));
 
   async function exportExcel() {
     await exportRowsToExcel(
@@ -112,18 +113,18 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       })),
       `Ton_kho_${tenKho.replace(/\s+/g, "_")}_${homNayVN()}.xlsx`,
       "Ton kho",
-      { id: "Mã vật tư", ten_vt: "Tên vật tư", ten_nhom: "Nhóm", don_vi_tinh: "ĐVT", ton: "Tồn", don_gia: "Giá tham khảo", gia_tri: "Giá trị tồn", dang_chuyen_den: "Đang chuyển đến" },
+      { id: t("Mã vật tư"), ten_vt: t("Tên vật tư"), ten_nhom: t("Nhóm"), don_vi_tinh: t("ĐVT"), ton: t("Tồn"), don_gia: t("Giá tham khảo"), gia_tri: t("Giá trị tồn"), dang_chuyen_den: t("Đang chuyển đến") },
     );
   }
 
   return (
     <div className="dashboard-container">
       <PageHeader
-        title="Tồn kho tiêu hao"
+        title={t("Tồn kho tiêu hao")}
         filters={tabs}
         actions={
           <button className="btn btn-outline" onClick={exportExcel} disabled={!hienThi.length}>
-            <Download size={14} /> Xuất Excel
+            <Download size={14} /> {t("Xuất Excel")}
           </button>
         }
         capNhatLuc={capNhatLuc}
@@ -136,21 +137,21 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
           tone="cyan"
           icon={<Package size={20} className="text-white" />}
           watermark={<Package size={52} />}
-          label="Mặt hàng còn tồn"
+          label={t("Mặt hàng còn tồn")}
           value={fmtSo(tk.conHang)}
           trend={<div className="kpi-trend"><span className="trend-sub">{tenKho}</span></div>}
-          subtext={`${fmtSo((rows ?? []).length)} mặt hàng có phát sinh`}
+          subtext={t("{x} mặt hàng có phát sinh", { x: fmtSo((rows ?? []).length) })}
           onClick={() => (setChiAm(false), setAnHet(true))}
         />
         <KpiCard
           tone="purple"
           icon={<Layers size={20} className="text-white" />}
           watermark={<Layers size={52} />}
-          label="Giá trị tồn (giá tham khảo)"
+          label={t("Giá trị tồn (giá tham khảo)")}
           value={fmtGiaTri(tk.giaTri)}
           trend={
             <div className={`kpi-trend ${tk.thieuGia ? "trend-warning" : "trend-up"}`}>
-              <span className="trend-sub">{tk.thieuGia ? `${fmtSo(tk.thieuGia)} mặt hàng chưa có giá tham khảo` : "Mọi mặt hàng đều có giá"}</span>
+              <span className="trend-sub">{tk.thieuGia ? t("{x} mặt hàng chưa có giá tham khảo", { x: fmtSo(tk.thieuGia) }) : t("Mọi mặt hàng đều có giá")}</span>
             </div>
           }
           subtext={fmtGiaTriDong(tk.giaTri)}
@@ -159,21 +160,21 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
           tone={tk.am ? "red" : "blue-light"}
           icon={<AlertTriangle size={20} className="text-white" />}
           watermark={<AlertTriangle size={52} />}
-          label="Vật tư tồn âm"
+          label={t("Vật tư tồn âm")}
           value={fmtSo(tk.am)}
           tangLaXau
-          trend={<div className={`kpi-trend ${tk.am ? "trend-danger" : "trend-up"}`}><span className="trend-sub">{tk.am ? "Xuất vượt nhập - cần kiểm kê, điều chỉnh" : "Không có tồn âm"}</span></div>}
+          trend={<div className={`kpi-trend ${tk.am ? "trend-danger" : "trend-up"}`}><span className="trend-sub">{tk.am ? t("Xuất vượt nhập - cần kiểm kê, điều chỉnh") : t("Không có tồn âm")}</span></div>}
           onClick={() => (setChiAm(true), setAnHet(false))}
         />
         <KpiCard
           tone="blue"
           icon={<Truck size={20} className="text-white" />}
           watermark={<Truck size={52} />}
-          label="Đang chuyển đến"
+          label={t("Đang chuyển đến")}
           value={khoId ? fmtSo(tk.dangDen) : "-"}
           trend={
             <div className="kpi-trend">
-              <span className="trend-sub">{khoId ? `${fmtSo(tk.tongDangDen)} đơn vị trên đường tới kho` : "Chọn 1 kho để xem hàng đang tới"}</span>
+              <span className="trend-sub">{khoId ? t("{x} đơn vị trên đường tới kho", { x: fmtSo(tk.tongDangDen) }) : t("Chọn 1 kho để xem hàng đang tới")}</span>
             </div>
           }
           onClick={() => navigate("viec-can-lam", { tab: "ban-giao" })}
@@ -186,11 +187,11 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
         <div className="filter-bar">
           <div className="topbar-search filter-search">
             <Search size={15} className="search-icon" />
-            <input className="search-input" placeholder="Tìm mã, tên vật tư..." value={tim} onChange={(e) => setTim(e.target.value)} />
+            <input className="search-input" placeholder={t("Tìm mã, tên vật tư...")} value={tim} onChange={(e) => setTim(e.target.value)} />
           </div>
           <label className="header-dropdown select-dropdown">
-            <select value={khoId} onChange={(e) => setKhoId(e.target.value)} aria-label="Kho">
-              <option value="">{toanBo ? "Toàn hệ thống (cộng mọi kho)" : "Tất cả kho của tôi"}</option>
+            <select value={khoId} onChange={(e) => setKhoId(e.target.value)} aria-label={t("Kho")}>
+              <option value="">{toanBo ? t("Toàn hệ thống (cộng mọi kho)") : t("Tất cả kho của tôi")}</option>
               {khos.map((k) => (
                 <option key={k.id} value={k.id}>
                   {k.ten_kho} ({LOAI_KHO[k.loai]})
@@ -201,71 +202,71 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
           </label>
           <label className="check-label">
             <input type="checkbox" checked={anHet} onChange={(e) => setAnHet(e.target.checked)} />
-            Ẩn vật tư tồn 0
+            {t("Ẩn vật tư tồn 0")}
           </label>
           <label className="check-label">
             <input type="checkbox" checked={chiAm} onChange={(e) => setChiAm(e.target.checked)} />
-            Chỉ tồn âm
+            {t("Chỉ tồn âm")}
           </label>
         </div>
         <p className="muted small" style={{ marginBottom: 8 }}>
-          Tồn = hàng đã nhận vào kho − hàng đã xuất (kể cả đang chuyển). Hàng nhập mua chỉ vào tồn sau khi Kế toán duyệt.
+          {t("Tồn = hàng đã nhận vào kho − hàng đã xuất (kể cả đang chuyển). Hàng nhập mua chỉ vào tồn sau khi Kế toán duyệt.")}
         </p>
         <div className="task-table-wrapper">
           <table className="task-table">
             <thead>
               <tr>
-                <th style={{ width: "13%" }}>Mã</th>
-                <th>Tên vật tư</th>
-                <th style={{ width: "15%" }}>Nhóm</th>
-                <th style={{ width: "8%" }}>ĐVT</th>
-                <th style={{ width: "9%", textAlign: "right" }}>Tồn</th>
-                <th style={{ width: "12%", textAlign: "right" }}>Giá trị tồn</th>
-                <th style={{ width: "12%", textAlign: "right" }}>{khoId ? "Đang chuyển đến" : "Số kho còn hàng"}</th>
-                <th style={{ width: "9%", textAlign: "right" }}>Phiếu</th>
+                <th style={{ width: "13%" }}>{t("Mã")}</th>
+                <th>{t("Tên vật tư")}</th>
+                <th style={{ width: "15%" }}>{t("Nhóm")}</th>
+                <th style={{ width: "8%" }}>{t("ĐVT")}</th>
+                <th style={{ width: "9%", textAlign: "right" }}>{t("Tồn")}</th>
+                <th style={{ width: "12%", textAlign: "right" }}>{t("Giá trị tồn")}</th>
+                <th style={{ width: "12%", textAlign: "right" }}>{khoId ? t("Đang chuyển đến") : t("Số kho còn hàng")}</th>
+                <th style={{ width: "9%", textAlign: "right" }}>{t("Phiếu")}</th>
               </tr>
             </thead>
             <tbody>
               {rows === null && (
                 <tr>
                   <td colSpan={8} className="task-empty">
-                    Đang tải…
+                    {t("Đang tải…")}
                   </td>
                 </tr>
               )}
               {rows !== null && hienThi.length === 0 && (
                 <tr>
                   <td colSpan={8} className="task-empty">
-                    Không có vật tư khớp bộ lọc.
+                    {t("Không có vật tư khớp bộ lọc.")}
                   </td>
                 </tr>
               )}
               {tTon.dongTrang.map((r) => (
                 <tr key={r.id}>
-                  <td data-label="Mã">{r.id}</td>
-                  <td data-label="Tên vật tư" className="strong">
+                  <td data-label={t("Mã")}>{r.id}</td>
+                  <td data-label={t("Tên vật tư")} className="strong">
                     {r.ten_vt}
                   </td>
-                  <td data-label="Nhóm" className="text-secondary">
+                  <td data-label={t("Nhóm")} className="text-secondary">
                     {r.ten_nhom ?? "-"}
                   </td>
-                  <td data-label="ĐVT">{r.don_vi_tinh ?? "-"}</td>
-                  <td data-label="Tồn" style={{ textAlign: "right" }} className={r.ton < 0 ? "text-red strong" : "strong"}>
+                  <td data-label={t("ĐVT")}>{r.don_vi_tinh ?? "-"}</td>
+                  <td data-label={t("Tồn")} style={{ textAlign: "right" }} className={r.ton < 0 ? "text-red strong" : "strong"}>
                     {fmtSo(r.ton, 2)}
-                    {!khoId && (r.so_kho_am ?? 0) > 0 && <div className="small text-red">{r.so_kho_am} kho âm</div>}
+                    {!khoId && (r.so_kho_am ?? 0) > 0 && <div className="small text-red">{r.so_kho_am} {t("kho âm")}</div>}
                   </td>
-                  <td data-label="Giá trị tồn" style={{ textAlign: "right" }}>
+                  <td data-label={t("Giá trị tồn")} style={{ textAlign: "right" }}>
                     {r.ton > 0 && r.don_gia_tham_khao ? fmtSo(r.ton * r.don_gia_tham_khao) : "-"}
                   </td>
-                  <td data-label={khoId ? "Đang chuyển đến" : "Số kho còn hàng"} style={{ textAlign: "right" }}>
+                  <td data-label={khoId ? t("Đang chuyển đến") : t("Số kho còn hàng")} style={{ textAlign: "right" }}>
                     {khoId ? (r.dang_chuyen_den ? fmtSo(r.dang_chuyen_den, 2) : "-") : fmtSo(r.so_kho_con_hang ?? 0)}
                   </td>
-                  <td data-label="Phiếu" style={{ textAlign: "right" }}>
+                  <td data-label={t("Phiếu")} style={{ textAlign: "right" }}>
                     <button
                       className="btn btn-outline btn-sm"
                       onClick={() => navigate("cap-phat", { tab: "phieu", vt_id: r.id, thang: "", ...(khoId ? { kho_id: khoId } : {}) })}
                     >
-                      Lịch sử
+                      {t("Lịch sử")}
                     </button>
                   </td>
                 </tr>
@@ -273,7 +274,7 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
             </tbody>
           </table>
         </div>
-        <PhanTrang trang={tTon.trang} tong={tTon.tong} onDoi={tTon.setTrang} donVi="vật tư" />
+        <PhanTrang trang={tTon.trang} tong={tTon.tong} onDoi={tTon.setTrang} donVi={t("vật tư")} />
       </div>
     </div>
   );

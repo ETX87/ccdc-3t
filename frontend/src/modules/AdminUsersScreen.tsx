@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, HardDrive, Lock, Search, ShieldCheck, UserCheck, UserPlus, UserX } from "lucide-react";
 import { api } from "../api/client";
@@ -35,16 +36,16 @@ interface ThayDoi {
 }
 
 const TRANG_THAI_LABEL: Record<TrangThaiDuyet, { label: string; tone: "warning" | "success" | "danger" }> = {
-  "Cho duyet": { label: "Chờ duyệt", tone: "warning" },
-  "Da duyet": { label: "Đã duyệt", tone: "success" },
-  "Tu choi": { label: "Từ chối", tone: "danger" },
+  "Cho duyet": { label: t("Chờ duyệt"), tone: "warning" },
+  "Da duyet": { label: t("Đã duyệt"), tone: "success" },
+  "Tu choi": { label: t("Từ chối"), tone: "danger" },
 };
 const MO_TA_VAI_TRO: Record<string, string> = {
-  "": "Xem tài sản của mình, xác nhận nhận hàng, báo hỏng",
-  "Quan ly": "Quản lý nhóm cấp dưới + kho quản lý của mình",
-  HCNS: "Danh mục, kho, lập nhập mua, đề xuất xử lý tài sản",
-  "Ke toan": "Duyệt nhập mua / báo hỏng / thanh lý / tiêu hủy",
-  Admin: "Toàn quyền, phân quyền tài khoản",
+  "": t("Xem tài sản của mình, xác nhận nhận hàng, báo hỏng"),
+  "Quan ly": t("Quản lý nhóm cấp dưới + kho quản lý của mình"),
+  HCNS: t("Danh mục, kho, lập nhập mua, đề xuất xử lý tài sản"),
+  "Ke toan": t("Duyệt nhập mua / báo hỏng / thanh lý / tiêu hủy"),
+  Admin: t("Toàn quyền, phân quyền tài khoản"),
 };
 
 function chuDau(s: string) {
@@ -77,7 +78,7 @@ export function AdminUsersScreen() {
       setRows(res.rows);
       setCapNhatLuc(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
     } catch (e) {
-      setLoi(thongBaoLoi(e, "Không tải được danh sách tài khoản."));
+      setLoi(thongBaoLoi(e, t("Không tải được danh sách tài khoản.")));
       setRows([]);
     } finally {
       setDangTai(false);
@@ -99,14 +100,14 @@ export function AdminUsersScreen() {
   const chuaLienKet = r0.filter((u) => u.trang_thai_duyet === "Da duyet" && !u.ma_nv && !u.email.endsWith("@he-thong.local")).length;
 
   const ds = useMemo(() => {
-    const t = tim.trim().toLowerCase();
+    const tuKhoa = tim.trim().toLowerCase();
     return r0.filter((u) => {
       if (tab === "cho-duyet" && u.trang_thai_duyet !== "Cho duyet") return false;
       if (tab === "da-duyet" && (u.trang_thai_duyet !== "Da duyet" || u.bi_khoa)) return false;
       if (tab === "tu-choi" && u.trang_thai_duyet !== "Tu choi") return false;
       if (tab === "bi-khoa" && !u.bi_khoa) return false;
       if (vaiTroLoc !== "tat-ca" && (u.vai_tro ?? "") !== vaiTroLoc) return false;
-      return !t || `${u.email} ${u.ten ?? ""} ${u.ten_nv ?? ""} ${u.ma_nv ?? ""}`.toLowerCase().includes(t);
+      return !tuKhoa || `${u.email} ${u.ten ?? ""} ${u.ten_nv ?? ""} ${u.ma_nv ?? ""}`.toLowerCase().includes(tuKhoa);
     });
   }, [r0, tab, tim, vaiTroLoc]);
   const tUser = useTrangKhach(ds, [tab, tim, vaiTroLoc]);
@@ -123,7 +124,7 @@ export function AdminUsersScreen() {
       await load();
     } catch (e) {
       const code = (e as { code?: string })?.code;
-      setLoiModal(code === "CANNOT_MODIFY_BOOTSTRAP_ADMIN" ? "Không thể sửa tài khoản quản trị gốc của hệ thống." : thongBaoLoi(e));
+      setLoiModal(code === "CANNOT_MODIFY_BOOTSTRAP_ADMIN" ? t("Không thể sửa tài khoản quản trị gốc của hệ thống.") : thongBaoLoi(e));
     } finally {
       setBusy(false);
     }
@@ -137,12 +138,12 @@ export function AdminUsersScreen() {
   return (
     <div className="dashboard-container">
       <PageHeader
-        title="Tài khoản & phân quyền"
+        title={t("Tài khoản & phân quyền")}
         filters={
           <label className="header-dropdown select-dropdown">
-            <select value={vaiTroLoc} onChange={(e) => setVaiTroLoc(e.target.value)} aria-label="Vai trò">
-              <option value="tat-ca">Mọi vai trò</option>
-              <option value="">Nhân viên</option>
+            <select value={vaiTroLoc} onChange={(e) => setVaiTroLoc(e.target.value)} aria-label={t("Vai trò")}>
+              <option value="tat-ca">{t("Mọi vai trò")}</option>
+              <option value="">{t("Nhân viên")}</option>
               {Object.entries(VAI_TRO).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
@@ -154,7 +155,7 @@ export function AdminUsersScreen() {
         }
         actions={
           <button className="btn btn-outline" onClick={() => navigate("kho", { tab: "cau-hinh" })}>
-            <ShieldCheck size={14} /> Gán thủ kho
+            <ShieldCheck size={14} /> {t("Gán thủ kho")}
           </button>
         }
         capNhatLuc={capNhatLuc}
@@ -169,21 +170,21 @@ export function AdminUsersScreen() {
           tone={dem["cho-duyet"] ? "yellow" : "cyan"}
           icon={<UserPlus size={20} className="text-white" />}
           watermark={<UserPlus size={52} />}
-          label="Chờ duyệt"
+          label={t("Chờ duyệt")}
           value={fmtSo(dem["cho-duyet"])}
-          trend={<div className="kpi-trend"><span className="trend-sub">Đăng nhập Google lần đầu</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{t("Đăng nhập Google lần đầu")}</span></div>}
           onClick={() => setTab("cho-duyet")}
         />
         <KpiCard
           tone="blue-light"
           icon={<UserCheck size={20} className="text-white" />}
           watermark={<UserCheck size={52} />}
-          label="Đang hoạt động"
+          label={t("Đang hoạt động")}
           value={fmtSo(dem["da-duyet"])}
           trend={
             <div className="kpi-trend">
               <span className="trend-sub">
-                {fmtSo(r0.filter((u) => u.trang_thai_duyet === "Da duyet" && !u.bi_khoa && u.vai_tro).length)} có vai trò quản trị / quản lý
+                {fmtSo(r0.filter((u) => u.trang_thai_duyet === "Da duyet" && !u.bi_khoa && u.vai_tro).length)} {t("có vai trò quản trị / quản lý")}
               </span>
             </div>
           }
@@ -193,21 +194,21 @@ export function AdminUsersScreen() {
           tone={chuaLienKet ? "purple" : "blue"}
           icon={<UserX size={20} className="text-white" />}
           watermark={<UserX size={52} />}
-          label="Chưa liên kết nhân viên"
+          label={t("Chưa liên kết nhân viên")}
           value={fmtSo(chuaLienKet)}
-          trend={<div className="kpi-trend"><span className="trend-sub">Nhập email ở màn Nhân viên để liên kết</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{t("Nhập email ở màn Nhân viên để liên kết")}</span></div>}
           onClick={() => navigate("nhan-vien")}
         />
         <KpiCard
           tone={dem["bi-khoa"] ? "red" : "blue"}
           icon={<Lock size={20} className="text-white" />}
           watermark={<Lock size={52} />}
-          label="Bị khoá / từ chối"
+          label={t("Bị khoá / từ chối")}
           value={fmtSo(dem["bi-khoa"] + dem["tu-choi"])}
           trend={
             <div className="kpi-trend">
               <span className="trend-sub">
-                {fmtSo(dem["bi-khoa"])} khoá · {fmtSo(dem["tu-choi"])} từ chối
+                {fmtSo(dem["bi-khoa"])} {t("khoá ·")} {fmtSo(dem["tu-choi"])} {t("từ chối")}
               </span>
             </div>
           }
@@ -223,42 +224,42 @@ export function AdminUsersScreen() {
             value={tab}
             onChange={setTab}
             tabs={[
-              { key: "cho-duyet", label: "Chờ duyệt", count: dem["cho-duyet"] },
-              { key: "da-duyet", label: "Đang hoạt động", count: dem["da-duyet"] },
-              { key: "bi-khoa", label: "Bị khoá", count: dem["bi-khoa"] },
-              { key: "tu-choi", label: "Từ chối", count: dem["tu-choi"] },
-              { key: "tat-ca", label: "Tất cả", count: dem["tat-ca"] },
+              { key: "cho-duyet", label: t("Chờ duyệt"), count: dem["cho-duyet"] },
+              { key: "da-duyet", label: t("Đang hoạt động"), count: dem["da-duyet"] },
+              { key: "bi-khoa", label: t("Bị khoá"), count: dem["bi-khoa"] },
+              { key: "tu-choi", label: t("Từ chối"), count: dem["tu-choi"] },
+              { key: "tat-ca", label: t("Tất cả"), count: dem["tat-ca"] },
             ]}
           />
           <div className="topbar-search filter-search">
             <Search size={15} className="search-icon" />
-            <input className="search-input" placeholder="Tìm tên, email, mã NV..." value={tim} onChange={(e) => setTim(e.target.value)} />
+            <input className="search-input" placeholder={t("Tìm tên, email, mã NV...")} value={tim} onChange={(e) => setTim(e.target.value)} />
           </div>
         </div>
         <div className="task-table-wrapper">
           <table className="task-table">
             <thead>
               <tr>
-                <th>Tài khoản</th>
-                <th style={{ width: "20%" }}>Hồ sơ nhân viên</th>
-                <th style={{ width: "16%" }}>Vai trò</th>
-                <th style={{ width: "15%" }}>Thủ kho</th>
-                <th style={{ width: "11%", textAlign: "center" }}>Trạng thái</th>
-                <th style={{ width: "17%", textAlign: "right" }}>Thao tác</th>
+                <th>{t("Tài khoản")}</th>
+                <th style={{ width: "20%" }}>{t("Hồ sơ nhân viên")}</th>
+                <th style={{ width: "16%" }}>{t("Vai trò")}</th>
+                <th style={{ width: "15%" }}>{t("Thủ kho")}</th>
+                <th style={{ width: "11%", textAlign: "center" }}>{t("Trạng thái")}</th>
+                <th style={{ width: "17%", textAlign: "right" }}>{t("Thao tác")}</th>
               </tr>
             </thead>
             <tbody>
               {rows === null && (
                 <tr>
                   <td colSpan={6} className="task-empty">
-                    Đang tải…
+                    {t("Đang tải…")}
                   </td>
                 </tr>
               )}
               {rows !== null && ds.length === 0 && (
                 <tr>
                   <td colSpan={6} className="task-empty">
-                    {tab === "cho-duyet" ? "Không có tài khoản nào chờ duyệt." : "Không có tài khoản phù hợp."}
+                    {tab === "cho-duyet" ? t("Không có tài khoản nào chờ duyệt.") : t("Không có tài khoản phù hợp.")}
                   </td>
                 </tr>
               )}
@@ -267,7 +268,7 @@ export function AdminUsersScreen() {
                 const daDuyet = u.trang_thai_duyet === "Da duyet";
                 return (
                   <tr key={u.email}>
-                    <td data-label="Tài khoản">
+                    <td data-label={t("Tài khoản")}>
                       <div className="icon-text">
                         {u.anh_dai_dien ? (
                           <img className="avatar-chu" src={u.anh_dai_dien} alt="" referrerPolicy="no-referrer" />
@@ -277,12 +278,12 @@ export function AdminUsersScreen() {
                         <div className="cell-stack">
                           <span className="strong">{u.ten || "-"}</span>
                           <span className="small text-secondary">
-                            {u.email} · tạo {fmtNgayGio(u.created_at).slice(0, 10)}
+                            {u.email} {t("· tạo")} {fmtNgayGio(u.created_at).slice(0, 10)}
                           </span>
                         </div>
                       </div>
                     </td>
-                    <td data-label="Hồ sơ NV">
+                    <td data-label={t("Hồ sơ NV")}>
                       {u.ma_nv ? (
                         <div className="cell-stack">
                           <span>{u.ten_nv}</span>
@@ -292,21 +293,21 @@ export function AdminUsersScreen() {
                           </span>
                         </div>
                       ) : (
-                        <span className="muted">Chưa liên kết</span>
+                        <span className="muted">{t("Chưa liên kết")}</span>
                       )}
                     </td>
-                    <td data-label="Vai trò">
+                    <td data-label={t("Vai trò")}>
                       {daDuyet ? (
                         <select
                           value={u.vai_tro ?? ""}
-                          aria-label="Vai trò"
+                          aria-label={t("Vai trò")}
                           title={MO_TA_VAI_TRO[u.vai_tro ?? ""]}
                           onChange={(e) => {
                             const v = (e.target.value || null) as VaiTro | null;
-                            hoi(u, { vai_tro: v }, `Đổi vai trò thành ${tenVaiTro(v)}`);
+                            hoi(u, { vai_tro: v }, t("Đổi vai trò thành {x}", { x: tenVaiTro(v) }));
                           }}
                         >
-                          <option value="">Nhân viên</option>
+                          <option value="">{t("Nhân viên")}</option>
                           {Object.entries(VAI_TRO).map(([k, v]) => (
                             <option key={k} value={k}>
                               {v}
@@ -317,33 +318,33 @@ export function AdminUsersScreen() {
                         tenVaiTro(u.vai_tro)
                       )}
                     </td>
-                    <td data-label="Thủ kho" className="text-secondary small">
+                    <td data-label={t("Thủ kho")} className="text-secondary small">
                       {u.kho_thu_kho ?? "-"}
                     </td>
-                    <td data-label="Trạng thái" style={{ textAlign: "center" }}>
+                    <td data-label={t("Trạng thái")} style={{ textAlign: "center" }}>
                       <div className="cell-stack" style={{ alignItems: "center" }}>
                         <StatusBadge label={st.label} tone={st.tone} />
-                        {u.bi_khoa && <StatusBadge label="Đã khoá" tone="danger" />}
+                        {u.bi_khoa && <StatusBadge label={t("Đã khoá")} tone="danger" />}
                       </div>
                     </td>
-                    <td data-label="Thao tác" style={{ textAlign: "right" }}>
+                    <td data-label={t("Thao tác")} style={{ textAlign: "right" }}>
                       <div className="row-actions">
                         {!daDuyet && (
-                          <button className="btn btn-primary btn-sm" onClick={() => hoi(u, { trang_thai_duyet: "Da duyet" }, "Duyệt tài khoản")}>
-                            Duyệt
+                          <button className="btn btn-primary btn-sm" onClick={() => hoi(u, { trang_thai_duyet: "Da duyet" }, t("Duyệt tài khoản"))}>
+                            {t("Duyệt")}
                           </button>
                         )}
                         {u.trang_thai_duyet === "Cho duyet" && (
-                          <button className="btn btn-outline btn-sm danger-outline" onClick={() => hoi(u, { trang_thai_duyet: "Tu choi" }, "Từ chối tài khoản")}>
-                            Từ chối
+                          <button className="btn btn-outline btn-sm danger-outline" onClick={() => hoi(u, { trang_thai_duyet: "Tu choi" }, t("Từ chối tài khoản"))}>
+                            {t("Từ chối")}
                           </button>
                         )}
                         {daDuyet && (
                           <button
                             className={`btn btn-outline btn-sm${u.bi_khoa ? "" : " danger-outline"}`}
-                            onClick={() => hoi(u, { bi_khoa: !u.bi_khoa }, u.bi_khoa ? "Mở khoá tài khoản" : "Khoá tài khoản")}
+                            onClick={() => hoi(u, { bi_khoa: !u.bi_khoa }, u.bi_khoa ? t("Mở khoá tài khoản") : t("Khoá tài khoản"))}
                           >
-                            {u.bi_khoa ? "Mở khoá" : "Khoá"}
+                            {u.bi_khoa ? t("Mở khoá") : t("Khoá")}
                           </button>
                         )}
                       </div>
@@ -354,7 +355,7 @@ export function AdminUsersScreen() {
             </tbody>
           </table>
         </div>
-        <PhanTrang trang={tUser.trang} tong={tUser.tong} onDoi={tUser.setTrang} donVi="tài khoản" />
+        <PhanTrang trang={tUser.trang} tong={tUser.tong} onDoi={tUser.setTrang} donVi={t("tài khoản")} />
       </div>
 
       {thayDoi && (
@@ -367,15 +368,15 @@ export function AdminUsersScreen() {
               {tenVaiTro(thayDoi.user.vai_tro)} → <b>{tenVaiTro(thayDoi.body.vai_tro)}</b>: {MO_TA_VAI_TRO[thayDoi.body.vai_tro ?? ""]}.
             </p>
           )}
-          {thayDoi.body.bi_khoa === true && <p className="muted small">Người này sẽ không đăng nhập được cho tới khi mở khoá.</p>}
-          {thayDoi.body.trang_thai_duyet === "Da duyet" && <p className="muted small">Mặc định vai trò Nhân viên - đổi vai trò sau khi duyệt nếu cần.</p>}
+          {thayDoi.body.bi_khoa === true && <p className="muted small">{t("Người này sẽ không đăng nhập được cho tới khi mở khoá.")}</p>}
+          {thayDoi.body.trang_thai_duyet === "Da duyet" && <p className="muted small">{t("Mặc định vai trò Nhân viên - đổi vai trò sau khi duyệt nếu cần.")}</p>}
           {loiModal && <div className="alert alert-error">{loiModal}</div>}
           <div className="modal-actions">
             <button className="btn" onClick={() => setThayDoi(null)}>
-              Huỷ
+              {t("Huỷ")}
             </button>
             <button className="btn btn-primary" disabled={busy} onClick={apDung}>
-              {busy ? "Đang lưu..." : "Xác nhận"}
+              {busy ? t("Đang lưu...") : t("Xác nhận")}
             </button>
           </div>
         </Modal>
@@ -399,19 +400,19 @@ function KetNoiDrive() {
     api
       .get<NonNullable<typeof st>>("/settings/google-drive/status")
       .then(setSt)
-      .catch((e) => setLoi(thongBaoLoi(e, "Không đọc được trạng thái Google Drive.")));
+      .catch((e) => setLoi(thongBaoLoi(e, t("Không đọc được trạng thái Google Drive."))));
   }, []);
   return (
     <div className="content-card" style={{ marginBottom: 14 }}>
       <div className="card-header" style={{ marginBottom: 6 }}>
         <div className="card-title-wrap">
           <HardDrive size={16} className="card-title-icon text-teal" />
-          <span className="card-title">Lưu trữ hóa đơn, chứng từ & ảnh (Google Drive)</span>
-          {st && <StatusBadge label={st.connected ? "Đã kết nối" : "Chưa kết nối"} tone={st.connected ? "success" : "warning"} />}
+          <span className="card-title">{t("Lưu trữ hóa đơn, chứng từ & ảnh (Google Drive)")}</span>
+          {st && <StatusBadge label={st.connected ? t("Đã kết nối") : t("Chưa kết nối")} tone={st.connected ? "success" : "warning"} />}
         </div>
         {st && (
           <a className="btn btn-outline btn-sm" href="/api/settings/google-drive/authorize">
-            {st.connected ? "Kết nối lại / đổi tài khoản" : "Kết nối Google Drive"}
+            {st.connected ? t("Kết nối lại / đổi tài khoản") : t("Kết nối Google Drive")}
           </a>
         )}
       </div>
@@ -420,11 +421,11 @@ function KetNoiDrive() {
         <div className="muted" style={{ fontSize: 12.5 }}>
           {st.connected ? (
             <>
-              Tài khoản <b>{st.google_email}</b> · kết nối bởi {st.authorized_by ?? "—"} lúc {fmtNgayGio(st.authorized_at ?? null)} · {fmtSo(st.so_tep)} tệp (
+              {t("Tài khoản")} <b>{st.google_email}</b> {t("· kết nối bởi")} {st.authorized_by ?? "—"} {t("lúc")} {fmtNgayGio(st.authorized_at ?? null)} · {fmtSo(st.so_tep)} {t("tệp (")}
               {fmtKichThuoc(st.dung_luong)}).
             </>
           ) : (
-            "Chưa kết nối - người dùng chưa tải được hóa đơn, chứng từ, ảnh lên phiếu. Bấm \"Kết nối Google Drive\" và chọn tài khoản Google của công ty để lưu tệp."
+            t("Chưa kết nối - người dùng chưa tải được hóa đơn, chứng từ, ảnh lên phiếu. Bấm \"Kết nối Google Drive\" và chọn tài khoản Google của công ty để lưu tệp.")
           )}
         </div>
       )}

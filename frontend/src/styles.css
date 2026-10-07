@@ -1374,6 +1374,10 @@ button.header-refresh-info:disabled { cursor: default; }
 }
 .select-dropdown .dropdown-arrow { position: absolute; right: 10px; pointer-events: none; }
 .header-dropdown-wrap { position: relative; }
+/* Chon ngon ngu VI / EN / ID (ChonNgonNgu) */
+.chon-ngon-ngu { padding-left: 10px; gap: 6px; flex-shrink: 0; }
+.chon-ngon-ngu select { padding-left: 0; }
+.login-ngon-ngu { align-self: center; margin-top: 14px; }
 .popover-panel {
   position: absolute; top: 38px; left: 0; z-index: 30; width: 300px; background: #fff;
   border: 1px solid var(--color-border); border-radius: 12px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12); padding: 12px;

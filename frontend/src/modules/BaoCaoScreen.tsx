@@ -1,3 +1,4 @@
+import { t, tS } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AlertTriangle, Archive, BarChart2, Building2, ChevronDown, ClipboardList, Download, Package, Search, ShieldCheck, Trash2, Users } from "lucide-react";
 import { api } from "../api/client";
@@ -16,12 +17,12 @@ import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
 type SubTab = "tong-quan" | "theo-nhan-vien" | "theo-bo-phan" | "sap-het-bao-hanh" | "kiem-ke-chenh-lech" | "da-thanh-ly";
 const SUB_TABS: { key: SubTab; label: string }[] = [
-  { key: "tong-quan", label: "Tổng hợp" },
-  { key: "theo-nhan-vien", label: "Theo nhân viên" },
-  { key: "theo-bo-phan", label: "Theo bộ phận" },
-  { key: "sap-het-bao-hanh", label: "Sắp hết bảo hành" },
-  { key: "kiem-ke-chenh-lech", label: "Chênh lệch kiểm kê" },
-  { key: "da-thanh-ly", label: "Đã thanh lý / tiêu hủy" },
+  { key: "tong-quan", label: t("Tổng hợp") },
+  { key: "theo-nhan-vien", label: t("Theo nhân viên") },
+  { key: "theo-bo-phan", label: t("Theo bộ phận") },
+  { key: "sap-het-bao-hanh", label: t("Sắp hết bảo hành") },
+  { key: "kiem-ke-chenh-lech", label: t("Chênh lệch kiểm kê") },
+  { key: "da-thanh-ly", label: t("Đã thanh lý / tiêu hủy") },
 ];
 
 interface TongQuan {
@@ -117,8 +118,8 @@ type DuLieu =
 
 const nowVNStr = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " ");
 const coChua = (q: string, ...xs: (string | null | undefined)[]) => {
-  const t = q.trim().toLowerCase();
-  return !t || xs.some((x) => (x ?? "").toLowerCase().includes(t));
+  const tuKhoa = q.trim().toLowerCase();
+  return !tuKhoa || xs.some((x) => (x ?? "").toLowerCase().includes(tuKhoa));
 };
 
 function TyLe({ phan, tong }: { phan: number; tong: number }) {
@@ -148,7 +149,7 @@ function Rong({ cot, children }: { cot: number; children: ReactNode }) {
 export function BaoCaoScreen() {
   const { params, navigate } = useNav();
   const { moTaiSan, moPhieu } = useChiTiet();
-  const [tab, setTab] = useState<SubTab>(SUB_TABS.some((t) => t.key === params.tab) ? (params.tab as SubTab) : "tong-quan");
+  const [tab, setTab] = useState<SubTab>(SUB_TABS.some((x) => x.key === params.tab) ? (params.tab as SubTab) : "tong-quan");
   const [khoId, setKhoId] = useState(params.kho_id ?? "");
   const [tim, setTim] = useState(params.q ?? "");
   const [soNgay, setSoNgay] = useState("30");
@@ -183,7 +184,7 @@ export function BaoCaoScreen() {
       setData(d);
       setCapNhatLuc(nowVNStr());
     } catch (e) {
-      setLoi(thongBaoLoi(e, "Không tải được báo cáo."));
+      setLoi(thongBaoLoi(e, t("Không tải được báo cáo.")));
       setData(null);
     } finally {
       setDangTai(false);
@@ -203,8 +204,8 @@ export function BaoCaoScreen() {
       .catch(() => undefined);
   }, [tab, dots.length]);
 
-  function doiTab(t: SubTab) {
-    setTab(t);
+  function doiTab(k: SubTab) {
+    setTab(k);
     setTim("");
     setChiNghi(false);
     setData(null);
@@ -220,34 +221,34 @@ export function BaoCaoScreen() {
     if (d.tab === "tong-quan") {
       await exportRowsToExcel(
         [
-          ...d.tq.theo_trang_thai.map((r) => ({ nhom: "Theo trạng thái", ten: TRANG_THAI_TS[r.trang_thai]?.label ?? r.trang_thai, so_luong: r.so_luong, gia_tri: r.gia_tri })),
+          ...d.tq.theo_trang_thai.map((r) => ({ nhom: t("Theo trạng thái"), ten: TRANG_THAI_TS[r.trang_thai]?.label ?? r.trang_thai, so_luong: r.so_luong, gia_tri: r.gia_tri })),
           ...d.kho.map((r) => ({ nhom: "Theo kho", ten: r.ten_kho, so_luong: r.so_luong, gia_tri: r.gia_tri })),
-          { nhom: "Tiêu hao", ten: "Tồn kho tiêu hao (theo đơn giá tham khảo)", so_luong: d.tq.tieu_hao.so_mat_hang, gia_tri: d.tq.tieu_hao.gia_tri },
+          { nhom: t("Tiêu hao"), ten: t("Tồn kho tiêu hao (theo đơn giá tham khảo)"), so_luong: d.tq.tieu_hao.so_mat_hang, gia_tri: d.tq.tieu_hao.gia_tri },
         ],
         `Bao_cao_tong_hop_${ngay}.xlsx`,
         "Tong hop",
-        { nhom: "Nhóm", ten: "Chỉ tiêu", so_luong: "Số lượng", gia_tri: "Giá trị (đ)" },
+        { nhom: t("Nhóm"), ten: t("Chỉ tiêu"), so_luong: t("Số lượng"), gia_tri: t("Giá trị (đ)") },
       );
     } else if (d.tab === "theo-nhan-vien") {
       await exportRowsToExcel(
         dsNv.map((r) => ({ ma_nv: r.ma_nv, ten_nv: r.ten_nv, bo_phan: r.bo_phan ?? "", so_luong: r.so_luong_ccdc, gia_tri: r.gia_tri, so_hong: r.so_hong })),
         `Bao_cao_theo_nhan_vien_${ngay}.xlsx`,
         "Theo nhan vien",
-        { ma_nv: "Mã NV", ten_nv: "Họ tên", bo_phan: "Bộ phận", so_luong: "Số TS đang giữ", gia_tri: "Nguyên giá (đ)", so_hong: "Số TS hỏng" },
+        { ma_nv: t("Mã NV"), ten_nv: t("Họ tên"), bo_phan: t("Bộ phận"), so_luong: t("Số TS đang giữ"), gia_tri: t("Nguyên giá (đ)"), so_hong: t("Số TS hỏng") },
       );
     } else if (d.tab === "theo-bo-phan") {
       await exportRowsToExcel(
         dsBp.map((r) => ({ bo_phan: r.bo_phan, so_nv: r.so_nhan_vien, so_luong: r.so_luong_ccdc, gia_tri: r.gia_tri })),
         `Bao_cao_theo_bo_phan_${ngay}.xlsx`,
         "Theo bo phan",
-        { bo_phan: "Bộ phận", so_nv: "Số NV giữ TS", so_luong: "Số TS", gia_tri: "Nguyên giá (đ)" },
+        { bo_phan: t("Bộ phận"), so_nv: t("Số NV giữ TS"), so_luong: t("Số TS"), gia_tri: t("Nguyên giá (đ)") },
       );
     } else if (d.tab === "sap-het-bao-hanh") {
       await exportRowsToExcel(
         dsBh.map((r) => ({ ma: r.id, ten: r.ten_ccdc, han: r.han_bao_hanh, con_lai: r.con_lai, ncc: r.nha_cung_cap ?? "", vi_tri: r.nguoi_dang_giu_ten ?? r.ten_kho ?? "" })),
         `Bao_cao_sap_het_bao_hanh_${ngay}.xlsx`,
         "Sap het BH",
-        { ma: "Mã TS", ten: "Tên tài sản", han: "Hạn bảo hành", con_lai: "Còn (ngày)", ncc: "Nhà cung cấp", vi_tri: "Người giữ / kho" },
+        { ma: t("Mã TS"), ten: t("Tên tài sản"), han: t("Hạn bảo hành"), con_lai: t("Còn (ngày)"), ncc: t("Nhà cung cấp"), vi_tri: t("Người giữ / kho") },
       );
     } else if (d.tab === "kiem-ke-chenh-lech") {
       await exportRowsToExcel(
@@ -264,13 +265,13 @@ export function BaoCaoScreen() {
         })),
         `Bao_cao_chenh_lech_kiem_ke_${ngay}.xlsx`,
         "Chenh lech",
-        { dot: "Đợt", ma: "Mã TS", ten: "Tên tài sản", he_thong: "Hệ thống ghi nhận", thuc_te: "Thực tế", nguoi_giu: "Người giữ thực tế", nguyen_gia: "Nguyên giá (đ)", ghi_chu: "Ghi chú", luc: "Thời điểm" },
+        { dot: t("Đợt"), ma: t("Mã TS"), ten: t("Tên tài sản"), he_thong: t("Hệ thống ghi nhận"), thuc_te: t("Thực tế"), nguoi_giu: t("Người giữ thực tế"), nguyen_gia: t("Nguyên giá (đ)"), ghi_chu: t("Ghi chú"), luc: t("Thời điểm") },
       );
     } else {
       await exportRowsToExcel(
         dsTl.map((r) => ({
           ma: r.ma_phieu ?? r.id,
-          loai: r.loai === "Tieu huy" ? "Tiêu hủy" : "Thanh lý",
+          loai: r.loai === "Tieu huy" ? t("Tiêu hủy") : t("Thanh lý"),
           ngay: r.ngay_de_xuat,
           so_ts: r.so_luong_ccdc,
           tai_san: r.tom_tat ?? "",
@@ -280,7 +281,7 @@ export function BaoCaoScreen() {
         })),
         `Bao_cao_thanh_ly_tieu_huy_${ngay}.xlsx`,
         "Thanh ly",
-        { ma: "Mã phiếu", loai: "Hình thức", ngay: "Ngày đề xuất", so_ts: "Số TS", tai_san: "Tài sản", nguyen_gia: "Nguyên giá (đ)", thu_hoi: "Thu hồi (đ)", ly_do: "Lý do" },
+        { ma: t("Mã phiếu"), loai: t("Hình thức"), ngay: t("Ngày đề xuất"), so_ts: t("Số TS"), tai_san: t("Tài sản"), nguyen_gia: t("Nguyên giá (đ)"), thu_hoi: t("Thu hồi (đ)"), ly_do: t("Lý do") },
       );
     }
   }
@@ -301,10 +302,10 @@ export function BaoCaoScreen() {
   const locRieng =
     tab === "sap-het-bao-hanh" ? (
       <label className="header-dropdown select-dropdown">
-        <select value={soNgay} onChange={(e) => setSoNgay(e.target.value)} aria-label="Khoảng thời gian">
+        <select value={soNgay} onChange={(e) => setSoNgay(e.target.value)} aria-label={t("Khoảng thời gian")}>
           {["30", "60", "90", "180", "365"].map((n) => (
             <option key={n} value={n}>
-              Trong {n} ngày tới
+              Trong {n} {t("ngày tới")}
             </option>
           ))}
         </select>
@@ -312,11 +313,11 @@ export function BaoCaoScreen() {
       </label>
     ) : tab === "da-thanh-ly" ? (
       <label className="header-dropdown select-dropdown">
-        <select value={nam} onChange={(e) => setNam(e.target.value)} aria-label="Năm">
-          <option value="">Mọi năm</option>
+        <select value={nam} onChange={(e) => setNam(e.target.value)} aria-label={t("Năm")}>
+          <option value="">{t("Mọi năm")}</option>
           {[0, 1, 2, 3].map((i) => (
             <option key={i} value={String(namHienTai - i)}>
-              Năm {namHienTai - i}
+              {t("Năm")} {namHienTai - i}
             </option>
           ))}
         </select>
@@ -324,8 +325,8 @@ export function BaoCaoScreen() {
       </label>
     ) : tab === "kiem-ke-chenh-lech" ? (
       <label className="header-dropdown select-dropdown">
-        <select value={dotId} onChange={(e) => setDotId(e.target.value)} aria-label="Đợt kiểm kê">
-          <option value="">Mọi đợt kiểm kê</option>
+        <select value={dotId} onChange={(e) => setDotId(e.target.value)} aria-label={t("Đợt kiểm kê")}>
+          <option value="">{t("Mọi đợt kiểm kê")}</option>
           {dots.map((o) => (
             <option key={o.id} value={o.id}>
               {o.ma_phieu ? `${o.ma_phieu} · ` : ""}
@@ -340,7 +341,7 @@ export function BaoCaoScreen() {
   return (
     <div className="dashboard-container">
       <PageHeader
-        title="Báo cáo"
+        title={t("Báo cáo")}
         filters={
           <>
             <KhoFilter value={khoId} onChange={setKhoId} />
@@ -349,7 +350,7 @@ export function BaoCaoScreen() {
         }
         actions={
           <button className="btn btn-outline" onClick={xuatExcel} disabled={!d}>
-            <Download size={14} /> Xuất Excel
+            <Download size={14} /> {t("Xuất Excel")}
           </button>
         }
         capNhatLuc={capNhatLuc}
@@ -360,7 +361,7 @@ export function BaoCaoScreen() {
 
       <FilterTabs<SubTab> value={tab} onChange={doiTab} tabs={SUB_TABS} />
 
-      {!d && !loi && <div className="content-card task-empty">Đang tải báo cáo…</div>}
+      {!d && !loi && <div className="content-card task-empty">{t("Đang tải báo cáo…")}</div>}
 
       {/* ================================================================ TONG HOP */}
       {d?.tab === "tong-quan" &&
@@ -378,7 +379,7 @@ export function BaoCaoScreen() {
                   tone="cyan"
                   icon={<Package size={20} className="text-white" />}
                   watermark={<Package size={52} />}
-                  label="Tài sản đang quản lý"
+                  label={t("Tài sản đang quản lý")}
                   value={fmtSo(tongSl)}
                   trend={<div className="kpi-trend"><span className="trend-sub">{fmtGiaTriDong(tongGt)}</span></div>}
                   onClick={() => navigate("tai-san", khoId ? { kho_id: khoId } : {})}
@@ -387,7 +388,7 @@ export function BaoCaoScreen() {
                   tone="blue-light"
                   icon={<Users size={20} className="text-white" />}
                   watermark={<Users size={52} />}
-                  label="Đang cấp phát sử dụng"
+                  label={t("Đang cấp phát sử dụng")}
                   value={fmtSo(dangDung?.so_luong ?? 0)}
                   trend={
                     <div className="kpi-trend trend-up">
@@ -395,33 +396,33 @@ export function BaoCaoScreen() {
                       <span className="trend-sub">· {fmtGiaTri(dangDung?.gia_tri ?? 0)}</span>
                     </div>
                   }
-                  subtext={hong ? `${fmtSo(hong.so_luong)} tài sản hỏng (${fmtGiaTri(hong.gia_tri)})` : "Không có tài sản hỏng"}
+                  subtext={hong ? t("{x} tài sản hỏng ({x2})", { x: fmtSo(hong.so_luong), x2: fmtGiaTri(hong.gia_tri) }) : t("Không có tài sản hỏng")}
                   onClick={() => navigate("tai-san", { trang_thai: "Dang cap phat" })}
                 />
                 <KpiCard
                   tone="purple"
                   icon={<Archive size={20} className="text-white" />}
                   watermark={<Archive size={52} />}
-                  label="Tồn kho tiêu hao"
+                  label={t("Tồn kho tiêu hao")}
                   value={fmtGiaTri(d.tq.tieu_hao.gia_tri)}
-                  trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(d.tq.tieu_hao.so_mat_hang)} mặt hàng còn tồn</span></div>}
-                  subtext={d.tq.tieu_hao.so_ton_am ? `${fmtSo(d.tq.tieu_hao.so_ton_am)} cặp kho–vật tư tồn âm` : "Không có tồn âm"}
+                  trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(d.tq.tieu_hao.so_mat_hang)} {t("mặt hàng còn tồn")}</span></div>}
+                  subtext={d.tq.tieu_hao.so_ton_am ? t("{x} cặp kho–vật tư tồn âm", { x: fmtSo(d.tq.tieu_hao.so_ton_am) }) : t("Không có tồn âm")}
                   onClick={() => navigate("cap-phat", { tab: "ton-kho", ...(khoId ? { kho_id: khoId } : {}) })}
                 />
                 <KpiCard
                   tone={choXl ? "yellow" : "blue"}
                   icon={<ClipboardList size={20} className="text-white" />}
                   watermark={<ClipboardList size={52} />}
-                  label="Phiếu chờ kế toán duyệt"
+                  label={t("Phiếu chờ kế toán duyệt")}
                   value={fmtSo(choXl)}
                   trend={
                     <div className="kpi-trend">
                       <span className="trend-sub">
-                        {fmtSo(d.tq.chuyen_kho_cho_kt)} nhập/chuyển kho · {fmtSo(d.tq.xu_ly_ts_cho_kt)} TSCĐ
+                        {fmtSo(d.tq.chuyen_kho_cho_kt)} {t("nhập/chuyển kho ·")} {fmtSo(d.tq.xu_ly_ts_cho_kt)} {t("TSCĐ")}
                       </span>
                     </div>
                   }
-                  subtext={`${fmtSo(d.tq.phieu_dang_chuyen)} phiếu đang chuyển · ${fmtSo(d.tq.dot_kiem_ke_dang_thuc_hien)} đợt kiểm kê mở`}
+                  subtext={t("{x} phiếu đang chuyển · {x2} đợt kiểm kê mở", { x: fmtSo(d.tq.phieu_dang_chuyen), x2: fmtSo(d.tq.dot_kiem_ke_dang_thuc_hien) })}
                   onClick={() => navigate("viec-can-lam")}
                 />
               </div>
@@ -431,33 +432,33 @@ export function BaoCaoScreen() {
                   <div className="card-header">
                     <div className="card-title-wrap">
                       <BarChart2 size={17} className="card-title-icon text-teal" />
-                      <h2 className="card-title">Tài sản theo trạng thái</h2>
+                      <h2 className="card-title">{t("Tài sản theo trạng thái")}</h2>
                     </div>
                   </div>
                   <div className="task-table-wrapper">
                     <table className="task-table">
                       <thead>
                         <tr>
-                          <th>Trạng thái</th>
-                          <th style={{ textAlign: "right" }}>Số lượng</th>
-                          <th style={{ width: "30%" }}>Tỷ lệ</th>
-                          <th style={{ textAlign: "right" }}>Nguyên giá</th>
+                          <th>{t("Trạng thái")}</th>
+                          <th style={{ textAlign: "right" }}>{t("Số lượng")}</th>
+                          <th style={{ width: "30%" }}>{t("Tỷ lệ")}</th>
+                          <th style={{ textAlign: "right" }}>{t("Nguyên giá")}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {d.tq.theo_trang_thai.length === 0 && <Rong cot={4}>Không có tài sản trong phạm vi.</Rong>}
+                        {d.tq.theo_trang_thai.length === 0 && <Rong cot={4}>{t("Không có tài sản trong phạm vi.")}</Rong>}
                         {d.tq.theo_trang_thai.map((r) => (
                           <tr key={r.trang_thai} className="row-clickable" onClick={() => navigate("tai-san", { trang_thai: r.trang_thai, ...(khoId ? { kho_id: khoId } : {}) })}>
-                            <td data-label="Trạng thái">
+                            <td data-label={t("Trạng thái")}>
                               <StatusBadge label={TRANG_THAI_TS[r.trang_thai]?.label ?? r.trang_thai} tone={TRANG_THAI_TS[r.trang_thai]?.tone ?? "neutral"} />
                             </td>
-                            <td data-label="Số lượng" style={{ textAlign: "right" }} className="strong">
+                            <td data-label={t("Số lượng")} style={{ textAlign: "right" }} className="strong">
                               {fmtSo(r.so_luong)}
                             </td>
-                            <td data-label="Tỷ lệ">
+                            <td data-label={t("Tỷ lệ")}>
                               <TyLe phan={r.so_luong} tong={tongSl} />
                             </td>
-                            <td data-label="Nguyên giá" style={{ textAlign: "right" }}>
+                            <td data-label={t("Nguyên giá")} style={{ textAlign: "right" }}>
                               {fmtGiaTri(r.gia_tri)}
                             </td>
                           </tr>
@@ -470,33 +471,33 @@ export function BaoCaoScreen() {
                   <div className="card-header">
                     <div className="card-title-wrap">
                       <Building2 size={17} className="card-title-icon text-teal" />
-                      <h2 className="card-title">Tài sản đang nằm tại kho</h2>
+                      <h2 className="card-title">{t("Tài sản đang nằm tại kho")}</h2>
                     </div>
                   </div>
                   <div className="task-table-wrapper">
                     <table className="task-table">
                       <thead>
                         <tr>
-                          <th>Kho</th>
-                          <th style={{ textAlign: "right" }}>Số TS</th>
-                          <th style={{ textAlign: "right" }}>Hỏng</th>
-                          <th style={{ textAlign: "right" }}>Nguyên giá</th>
+                          <th>{t("Kho")}</th>
+                          <th style={{ textAlign: "right" }}>{t("Số TS")}</th>
+                          <th style={{ textAlign: "right" }}>{t("Hỏng")}</th>
+                          <th style={{ textAlign: "right" }}>{t("Nguyên giá")}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {d.kho.length === 0 && <Rong cot={4}>Không có tài sản nằm tại kho trong phạm vi.</Rong>}
+                        {d.kho.length === 0 && <Rong cot={4}>{t("Không có tài sản nằm tại kho trong phạm vi.")}</Rong>}
                         {d.kho.map((r) => (
                           <tr key={r.id} className="row-clickable" onClick={() => navigate("tai-san", { kho_id: String(r.id) })}>
-                            <td data-label="Kho" className="strong">
+                            <td data-label={t("Kho")} className="strong">
                               {r.ten_kho}
                             </td>
-                            <td data-label="Số TS" style={{ textAlign: "right" }}>
+                            <td data-label={t("Số TS")} style={{ textAlign: "right" }}>
                               {fmtSo(r.so_luong)}
                             </td>
-                            <td data-label="Hỏng" style={{ textAlign: "right" }} className={r.so_hong ? "text-danger" : undefined}>
+                            <td data-label={t("Hỏng")} style={{ textAlign: "right" }} className={r.so_hong ? "text-danger" : undefined}>
                               {fmtSo(r.so_hong)}
                             </td>
-                            <td data-label="Nguyên giá" style={{ textAlign: "right" }}>
+                            <td data-label={t("Nguyên giá")} style={{ textAlign: "right" }}>
                               {fmtGiaTri(r.gia_tri)}
                             </td>
                           </tr>
@@ -504,7 +505,7 @@ export function BaoCaoScreen() {
                       </tbody>
                     </table>
                   </div>
-                  <p className="chart-note">Tài sản đang cấp phát cho nhân viên không tính vào kho - xem báo cáo “Theo nhân viên”.</p>
+                  <p className="chart-note">{t("Tài sản đang cấp phát cho nhân viên không tính vào kho - xem báo cáo “Theo nhân viên”.")}</p>
                 </div>
               </div>
             </>
@@ -521,12 +522,12 @@ export function BaoCaoScreen() {
           return (
             <>
               <div className="kpi-grid kpi-grid-4">
-                <KpiCard tone="cyan" icon={<Users size={20} className="text-white" />} watermark={<Users size={52} />} label="Nhân viên đang giữ tài sản" value={fmtSo(d.rows.length)} />
+                <KpiCard tone="cyan" icon={<Users size={20} className="text-white" />} watermark={<Users size={52} />} label={t("Nhân viên đang giữ tài sản")} value={fmtSo(d.rows.length)} />
                 <KpiCard
                   tone="blue-light"
                   icon={<Package size={20} className="text-white" />}
                   watermark={<Package size={52} />}
-                  label="Tài sản đang giữ"
+                  label={t("Tài sản đang giữ")}
                   value={fmtSo(tongTs)}
                   trend={<div className="kpi-trend"><span className="trend-sub">{fmtGiaTriDong(tongGt)}</span></div>}
                 />
@@ -534,7 +535,7 @@ export function BaoCaoScreen() {
                   tone="purple"
                   icon={<BarChart2 size={20} className="text-white" />}
                   watermark={<BarChart2 size={52} />}
-                  label="Giữ nhiều nhất"
+                  label={t("Giữ nhiều nhất")}
                   value={top ? fmtSo(top.so_luong_ccdc) : "0"}
                   trend={<div className="kpi-trend"><span className="trend-sub">{top?.ten_nv ?? "-"}</span></div>}
                   onClick={top ? () => navigate("tai-san", { nguoi_dang_giu: top.ma_nv, ten: top.ten_nv }) : undefined}
@@ -543,12 +544,12 @@ export function BaoCaoScreen() {
                   tone={nghi.length ? "red" : "blue"}
                   icon={<AlertTriangle size={20} className="text-white" />}
                   watermark={<AlertTriangle size={52} />}
-                  label="NV đã nghỉ còn giữ TS"
+                  label={t("NV đã nghỉ còn giữ TS")}
                   value={fmtSo(nghi.length)}
                   tangLaXau
                   trend={
                     <div className={`kpi-trend ${nghi.length ? "trend-danger" : ""}`}>
-                      <span className="trend-sub">{fmtSo(nghi.reduce((s, r) => s + r.so_luong_ccdc, 0))} tài sản cần thu hồi</span>
+                      <span className="trend-sub">{fmtSo(nghi.reduce((s, r) => s + r.so_luong_ccdc, 0))} {t("tài sản cần thu hồi")}</span>
                     </div>
                   }
                   onClick={nghi.length ? () => setChiNghi(!chiNghi) : undefined}
@@ -558,53 +559,53 @@ export function BaoCaoScreen() {
                 <div className="card-header">
                   <div className="card-title-wrap">
                     <Users size={17} className="card-title-icon text-teal" />
-                    <h2 className="card-title">Tài sản theo nhân viên</h2>
+                    <h2 className="card-title">{t("Tài sản theo nhân viên")}</h2>
                   </div>
                   <div className="icon-text">
                     {chiNghi && (
                       <span className="chip">
-                        Chỉ NV đã nghỉ
-                        <button type="button" className="chip-remove" aria-label="Bỏ lọc" onClick={() => setChiNghi(false)}>
+                        {t("Chỉ NV đã nghỉ")}
+                        <button type="button" className="chip-remove" aria-label={t("Bỏ lọc")} onClick={() => setChiNghi(false)}>
                           ×
                         </button>
                       </span>
                     )}
-                    <TimKiem value={tim} onChange={setTim} placeholder="Tìm mã NV, họ tên, bộ phận..." />
+                    <TimKiem value={tim} onChange={setTim} placeholder={t("Tìm mã NV, họ tên, bộ phận...")} />
                   </div>
                 </div>
                 <div className="task-table-wrapper">
                   <table className="task-table">
                     <thead>
                       <tr>
-                        <th style={{ width: "13%" }}>Mã NV</th>
-                        <th>Họ tên</th>
-                        <th style={{ width: "22%" }}>Bộ phận</th>
-                        <th style={{ width: "10%", textAlign: "right" }}>Số TS</th>
-                        <th style={{ width: "8%", textAlign: "right" }}>Hỏng</th>
-                        <th style={{ width: "14%", textAlign: "right" }}>Nguyên giá</th>
+                        <th style={{ width: "13%" }}>{t("Mã NV")}</th>
+                        <th>{t("Họ tên")}</th>
+                        <th style={{ width: "22%" }}>{t("Bộ phận")}</th>
+                        <th style={{ width: "10%", textAlign: "right" }}>{t("Số TS")}</th>
+                        <th style={{ width: "8%", textAlign: "right" }}>{t("Hỏng")}</th>
+                        <th style={{ width: "14%", textAlign: "right" }}>{t("Nguyên giá")}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {dsNv.length === 0 && <Rong cot={6}>{tim ? "Không tìm thấy nhân viên phù hợp." : "Không có nhân viên nào đang giữ tài sản trong phạm vi."}</Rong>}
+                      {dsNv.length === 0 && <Rong cot={6}>{tim ? t("Không tìm thấy nhân viên phù hợp.") : t("Không có nhân viên nào đang giữ tài sản trong phạm vi.")}</Rong>}
                       {tNv.dongTrang.map((r) => (
                         <tr key={r.ma_nv} className="row-clickable" onClick={() => navigate("tai-san", { nguoi_dang_giu: r.ma_nv, ten: r.ten_nv })}>
-                          <td data-label="Mã NV" className="code-text">
+                          <td data-label={t("Mã NV")} className="code-text">
                             {r.ma_nv}
                           </td>
-                          <td data-label="Họ tên" className="strong">
+                          <td data-label={t("Họ tên")} className="strong">
                             {r.ten_nv}
-                            {!r.dang_lam_viec && <StatusBadge label="Đã nghỉ" tone="danger" />}
+                            {!r.dang_lam_viec && <StatusBadge label={t("Đã nghỉ")} tone="danger" />}
                           </td>
-                          <td data-label="Bộ phận" className="text-secondary">
-                            {r.bo_phan ?? "-"}
+                          <td data-label={t("Bộ phận")} className="text-secondary">
+                            {tS(r.bo_phan) || "-"}
                           </td>
-                          <td data-label="Số TS" style={{ textAlign: "right" }} className="strong">
+                          <td data-label={t("Số TS")} style={{ textAlign: "right" }} className="strong">
                             {fmtSo(r.so_luong_ccdc)}
                           </td>
-                          <td data-label="Hỏng" style={{ textAlign: "right" }} className={r.so_hong ? "text-danger" : undefined}>
+                          <td data-label={t("Hỏng")} style={{ textAlign: "right" }} className={r.so_hong ? "text-danger" : undefined}>
                             {fmtSo(r.so_hong)}
                           </td>
-                          <td data-label="Nguyên giá" style={{ textAlign: "right" }}>
+                          <td data-label={t("Nguyên giá")} style={{ textAlign: "right" }}>
                             {fmtGiaTri(r.gia_tri)}
                           </td>
                         </tr>
@@ -612,7 +613,7 @@ export function BaoCaoScreen() {
                     </tbody>
                   </table>
                 </div>
-                <PhanTrang trang={tNv.trang} tong={tNv.tong} onDoi={tNv.setTrang} donVi="nhân viên" />
+                <PhanTrang trang={tNv.trang} tong={tNv.tong} onDoi={tNv.setTrang} donVi={t("nhân viên")} />
               </div>
             </>
           );
@@ -628,12 +629,12 @@ export function BaoCaoScreen() {
           return (
             <>
               <div className="kpi-grid kpi-grid-4">
-                <KpiCard tone="cyan" icon={<Building2 size={20} className="text-white" />} watermark={<Building2 size={52} />} label="Bộ phận đang giữ tài sản" value={fmtSo(d.rows.length)} />
+                <KpiCard tone="cyan" icon={<Building2 size={20} className="text-white" />} watermark={<Building2 size={52} />} label={t("Bộ phận đang giữ tài sản")} value={fmtSo(d.rows.length)} />
                 <KpiCard
                   tone="blue-light"
                   icon={<Package size={20} className="text-white" />}
                   watermark={<Package size={52} />}
-                  label="Tài sản đang cấp phát"
+                  label={t("Tài sản đang cấp phát")}
                   value={fmtSo(tongTs)}
                   trend={<div className="kpi-trend"><span className="trend-sub">{fmtGiaTriDong(tongGt)}</span></div>}
                 />
@@ -641,63 +642,63 @@ export function BaoCaoScreen() {
                   tone="purple"
                   icon={<BarChart2 size={20} className="text-white" />}
                   watermark={<BarChart2 size={52} />}
-                  label="Bộ phận nhiều nhất"
+                  label={t("Bộ phận nhiều nhất")}
                   value={top ? fmtSo(top.so_luong_ccdc) : "0"}
-                  trend={<div className="kpi-trend"><span className="trend-sub">{top?.bo_phan ?? "-"}</span></div>}
+                  trend={<div className="kpi-trend"><span className="trend-sub">{tS(top?.bo_phan) || "-"}</span></div>}
                 />
                 <KpiCard
                   tone={chuaRo ? "yellow" : "blue"}
                   icon={<AlertTriangle size={20} className="text-white" />}
                   watermark={<AlertTriangle size={52} />}
-                  label="TS của NV chưa rõ bộ phận"
+                  label={t("TS của NV chưa rõ bộ phận")}
                   value={fmtSo(chuaRo?.so_luong_ccdc ?? 0)}
-                  trend={<div className="kpi-trend"><span className="trend-sub">{chuaRo ? `${fmtSo(chuaRo.so_nhan_vien)} NV chưa có bộ phận (đồng bộ ETX)` : "Dữ liệu bộ phận đầy đủ"}</span></div>}
+                  trend={<div className="kpi-trend"><span className="trend-sub">{chuaRo ? t("{x} NV chưa có bộ phận (đồng bộ ETX)", { x: fmtSo(chuaRo.so_nhan_vien) }) : t("Dữ liệu bộ phận đầy đủ")}</span></div>}
                 />
               </div>
               <div className="content-card task-card-full">
                 <div className="card-header">
                   <div className="card-title-wrap">
                     <Building2 size={17} className="card-title-icon text-teal" />
-                    <h2 className="card-title">Tài sản theo bộ phận</h2>
+                    <h2 className="card-title">{t("Tài sản theo bộ phận")}</h2>
                   </div>
-                  <TimKiem value={tim} onChange={setTim} placeholder="Tìm bộ phận..." />
+                  <TimKiem value={tim} onChange={setTim} placeholder={t("Tìm bộ phận...")} />
                 </div>
                 <div className="task-table-wrapper">
                   <table className="task-table">
                     <thead>
                       <tr>
-                        <th>Bộ phận</th>
-                        <th style={{ width: "12%", textAlign: "right" }}>Số NV</th>
-                        <th style={{ width: "12%", textAlign: "right" }}>Số TS</th>
-                        <th style={{ width: "24%" }}>Tỷ lệ</th>
-                        <th style={{ width: "14%", textAlign: "right" }}>Nguyên giá</th>
+                        <th>{t("Bộ phận")}</th>
+                        <th style={{ width: "12%", textAlign: "right" }}>{t("Số NV")}</th>
+                        <th style={{ width: "12%", textAlign: "right" }}>{t("Số TS")}</th>
+                        <th style={{ width: "24%" }}>{t("Tỷ lệ")}</th>
+                        <th style={{ width: "14%", textAlign: "right" }}>{t("Nguyên giá")}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {dsBp.length === 0 && <Rong cot={5}>Không có dữ liệu.</Rong>}
+                      {dsBp.length === 0 && <Rong cot={5}>{t("Không có dữ liệu.")}</Rong>}
                       {tBp.dongTrang.map((r) => (
                         <tr
                           key={r.bo_phan}
                           className="row-clickable"
-                          title="Xem nhân viên của bộ phận"
+                          title={t("Xem nhân viên của bộ phận")}
                           onClick={() => {
                             doiTab("theo-nhan-vien");
                             setTim(r.bo_phan === "Chưa rõ bộ phận" ? "" : r.bo_phan);
                           }}
                         >
-                          <td data-label="Bộ phận" className="strong">
-                            {r.bo_phan}
+                          <td data-label={t("Bộ phận")} className="strong">
+                            {tS(r.bo_phan)}
                           </td>
-                          <td data-label="Số NV" style={{ textAlign: "right" }}>
+                          <td data-label={t("Số NV")} style={{ textAlign: "right" }}>
                             {fmtSo(r.so_nhan_vien)}
                           </td>
-                          <td data-label="Số TS" style={{ textAlign: "right" }} className="strong">
+                          <td data-label={t("Số TS")} style={{ textAlign: "right" }} className="strong">
                             {fmtSo(r.so_luong_ccdc)}
                           </td>
-                          <td data-label="Tỷ lệ">
+                          <td data-label={t("Tỷ lệ")}>
                             <TyLe phan={r.so_luong_ccdc} tong={tongTs} />
                           </td>
-                          <td data-label="Nguyên giá" style={{ textAlign: "right" }}>
+                          <td data-label={t("Nguyên giá")} style={{ textAlign: "right" }}>
                             {fmtGiaTri(r.gia_tri)}
                           </td>
                         </tr>
@@ -705,7 +706,7 @@ export function BaoCaoScreen() {
                     </tbody>
                   </table>
                 </div>
-                <PhanTrang trang={tBp.trang} tong={tBp.tong} onDoi={tBp.setTrang} donVi="bộ phận" />
+                <PhanTrang trang={tBp.trang} tong={tBp.tong} onDoi={tBp.setTrang} donVi={t("bộ phận")} />
               </div>
             </>
           );
@@ -723,15 +724,15 @@ export function BaoCaoScreen() {
                   tone={d.res.rows.length ? "yellow" : "cyan"}
                   icon={<ShieldCheck size={20} className="text-white" />}
                   watermark={<ShieldCheck size={52} />}
-                  label={`Hết bảo hành trong ${d.res.so_ngay} ngày`}
+                  label={t("Hết bảo hành trong {so_ngay} ngày", { so_ngay: d.res.so_ngay })}
                   value={fmtSo(d.res.rows.length)}
-                  trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(gap7)} tài sản còn ≤ 7 ngày</span></div>}
+                  trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(gap7)} {t("tài sản còn ≤ 7 ngày")}</span></div>}
                 />
                 <KpiCard
                   tone={tk.da_het ? "red" : "blue-light"}
                   icon={<AlertTriangle size={20} className="text-white" />}
                   watermark={<AlertTriangle size={52} />}
-                  label="Đã hết hạn bảo hành"
+                  label={t("Đã hết hạn bảo hành")}
                   value={fmtSo(tk.da_het)}
                   tangLaXau
                 />
@@ -739,12 +740,12 @@ export function BaoCaoScreen() {
                   tone="blue"
                   icon={<Package size={20} className="text-white" />}
                   watermark={<Package size={52} />}
-                  label="TS có dữ liệu bảo hành"
+                  label={t("TS có dữ liệu bảo hành")}
                   value={`${fmtSo(tk.co_han)}/${fmtSo(tk.tong)}`}
                   trend={
                     <div className="kpi-trend">
                       <span className="trend-bold">{tk.tong ? fmtSo((tk.co_han / tk.tong) * 100, 1) : 0}%</span>
-                      <span className="trend-sub">tài sản đang quản lý</span>
+                      <span className="trend-sub">{t("tài sản đang quản lý")}</span>
                     </div>
                   }
                 />
@@ -752,9 +753,9 @@ export function BaoCaoScreen() {
                   tone={tk.tong - tk.co_han ? "purple" : "blue"}
                   icon={<ClipboardList size={20} className="text-white" />}
                   watermark={<ClipboardList size={52} />}
-                  label="Chưa nhập hạn bảo hành"
+                  label={t("Chưa nhập hạn bảo hành")}
                   value={fmtSo(tk.tong - tk.co_han)}
-                  trend={<div className="kpi-trend"><span className="trend-sub">Cập nhật ở Danh mục tài sản</span></div>}
+                  trend={<div className="kpi-trend"><span className="trend-sub">{t("Cập nhật ở Danh mục tài sản")}</span></div>}
                   onClick={() => navigate("tai-san")}
                 />
               </div>
@@ -762,52 +763,52 @@ export function BaoCaoScreen() {
                 <div className="card-header">
                   <div className="card-title-wrap">
                     <ShieldCheck size={17} className="card-title-icon text-teal" />
-                    <h2 className="card-title">Tài sản sắp hết bảo hành</h2>
+                    <h2 className="card-title">{t("Tài sản sắp hết bảo hành")}</h2>
                   </div>
-                  <TimKiem value={tim} onChange={setTim} placeholder="Tìm mã, tên, nhà cung cấp..." />
+                  <TimKiem value={tim} onChange={setTim} placeholder={t("Tìm mã, tên, nhà cung cấp...")} />
                 </div>
                 <div className="task-table-wrapper">
                   <table className="task-table">
                     <thead>
                       <tr>
-                        <th style={{ width: "15%" }}>Mã tài sản</th>
-                        <th>Tên tài sản</th>
-                        <th style={{ width: "13%" }}>Hạn bảo hành</th>
-                        <th style={{ width: "10%", textAlign: "right" }}>Còn lại</th>
-                        <th style={{ width: "16%" }}>Nhà cung cấp</th>
-                        <th style={{ width: "18%" }}>Người giữ / kho</th>
+                        <th style={{ width: "15%" }}>{t("Mã tài sản")}</th>
+                        <th>{t("Tên tài sản")}</th>
+                        <th style={{ width: "13%" }}>{t("Hạn bảo hành")}</th>
+                        <th style={{ width: "10%", textAlign: "right" }}>{t("Còn lại")}</th>
+                        <th style={{ width: "16%" }}>{t("Nhà cung cấp")}</th>
+                        <th style={{ width: "18%" }}>{t("Người giữ / kho")}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {dsBh.length === 0 && (
                         <Rong cot={6}>
                           {tk.co_han === 0
-                            ? "Chưa có tài sản nào được nhập hạn bảo hành - báo cáo sẽ có số liệu khi cập nhật hạn bảo hành trong Danh mục tài sản."
-                            : `Không có tài sản nào hết bảo hành trong ${d.res.so_ngay} ngày tới.`}
+                            ? t("Chưa có tài sản nào được nhập hạn bảo hành - báo cáo sẽ có số liệu khi cập nhật hạn bảo hành trong Danh mục tài sản.")
+                            : t("Không có tài sản nào hết bảo hành trong {so_ngay} ngày tới.", { so_ngay: d.res.so_ngay })}
                         </Rong>
                       )}
                       {tBh.dongTrang.map((r) => (
                         <tr key={r.id} className={r.con_lai <= 7 ? "row-overdue" : undefined}>
-                          <td data-label="Mã tài sản">
+                          <td data-label={t("Mã tài sản")}>
                             <span className="code-link" onClick={() => moTaiSan(r.id)}>
                               {r.id}
                             </span>
                           </td>
-                          <td data-label="Tên tài sản">{r.ten_ccdc}</td>
-                          <td data-label="Hạn bảo hành">{fmtNgay(r.han_bao_hanh)}</td>
-                          <td data-label="Còn lại" style={{ textAlign: "right" }} className={r.con_lai <= 7 ? "text-danger strong" : undefined}>
-                            {fmtSo(r.con_lai)} ngày
+                          <td data-label={t("Tên tài sản")}>{r.ten_ccdc}</td>
+                          <td data-label={t("Hạn bảo hành")}>{fmtNgay(r.han_bao_hanh)}</td>
+                          <td data-label={t("Còn lại")} style={{ textAlign: "right" }} className={r.con_lai <= 7 ? "text-danger strong" : undefined}>
+                            {fmtSo(r.con_lai)} {t("ngày")}
                           </td>
-                          <td data-label="Nhà cung cấp" className="text-secondary">
+                          <td data-label={t("Nhà cung cấp")} className="text-secondary">
                             {r.nha_cung_cap ?? "-"}
                           </td>
-                          <td data-label="Người giữ / kho">{r.nguoi_dang_giu_ten ?? r.ten_kho ?? "-"}</td>
+                          <td data-label={t("Người giữ / kho")}>{r.nguoi_dang_giu_ten ?? r.ten_kho ?? "-"}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                <PhanTrang trang={tBh.trang} tong={tBh.tong} onDoi={tBh.setTrang} donVi="tài sản" />
+                <PhanTrang trang={tBh.trang} tong={tBh.tong} onDoi={tBh.setTrang} donVi={t("tài sản")} />
               </div>
             </>
           );
@@ -825,35 +826,35 @@ export function BaoCaoScreen() {
                   tone={d.rows.length ? "red" : "cyan"}
                   icon={<AlertTriangle size={20} className="text-white" />}
                   watermark={<AlertTriangle size={52} />}
-                  label="Tổng chênh lệch"
+                  label={t("Tổng chênh lệch")}
                   value={fmtSo(d.rows.length)}
                   tangLaXau
-                  trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(new Set(d.rows.map((r) => r.dot_kiem_ke_id)).size)} đợt kiểm kê</span></div>}
+                  trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(new Set(d.rows.map((r) => r.dot_kiem_ke_id)).size)} {t("đợt kiểm kê")}</span></div>}
                   onClick={() => navigate("kiem-ke")}
                 />
                 <KpiCard
                   tone={thieu.length ? "yellow" : "blue-light"}
                   icon={<Package size={20} className="text-white" />}
                   watermark={<Package size={52} />}
-                  label="Thiếu (không tìm thấy)"
+                  label={t("Thiếu (không tìm thấy)")}
                   value={fmtSo(thieu.length)}
-                  trend={<div className="kpi-trend"><span className="trend-sub">Nguyên giá {fmtGiaTri(thieu.reduce((s, r) => s + (r.nguyen_gia ?? 0), 0))}</span></div>}
+                  trend={<div className="kpi-trend"><span className="trend-sub">{t("Nguyên giá")} {fmtGiaTri(thieu.reduce((s, r) => s + (r.nguyen_gia ?? 0), 0))}</span></div>}
                 />
                 <KpiCard
                   tone="purple"
                   icon={<Trash2 size={20} className="text-white" />}
                   watermark={<Trash2 size={52} />}
-                  label="Phát hiện hỏng"
+                  label={t("Phát hiện hỏng")}
                   value={fmtSo(dem("Hong").length)}
-                  trend={<div className="kpi-trend"><span className="trend-sub">Cần lập phiếu báo hỏng</span></div>}
+                  trend={<div className="kpi-trend"><span className="trend-sub">{t("Cần lập phiếu báo hỏng")}</span></div>}
                 />
                 <KpiCard
                   tone="blue"
                   icon={<Users size={20} className="text-white" />}
                   watermark={<Users size={52} />}
-                  label="Sai người giữ / thừa"
+                  label={t("Sai người giữ / thừa")}
                   value={fmtSo(dem("Sai nguoi giu").length + dem("Thua").length)}
-                  trend={<div className="kpi-trend"><span className="trend-sub">Điều chỉnh qua phiếu điều chuyển</span></div>}
+                  trend={<div className="kpi-trend"><span className="trend-sub">{t("Điều chỉnh qua phiếu điều chuyển")}</span></div>}
                   onClick={() => navigate("giao-nhan")}
                 />
               </div>
@@ -861,60 +862,60 @@ export function BaoCaoScreen() {
                 <div className="card-header">
                   <div className="card-title-wrap">
                     <ClipboardList size={17} className="card-title-icon text-teal" />
-                    <h2 className="card-title">Chênh lệch kiểm kê</h2>
+                    <h2 className="card-title">{t("Chênh lệch kiểm kê")}</h2>
                   </div>
-                  <TimKiem value={tim} onChange={setTim} placeholder="Tìm mã, tên tài sản..." />
+                  <TimKiem value={tim} onChange={setTim} placeholder={t("Tìm mã, tên tài sản...")} />
                 </div>
                 <div className="task-table-wrapper">
                   <table className="task-table">
                     <thead>
                       <tr>
-                        <th style={{ width: "13%" }}>Đợt</th>
-                        <th style={{ width: "14%" }}>Mã tài sản</th>
-                        <th>Tên tài sản</th>
-                        <th style={{ width: "16%" }}>Hệ thống ghi nhận</th>
-                        <th style={{ width: "11%", textAlign: "center" }}>Thực tế</th>
-                        <th style={{ width: "15%" }}>Người giữ thực tế / ghi chú</th>
-                        <th style={{ width: "11%" }}>Thời điểm</th>
+                        <th style={{ width: "13%" }}>{t("Đợt")}</th>
+                        <th style={{ width: "14%" }}>{t("Mã tài sản")}</th>
+                        <th>{t("Tên tài sản")}</th>
+                        <th style={{ width: "16%" }}>{t("Hệ thống ghi nhận")}</th>
+                        <th style={{ width: "11%", textAlign: "center" }}>{t("Thực tế")}</th>
+                        <th style={{ width: "15%" }}>{t("Người giữ thực tế / ghi chú")}</th>
+                        <th style={{ width: "11%" }}>{t("Thời điểm")}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {dsCl.length === 0 && <Rong cot={7}>Không có chênh lệch nào được ghi nhận.</Rong>}
+                      {dsCl.length === 0 && <Rong cot={7}>{t("Không có chênh lệch nào được ghi nhận.")}</Rong>}
                       {tCl.dongTrang.map((r) => {
                         const tt = TINH_TRANG_KIEM_KE[r.tinh_trang_thuc_te];
                         return (
                           <tr key={r.id}>
-                            <td data-label="Đợt">
+                            <td data-label={t("Đợt")}>
                               <span className="code-link" title={r.ten_dot} onClick={() => navigate("kiem-ke", { dot: r.dot_kiem_ke_id })}>
                                 {r.ma_dot ?? r.ten_dot}
                               </span>
                             </td>
-                            <td data-label="Mã tài sản">
+                            <td data-label={t("Mã tài sản")}>
                               <span className="code-link" onClick={() => moTaiSan(r.ccdc_id)}>
                                 {r.ccdc_id}
                               </span>
                             </td>
-                            <td data-label="Tên tài sản">{r.ten_ccdc}</td>
-                            <td data-label="Hệ thống" className="text-secondary">
+                            <td data-label={t("Tên tài sản")}>{r.ten_ccdc}</td>
+                            <td data-label={t("Hệ thống")} className="text-secondary">
                               {r.he_thong_nguoi_giu_ten ?? r.he_thong_kho ?? "-"}
                             </td>
-                            <td data-label="Thực tế" style={{ textAlign: "center" }}>
+                            <td data-label={t("Thực tế")} style={{ textAlign: "center" }}>
                               <StatusBadge label={tt?.label ?? r.tinh_trang_thuc_te} tone={tt?.tone ?? "danger"} />
                             </td>
-                            <td data-label="Người giữ thực tế">
+                            <td data-label={t("Người giữ thực tế")}>
                               <div className="cell-stack">
                                 <span>{r.nguoi_dang_giu_thuc_te_ten ?? "-"}</span>
                                 {r.ghi_chu && <span className="small text-secondary">{r.ghi_chu}</span>}
                               </div>
                             </td>
-                            <td data-label="Thời điểm">{fmtNgayGio(r.kiem_ke_luc)}</td>
+                            <td data-label={t("Thời điểm")}>{fmtNgayGio(r.kiem_ke_luc)}</td>
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
                 </div>
-                <PhanTrang trang={tCl.trang} tong={tCl.tong} onDoi={tCl.setTrang} donVi="tài sản" />
+                <PhanTrang trang={tCl.trang} tong={tCl.tong} onDoi={tCl.setTrang} donVi={t("tài sản")} />
               </div>
             </>
           );
@@ -933,79 +934,79 @@ export function BaoCaoScreen() {
                   tone="cyan"
                   icon={<ClipboardList size={20} className="text-white" />}
                   watermark={<ClipboardList size={52} />}
-                  label="Phiếu đã hoàn tất"
+                  label={t("Phiếu đã hoàn tất")}
                   value={fmtSo(d.rows.length)}
                   trend={
                     <div className="kpi-trend">
                       <span className="trend-sub">
-                        {fmtSo(d.rows.filter((r) => r.loai === "Thanh ly").length)} thanh lý · {fmtSo(d.rows.filter((r) => r.loai === "Tieu huy").length)} tiêu hủy
+                        {fmtSo(d.rows.filter((r) => r.loai === "Thanh ly").length)} {t("thanh lý ·")} {fmtSo(d.rows.filter((r) => r.loai === "Tieu huy").length)} {t("tiêu hủy")}
                       </span>
                     </div>
                   }
                   onClick={() => navigate("thanh-ly")}
                 />
-                <KpiCard tone="blue-light" icon={<Package size={20} className="text-white" />} watermark={<Package size={52} />} label="Tài sản đã xử lý" value={fmtSo(soTs)} />
+                <KpiCard tone="blue-light" icon={<Package size={20} className="text-white" />} watermark={<Package size={52} />} label={t("Tài sản đã xử lý")} value={fmtSo(soTs)} />
                 <KpiCard
                   tone="purple"
                   icon={<Trash2 size={20} className="text-white" />}
                   watermark={<Trash2 size={52} />}
-                  label="Nguyên giá đã ghi giảm"
+                  label={t("Nguyên giá đã ghi giảm")}
                   value={fmtGiaTri(ng)}
                 />
                 <KpiCard
                   tone="blue"
                   icon={<BarChart2 size={20} className="text-white" />}
                   watermark={<BarChart2 size={52} />}
-                  label="Giá trị thu hồi"
+                  label={t("Giá trị thu hồi")}
                   value={fmtGiaTri(thuHoi)}
-                  trend={<div className="kpi-trend"><span className="trend-sub">{ng ? `${fmtSo((thuHoi / ng) * 100, 1)}% nguyên giá` : "Chưa có phát sinh"}</span></div>}
+                  trend={<div className="kpi-trend"><span className="trend-sub">{ng ? t("{x}% nguyên giá", { x: fmtSo((thuHoi / ng) * 100, 1) }) : t("Chưa có phát sinh")}</span></div>}
                 />
               </div>
               <div className="content-card task-card-full">
                 <div className="card-header">
                   <div className="card-title-wrap">
                     <Trash2 size={17} className="card-title-icon text-teal" />
-                    <h2 className="card-title">Tài sản đã thanh lý / tiêu hủy</h2>
+                    <h2 className="card-title">{t("Tài sản đã thanh lý / tiêu hủy")}</h2>
                   </div>
-                  <TimKiem value={tim} onChange={setTim} placeholder="Tìm mã phiếu, tài sản, lý do..." />
+                  <TimKiem value={tim} onChange={setTim} placeholder={t("Tìm mã phiếu, tài sản, lý do...")} />
                 </div>
                 <div className="task-table-wrapper">
                   <table className="task-table">
                     <thead>
                       <tr>
-                        <th style={{ width: "14%" }}>Mã phiếu</th>
-                        <th style={{ width: "10%" }}>Hình thức</th>
-                        <th>Tài sản</th>
-                        <th style={{ width: "11%" }}>Ngày đề xuất</th>
-                        <th style={{ width: "12%", textAlign: "right" }}>Nguyên giá</th>
-                        <th style={{ width: "12%", textAlign: "right" }}>Thu hồi</th>
+                        <th style={{ width: "14%" }}>{t("Mã phiếu")}</th>
+                        <th style={{ width: "10%" }}>{t("Hình thức")}</th>
+                        <th>{t("Tài sản")}</th>
+                        <th style={{ width: "11%" }}>{t("Ngày đề xuất")}</th>
+                        <th style={{ width: "12%", textAlign: "right" }}>{t("Nguyên giá")}</th>
+                        <th style={{ width: "12%", textAlign: "right" }}>{t("Thu hồi")}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {dsTl.length === 0 && <Rong cot={6}>Chưa có tài sản nào đã thanh lý / tiêu hủy{nam ? ` trong năm ${nam}` : ""}.</Rong>}
+                      {dsTl.length === 0 && <Rong cot={6}>{t("Chưa có tài sản nào đã thanh lý / tiêu hủy")}{nam ? t(" trong năm {nam}", { nam }) : ""}.</Rong>}
                       {tTl.dongTrang.map((r) => (
                         <tr key={r.id}>
-                          <td data-label="Mã phiếu">
+                          <td data-label={t("Mã phiếu")}>
                             <span className="code-link" onClick={() => moPhieu("xu_ly", r.id)}>
                               {r.ma_phieu ?? r.id.slice(0, 8)}
                             </span>
                           </td>
-                          <td data-label="Hình thức">
-                            <StatusBadge label={r.loai === "Tieu huy" ? "Tiêu hủy" : "Thanh lý"} tone={r.loai === "Tieu huy" ? "danger" : "warning"} />
+                          <td data-label={t("Hình thức")}>
+                            <StatusBadge label={r.loai === "Tieu huy" ? t("Tiêu hủy") : t("Thanh lý")} tone={r.loai === "Tieu huy" ? "danger" : "warning"} />
                           </td>
-                          <td data-label="Tài sản">
+                          <td data-label={t("Tài sản")}>
                             <div className="cell-stack">
                               <span>
                                 {fmtSo(r.so_luong_ccdc)} TS: {r.tom_tat ?? "-"}
                               </span>
-                              {r.ly_do && <span className="small text-secondary">Lý do: {r.ly_do}</span>}
+                              {r.ly_do && <span className="small text-secondary">{t("Lý do:")} {r.ly_do}</span>}
                             </div>
                           </td>
-                          <td data-label="Ngày đề xuất">{fmtNgay(r.ngay_de_xuat)}</td>
-                          <td data-label="Nguyên giá" style={{ textAlign: "right" }}>
+                          <td data-label={t("Ngày đề xuất")}>{fmtNgay(r.ngay_de_xuat)}</td>
+                          <td data-label={t("Nguyên giá")} style={{ textAlign: "right" }}>
                             {fmtGiaTri(r.nguyen_gia)}
                           </td>
-                          <td data-label="Thu hồi" style={{ textAlign: "right" }}>
+                          <td data-label={t("Thu hồi")} style={{ textAlign: "right" }}>
                             {r.gia_tri_thu_hoi != null ? fmtGiaTri(r.gia_tri_thu_hoi) : "-"}
                           </td>
                         </tr>
@@ -1013,7 +1014,7 @@ export function BaoCaoScreen() {
                     </tbody>
                   </table>
                 </div>
-                <PhanTrang trang={tTl.trang} tong={tTl.tong} onDoi={tTl.setTrang} donVi="phiếu" />
+                <PhanTrang trang={tTl.trang} tong={tTl.tong} onDoi={tTl.setTrang} donVi={t("phiếu")} />
               </div>
             </>
           );

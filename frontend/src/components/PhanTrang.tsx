@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { fmtSo } from "../lib/format";
@@ -24,7 +25,7 @@ export function PhanTrang({
   trang,
   tong,
   onDoi,
-  donVi = "dòng",
+  donVi = t("dòng"),
   ghiChu,
   kichThuoc = KICH_THUOC_TRANG,
 }: {
@@ -51,8 +52,8 @@ export function PhanTrang({
         {ghiChu}
       </span>
       {soTrang > 1 && (
-        <div className="phan-trang-nut" role="navigation" aria-label="Phân trang">
-          <button type="button" className="phan-trang-btn" disabled={trang <= 1} onClick={() => onDoi(trang - 1)} aria-label="Trang trước">
+        <div className="phan-trang-nut" role="navigation" aria-label={t("Phân trang")}>
+          <button type="button" className="phan-trang-btn" disabled={trang <= 1} onClick={() => onDoi(trang - 1)} aria-label={t("Trang trước")}>
             <ChevronLeft size={14} />
           </button>
           {soTrangHien(trang, soTrang).map((x, i) =>
@@ -66,7 +67,7 @@ export function PhanTrang({
               </button>
             ),
           )}
-          <button type="button" className="phan-trang-btn" disabled={trang >= soTrang} onClick={() => onDoi(trang + 1)} aria-label="Trang sau">
+          <button type="button" className="phan-trang-btn" disabled={trang >= soTrang} onClick={() => onDoi(trang + 1)} aria-label={t("Trang sau")}>
             <ChevronRight size={14} />
           </button>
         </div>

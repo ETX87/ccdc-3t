@@ -1,3 +1,4 @@
+import { t, tS } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -80,7 +81,7 @@ function mocDep(max: number): number {
   return buoc * mu;
 }
 function donVi(max: number): { chia: number; ten: string } {
-  return max >= 1e9 ? { chia: 1e9, ten: "Tỷ đồng" } : { chia: 1e6, ten: "Triệu đồng" };
+  return max >= 1e9 ? { chia: 1e9, ten: t("Tỷ đồng") } : { chia: 1e6, ten: t("Triệu đồng") };
 }
 function duongCong(pts: { x: number; y: number }[]): string {
   if (!pts.length) return "";
@@ -140,14 +141,14 @@ function BieuDoThang({ data }: { data: TongQuan["theo_thang"] }) {
           const h = Y1 - y(d.chi_phi_mua, maxMua);
           return (
             <rect key={d.thang} x={pts[i].x - 6.5} y={Y1 - h} width="13" height={Math.max(h, d.chi_phi_mua > 0 ? 1 : 0)} rx="1.5" fill="url(#barGrad)">
-              <title>{`${fmtThang(d.thang)} - Chi phí mua sắm: ${fmtGiaTri(d.chi_phi_mua)}`}</title>
+              <title>{t("{x} - Chi phí mua sắm: {x2}", { x: fmtThang(d.thang), x2: fmtGiaTri(d.chi_phi_mua) })}</title>
             </rect>
           );
         })}
         <path d={duongCong(pts)} fill="none" stroke="#00A2B4" strokeWidth="2.2" strokeLinecap="round" />
         {data.map((d, i) => (
           <circle key={d.thang} cx={pts[i].x} cy={pts[i].y} r="3.2" fill="#00A2B4" stroke="#FFFFFF" strokeWidth="1.5">
-            <title>{`${fmtThang(d.thang)} - Tổng giá trị: ${fmtGiaTri(d.tong_gia_tri)}`}</title>
+            <title>{t("{x} - Tổng giá trị: {x2}", { x: fmtThang(d.thang), x2: fmtGiaTri(d.tong_gia_tri) })}</title>
           </circle>
         ))}
         {data.map((d, i) => (
@@ -188,7 +189,7 @@ function Donut({ nhom, onChon }: { nhom: TongQuan["theo_nhom"]; onChon: (n: Tong
                   className="donut-slice"
                   onClick={() => onChon(n)}
                 >
-                  <title>{`${n.ten}: ${fmtGiaTri(n.gia_tri)} (${fmtSo(n.so_luong)} ${n.loai === "tieu_hao" ? "đơn vị" : "tài sản"})`}</title>
+                  <title>{`${tS(n.ten)}: ${fmtGiaTri(n.gia_tri)} (${fmtSo(n.so_luong)} ${n.loai === "tieu_hao" ? t("đơn vị") : t("tài sản")})`}</title>
                 </circle>
               );
               daVe += dai;
@@ -196,19 +197,19 @@ function Donut({ nhom, onChon }: { nhom: TongQuan["theo_nhom"]; onChon: (n: Tong
             })}
         </svg>
         <div className="donut-center-info">
-          <div className="donut-center-label">Tổng giá trị</div>
+          <div className="donut-center-label">{t("Tổng giá trị")}</div>
           <div className="donut-center-val">{fmtGiaTri(tong)}</div>
         </div>
       </div>
       <div className="donut-legend-list">
-        {nhom.length === 0 && <div className="muted small">Chưa có tài sản.</div>}
+        {nhom.length === 0 && <div className="muted small">{t("Chưa có tài sản.")}</div>}
         {nhom.map((n, i) => (
           <div key={n.ten} className="donut-legend-row legend-clickable" onClick={() => onChon(n)} role="button" tabIndex={0}>
             <div className="legend-left">
               <span className={`dot ${mauCua(n, i).dot}`}></span>
               <div className="legend-text-col">
-                <span className="legend-title" title={n.ten}>
-                  {n.ten}
+                <span className="legend-title" title={tS(n.ten)}>
+                  {tS(n.ten)}
                 </span>
                 <span className="legend-pct">{tong ? Math.round((n.gia_tri / tong) * 100) : 0}%</span>
               </div>
@@ -276,7 +277,7 @@ export function TongQuanScreen() {
       setData(tq);
       setCanhBao(cb.rows);
     } catch (e) {
-      setLoi(thongBaoLoi(e, "Không tải được số liệu tổng quan."));
+      setLoi(thongBaoLoi(e, t("Không tải được số liệu tổng quan.")));
     } finally {
       setDangTai(false);
     }
@@ -299,12 +300,12 @@ export function TongQuanScreen() {
 
   const k = data?.kpi;
   const thang = data ? data.theo_thang.slice(-soThang) : [];
-  const moTaKy = data ? `so với kỳ trước` : "";
+  const moTaKy = data ? t("so với kỳ trước") : "";
 
   return (
     <div className="dashboard-container">
       <PageHeader
-        title="Tổng quan tài sản"
+        title={t("Tổng quan tài sản")}
         filters={
           <>
             <DateRangeFilter value={khoang} onChange={setKhoang} />
@@ -330,56 +331,56 @@ export function TongQuanScreen() {
               <span className="bar b4"></span>
             </div>
           }
-          label="Tổng tài sản"
+          label={t("Tổng tài sản")}
           value={k ? fmtSo(k.tong_ts.so_luong) : "…"}
           xuHuong={k?.tong_ts.xu_huong}
           moTaXuHuong={moTaKy}
-          subtext={k ? `Giá trị: ${fmtGiaTriDong(k.tong_ts.gia_tri)}` : undefined}
+          subtext={k ? t("Giá trị: {x}", { x: fmtGiaTriDong(k.tong_ts.gia_tri) }) : undefined}
           onClick={diToi("tai-san")}
         />
         <KpiCard
           tone="blue-light"
           icon={<Store size={20} className="text-white" />}
           watermark={<Store size={52} />}
-          label={k?.trong_kho.nhan ?? "Trong kho HCNS"}
+          label={k ? tS(k.trong_kho.nhan) : t("Trong kho HCNS")}
           value={k ? fmtSo(k.trong_kho.so_luong) : "…"}
           xuHuong={k?.trong_kho.xu_huong}
           moTaXuHuong={moTaKy}
-          subtext={k ? `Giá trị: ${fmtGiaTriDong(k.trong_kho.gia_tri)}` : undefined}
+          subtext={k ? t("Giá trị: {x}", { x: fmtGiaTriDong(k.trong_kho.gia_tri) }) : undefined}
           onClick={diToi("tai-san", { trang_thai: "Trong kho" })}
         />
         <KpiCard
           tone="blue"
           icon={<User size={20} className="text-white" />}
           watermark={<Users size={52} />}
-          label="Đang sử dụng"
+          label={t("Đang sử dụng")}
           value={k ? fmtSo(k.dang_su_dung.so_luong) : "…"}
           xuHuong={k?.dang_su_dung.xu_huong}
           moTaXuHuong={moTaKy}
-          subtext={k ? `Giá trị: ${fmtGiaTriDong(k.dang_su_dung.gia_tri)}` : undefined}
+          subtext={k ? t("Giá trị: {x}", { x: fmtGiaTriDong(k.dang_su_dung.gia_tri) }) : undefined}
           onClick={diToi("tai-san", { trang_thai: "Dang cap phat" })}
         />
         <KpiCard
           tone="purple"
           icon={<Tag size={20} className="text-white" />}
           watermark={<Box size={52} />}
-          label="Tài sản tiêu hao đã cấp"
+          label={t("Tài sản tiêu hao đã cấp")}
           value={k ? fmtSo(k.tieu_hao_da_cap.so_luong) : "…"}
           xuHuong={k?.tieu_hao_da_cap.xu_huong}
           moTaXuHuong={moTaKy}
-          subtext={k ? `Giá trị: ${fmtGiaTriDong(k.tieu_hao_da_cap.gia_tri)} · ${fmtSo(k.tieu_hao_da_cap.so_phieu)} phiếu` : undefined}
+          subtext={k ? t("Giá trị: {x} · {x2} phiếu", { x: fmtGiaTriDong(k.tieu_hao_da_cap.gia_tri), x2: fmtSo(k.tieu_hao_da_cap.so_phieu) }) : undefined}
           onClick={diToi("cap-phat", { tab: "phieu" })}
         />
         <KpiCard
           tone="yellow"
           icon={<Clock size={20} className="text-white" />}
           watermark={<Clock size={52} />}
-          label="Chờ kế toán duyệt"
+          label={t("Chờ kế toán duyệt")}
           value={k ? fmtSo(k.cho_ke_toan.so_luong) : "…"}
           xuHuong={k?.cho_ke_toan.xu_huong}
           moTaXuHuong={moTaKy}
           tangLaXau
-          subtext={k ? `Giá trị: ${fmtGiaTriDong(k.cho_ke_toan.gia_tri)}` : undefined}
+          subtext={k ? t("Giá trị: {x}", { x: fmtGiaTriDong(k.cho_ke_toan.gia_tri) }) : undefined}
           onClick={diToi("viec-can-lam", { tab: "cho-duyet" })}
         />
       </div>
@@ -390,27 +391,27 @@ export function TongQuanScreen() {
           <div className="card-header">
             <div className="card-title-wrap">
               <BarChart2 size={17} className="card-title-icon text-teal" />
-              <h2 className="card-title">Giá trị tài sản theo tháng</h2>
+              <h2 className="card-title">{t("Giá trị tài sản theo tháng")}</h2>
             </div>
             <div className="chart-legend-group">
               <div className="legend-item">
                 <span className="legend-line-dot"></span>
-                <span className="legend-label">Tổng giá trị</span>
+                <span className="legend-label">{t("Tổng giá trị")}</span>
               </div>
               <div className="legend-item">
                 <span className="legend-bar-square"></span>
-                <span className="legend-label">Chi phí mua sắm</span>
+                <span className="legend-label">{t("Chi phí mua sắm")}</span>
               </div>
-              <select className="chart-dropdown" value={soThang} onChange={(e) => setSoThang(Number(e.target.value))} aria-label="Số tháng">
-                <option value={12}>12 tháng</option>
-                <option value={6}>6 tháng</option>
+              <select className="chart-dropdown" value={soThang} onChange={(e) => setSoThang(Number(e.target.value))} aria-label={t("Số tháng")}>
+                <option value={12}>{t("12 tháng")}</option>
+                <option value={6}>{t("6 tháng")}</option>
               </select>
             </div>
           </div>
           {data ? <BieuDoThang data={thang} /> : <div className="monthly-chart-wrap" />}
           {data && data.ts_thieu_ngay_mua > 0 && (
-            <div className="chart-note" title="Tài sản nhập từ dữ liệu cũ không có ngày mua được tính vào giá trị đầu kỳ, không tính vào chi phí mua sắm theo tháng.">
-              * {fmtSo(data.ts_thieu_ngay_mua)} tài sản thiếu ngày mua - tính vào giá trị đầu kỳ
+            <div className="chart-note" title={t("Tài sản nhập từ dữ liệu cũ không có ngày mua được tính vào giá trị đầu kỳ, không tính vào chi phí mua sắm theo tháng.")}>
+              * {fmtSo(data.ts_thieu_ngay_mua)} {t("tài sản thiếu ngày mua - tính vào giá trị đầu kỳ")}
             </div>
           )}
         </div>
@@ -419,7 +420,7 @@ export function TongQuanScreen() {
           <div className="card-header">
             <div className="card-title-wrap">
               <PieChart size={17} className="card-title-icon text-teal" />
-              <h2 className="card-title">Phân bổ theo nhóm tài sản</h2>
+              <h2 className="card-title">{t("Phân bổ theo nhóm tài sản")}</h2>
             </div>
           </div>
           <Donut
@@ -436,7 +437,7 @@ export function TongQuanScreen() {
           <div className="card-header">
             <div className="card-title-wrap">
               <GitBranch size={17} className="card-title-icon text-teal" />
-              <h2 className="card-title">Luồng tài sản</h2>
+              <h2 className="card-title">{t("Luồng tài sản")}</h2>
             </div>
           </div>
           <div className="flow-content-layout">
@@ -445,30 +446,30 @@ export function TongQuanScreen() {
                 <div className="flow-icon-circle bg-cyan-light">
                   <ShoppingCart size={17} className="text-teal" />
                 </div>
-                <div className="flow-node-title">Nhập hàng</div>
-                <div className="flow-node-desc">(từ bên ngoài)</div>
+                <div className="flow-node-title">{t("Nhập hàng")}</div>
+                <div className="flow-node-desc">{t("(từ bên ngoài)")}</div>
               </NutLuong>
               <div className="flow-arrow-horizontal">→</div>
               <NutLuong so={data?.luong.cho_ke_toan ?? 0} onClick={diToi("viec-can-lam", { tab: "cho-duyet" })}>
                 <div className="flow-icon-circle bg-cyan-light">
                   <FileText size={17} className="text-teal" />
                 </div>
-                <div className="flow-node-title">Chờ KT</div>
-                <div className="flow-node-desc">duyệt</div>
+                <div className="flow-node-title">{t("Chờ KT")}</div>
+                <div className="flow-node-desc">{t("duyệt")}</div>
               </NutLuong>
               <div className="flow-arrow-horizontal">→</div>
               <NutLuong so={data?.luong.kho_hcns ?? 0} onClick={diToi("tai-san", { trang_thai: "Trong kho" })}>
                 <div className="flow-icon-circle bg-cyan-light">
                   <Store size={17} className="text-teal" />
                 </div>
-                <div className="flow-node-title">{data && !data.toan_bo ? "Trong kho" : "Kho HCNS"}</div>
+                <div className="flow-node-title">{data && !data.toan_bo ? t("Trong kho") : t("Kho HCNS")}</div>
               </NutLuong>
               <div className="flow-arrow-horizontal">→</div>
               <NutLuong so={data?.luong.ban_giao ?? 0} onClick={diToi("canh-bao", { loai: "cho-ban-giao" })}>
                 <div className="flow-icon-circle bg-cyan-light">
                   <UserCheck size={17} className="text-teal" />
                 </div>
-                <div className="flow-node-title">Bàn giao</div>
+                <div className="flow-node-title">{t("Bàn giao")}</div>
               </NutLuong>
             </div>
             <div className="flow-down-connector">
@@ -479,23 +480,23 @@ export function TongQuanScreen() {
                 <div className="flow-icon-circle bg-red-light">
                   <AlertTriangle size={17} className="text-red" />
                 </div>
-                <div className="flow-node-title">Thu hồi /</div>
-                <div className="flow-node-desc">Báo hỏng</div>
+                <div className="flow-node-title">{t("Thu hồi /")}</div>
+                <div className="flow-node-desc">{t("Báo hỏng")}</div>
               </NutLuong>
               <div className="flow-arrow-horizontal">←</div>
               <NutLuong so={data?.luong.xu_ly ?? 0} onClick={diToi("thanh-ly")}>
                 <div className="flow-icon-circle bg-cyan-light">
                   <Trash2 size={17} className="text-teal" />
                 </div>
-                <div className="flow-node-title">Thanh lý /</div>
-                <div className="flow-node-desc">Tiêu hủy</div>
+                <div className="flow-node-title">{t("Thanh lý /")}</div>
+                <div className="flow-node-desc">{t("Tiêu hủy")}</div>
               </NutLuong>
               <div className="flow-arrow-horizontal">←</div>
               <NutLuong className="flow-pill-active" so={data?.luong.dang_su_dung ?? 0} onClick={diToi("tai-san", { trang_thai: "Dang cap phat" })}>
                 <User size={15} className="text-teal" />
                 <div className="flow-pill-text">
-                  <span>Đang sử dụng /</span>
-                  <span>Đã tiêu hao</span>
+                  <span>{t("Đang sử dụng /")}</span>
+                  <span>{t("Đã tiêu hao")}</span>
                 </div>
               </NutLuong>
             </div>
@@ -509,10 +510,10 @@ export function TongQuanScreen() {
           <div className="card-header">
             <div className="card-title-wrap">
               <ClipboardCheck size={17} className="card-title-icon text-teal" />
-              <h2 className="card-title">Việc cần xử lý</h2>
+              <h2 className="card-title">{t("Việc cần xử lý")}</h2>
             </div>
             <button type="button" className="card-header-link" onClick={() => navigate("viec-can-lam", { tab: tabViec })}>
-              <span>Xem tất cả</span>
+              <span>{t("Xem tất cả")}</span>
               <ArrowRight size={13} />
             </button>
           </div>
@@ -520,17 +521,17 @@ export function TongQuanScreen() {
             value={tabViec}
             onChange={setTabViec}
             tabs={[
-              { key: "tat-ca", label: "Tất cả", count: viec?.tabs["tat-ca"] ?? 0 },
-              { key: "cho-duyet", label: "Chờ duyệt", count: viec?.tabs["cho-duyet"] ?? 0 },
-              { key: "cap-phat", label: "Cấp phát", count: viec?.tabs["cap-phat"] ?? 0 },
-              { key: "ban-giao", label: "Bàn giao", count: viec?.tabs["ban-giao"] ?? 0 },
-              { key: "khac", label: "Khác", count: viec?.tabs.khac ?? 0 },
+              { key: "tat-ca", label: t("Tất cả"), count: viec?.tabs["tat-ca"] ?? 0 },
+              { key: "cho-duyet", label: t("Chờ duyệt"), count: viec?.tabs["cho-duyet"] ?? 0 },
+              { key: "cap-phat", label: t("Cấp phát"), count: viec?.tabs["cap-phat"] ?? 0 },
+              { key: "ban-giao", label: t("Bàn giao"), count: viec?.tabs["ban-giao"] ?? 0 },
+              { key: "khac", label: t("Khác"), count: viec?.tabs.khac ?? 0 },
             ]}
           />
-          <ViecTable rows={viecRows} trong={viec ? "Không có việc cần xử lý." : "Đang tải…"} />
+          <ViecTable rows={viecRows} trong={viec ? t("Không có việc cần xử lý.") : t("Đang tải…")} />
           <div className="table-footer-link-wrap">
             <button type="button" className="card-header-link" onClick={() => navigate("viec-can-lam", { tab: tabViec })}>
-              <span>Xem tất cả việc cần xử lý</span>
+              <span>{t("Xem tất cả việc cần xử lý")}</span>
               <ArrowRight size={13} />
             </button>
           </div>
@@ -540,15 +541,15 @@ export function TongQuanScreen() {
           <div className="card-header">
             <div className="card-title-wrap">
               <AlertTriangle size={17} className="card-title-icon text-red" />
-              <h2 className="card-title">Cảnh báo</h2>
+              <h2 className="card-title">{t("Cảnh báo")}</h2>
             </div>
             <button type="button" className="card-header-link" onClick={() => navigate("canh-bao", khoId ? { kho_id: khoId } : undefined)}>
-              <span>Xem tất cả</span>
+              <span>{t("Xem tất cả")}</span>
               <ArrowRight size={13} />
             </button>
           </div>
           <div className="alert-list">
-            {!canhBao && <div className="muted small">Đang tải…</div>}
+            {!canhBao && <div className="muted small">{t("Đang tải…")}</div>}
             {canhBao?.slice(0, 5).map((cb) => (
               <CanhBaoRow key={cb.loai} cb={cb} onClick={() => navigate("canh-bao", { loai: cb.loai, ...(khoId ? { kho_id: khoId } : {}) })} />
             ))}

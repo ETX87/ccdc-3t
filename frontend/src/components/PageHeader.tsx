@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import type { ReactNode } from "react";
 import { RotateCw } from "lucide-react";
 import { fmtNgayGio } from "../lib/format";
@@ -27,9 +28,9 @@ export function PageHeader({
       <div className="header-actions">
         {actions}
         {onRefresh && (
-          <button type="button" className="header-refresh-info" onClick={onRefresh} disabled={dangTai} title="Tải lại dữ liệu">
+          <button type="button" className="header-refresh-info" onClick={onRefresh} disabled={dangTai} title={t("Tải lại dữ liệu")}>
             <RotateCw size={13} className={`refresh-icon ${dangTai ? "spin" : ""}`} />
-            <span>{capNhatLuc ? `Cập nhật lúc ${fmtNgayGio(capNhatLuc).split(" ").reverse().join(" ")}` : "Tải lại"}</span>
+            <span>{capNhatLuc ? t("Cập nhật lúc {x}", { x: fmtNgayGio(capNhatLuc).split(" ").reverse().join(" ") }) : t("Tải lại")}</span>
           </button>
         )}
       </div>

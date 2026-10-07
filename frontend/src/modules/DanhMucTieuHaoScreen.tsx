@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, Edit, FolderTree, Package, Plus, Search, Tag, Trash2 } from "lucide-react";
 import { api } from "../api/client";
@@ -59,7 +60,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       setNhoms(n.rows.filter((x) => x.bat_tat));
       setCapNhatLuc(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
     } catch (e) {
-      setLoi(thongBaoLoi(e, "Không tải được danh mục vật tư."));
+      setLoi(thongBaoLoi(e, t("Không tải được danh mục vật tư.")));
       setRows([]);
     } finally {
       setDangTai(false);
@@ -111,7 +112,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
 
   async function submitForm() {
     if (!form.ten_vt.trim() || (!editingId && !form.id.trim())) {
-      setError("Vui lòng nhập đủ mã và tên vật tư.");
+      setError(t("Vui lòng nhập đủ mã và tên vật tư."));
       return;
     }
     setSaving(true);
@@ -127,10 +128,10 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       if (editingId) await api.put(`/vt-tieu-hao/${encodeURIComponent(editingId)}`, body);
       else await api.post("/vt-tieu-hao", body);
       setShowForm(false);
-      setMsg(editingId ? `Đã cập nhật ${body.ten_vt}.` : `Đã thêm ${body.ten_vt}.`);
+      setMsg(editingId ? t("Đã cập nhật {ten_vt}.", { ten_vt: body.ten_vt }) : t("Đã thêm {ten_vt}.", { ten_vt: body.ten_vt }));
       baoThayDoi();
     } catch (e) {
-      setError(thongBaoLoi(e, "Không lưu được - vui lòng thử lại."));
+      setError(thongBaoLoi(e, t("Không lưu được - vui lòng thử lại.")));
     } finally {
       setSaving(false);
     }
@@ -140,7 +141,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
     setXoa(null);
     try {
       await api.delete(`/vt-tieu-hao/${encodeURIComponent(row.id)}`);
-      setMsg(`Đã vô hiệu hoá ${row.ten_vt}.`);
+      setMsg(t("Đã vô hiệu hoá {ten_vt}.", { ten_vt: row.ten_vt }));
       baoThayDoi();
     } catch (e) {
       setLoi(thongBaoLoi(e));
@@ -150,12 +151,12 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
   return (
     <div className="dashboard-container">
       <PageHeader
-        title="Danh mục vật tư tiêu hao"
+        title={t("Danh mục vật tư tiêu hao")}
         filters={tabs}
         actions={
           canEdit && (
             <button className="btn btn-primary" onClick={openAdd}>
-              <Plus size={15} /> Thêm vật tư
+              <Plus size={15} /> {t("Thêm vật tư")}
             </button>
           )
         }
@@ -169,37 +170,37 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
           tone="cyan"
           icon={<Package size={20} className="text-white" />}
           watermark={<Package size={52} />}
-          label="Vật tư đang dùng"
+          label={t("Vật tư đang dùng")}
           value={fmtSo(tk.tong)}
-          trend={<div className="kpi-trend"><span className="trend-sub">Đang hoạt động trong danh mục</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{t("Đang hoạt động trong danh mục")}</span></div>}
           onClick={() => (setNhomLoc(""), setChiThieuGia(false))}
         />
         <KpiCard
           tone="purple"
           icon={<FolderTree size={20} className="text-white" />}
           watermark={<FolderTree size={52} />}
-          label="Nhóm vật tư"
+          label={t("Nhóm vật tư")}
           value={fmtSo(tk.soNhom)}
-          trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(tk.chuaNhom)} vật tư chưa phân nhóm</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{fmtSo(tk.chuaNhom)} {t("vật tư chưa phân nhóm")}</span></div>}
           onClick={() => setNhomLoc("none")}
         />
         <KpiCard
           tone={tk.thieuGia ? "yellow" : "blue-light"}
           icon={<Tag size={20} className="text-white" />}
           watermark={<Tag size={52} />}
-          label="Chưa có giá tham khảo"
+          label={t("Chưa có giá tham khảo")}
           value={fmtSo(tk.thieuGia)}
           tangLaXau
-          trend={<div className={`kpi-trend ${tk.thieuGia ? "trend-warning" : "trend-up"}`}><span className="trend-sub">Cần để tính giá trị tồn / cảnh báo đơn giá</span></div>}
+          trend={<div className={`kpi-trend ${tk.thieuGia ? "trend-warning" : "trend-up"}`}><span className="trend-sub">{t("Cần để tính giá trị tồn / cảnh báo đơn giá")}</span></div>}
           onClick={() => setChiThieuGia(true)}
         />
         <KpiCard
           tone="blue"
           icon={<FolderTree size={20} className="text-white" />}
           watermark={<FolderTree size={52} />}
-          label="Nhóm nhiều vật tư nhất"
+          label={t("Nhóm nhiều vật tư nhất")}
           value={fmtSo(tk.nhomLon?.[1].n ?? 0)}
-          trend={<div className="kpi-trend"><span className="trend-sub">{tk.nhomLon?.[1].ten ?? "Chưa có nhóm"}</span></div>}
+          trend={<div className="kpi-trend"><span className="trend-sub">{tk.nhomLon?.[1].ten ?? t("Chưa có nhóm")}</span></div>}
           onClick={tk.nhomLon ? () => setNhomLoc(String(tk.nhomLon![0])) : undefined}
         />
       </div>
@@ -211,12 +212,12 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
         <div className="filter-bar">
           <div className="topbar-search filter-search">
             <Search size={15} className="search-icon" />
-            <input className="search-input" placeholder="Tìm mã, tên vật tư..." value={tim} onChange={(e) => setTim(e.target.value)} />
+            <input className="search-input" placeholder={t("Tìm mã, tên vật tư...")} value={tim} onChange={(e) => setTim(e.target.value)} />
           </div>
           <label className="header-dropdown select-dropdown">
-            <select value={nhomLoc} onChange={(e) => setNhomLoc(e.target.value)} aria-label="Nhóm">
-              <option value="">Tất cả nhóm</option>
-              <option value="none">Chưa phân nhóm</option>
+            <select value={nhomLoc} onChange={(e) => setNhomLoc(e.target.value)} aria-label={t("Nhóm")}>
+              <option value="">{t("Tất cả nhóm")}</option>
+              <option value="none">{t("Chưa phân nhóm")}</option>
               {nhoms.map((n) => (
                 <option key={n.id} value={n.id}>
                   {n.ten_nhom}
@@ -227,63 +228,63 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
           </label>
           <label className="check-label">
             <input type="checkbox" checked={chiThieuGia} onChange={(e) => setChiThieuGia(e.target.checked)} />
-            Chỉ vật tư chưa có giá
+            {t("Chỉ vật tư chưa có giá")}
           </label>
           <span className="muted small">
-            {fmtSo(hienThi.length)}/{fmtSo(tk.tong)} vật tư
+            {fmtSo(hienThi.length)}/{fmtSo(tk.tong)} {t("vật tư")}
           </span>
         </div>
         <div className="task-table-wrapper">
           <table className="task-table">
             <thead>
               <tr>
-                <th style={{ width: "15%" }}>Mã</th>
-                <th>Tên vật tư</th>
-                <th style={{ width: "18%" }}>Nhóm</th>
-                <th style={{ width: "10%" }}>ĐVT</th>
-                <th style={{ width: "13%", textAlign: "right" }}>Giá tham khảo</th>
-                <th style={{ width: "16%", textAlign: "right" }}>Thao tác</th>
+                <th style={{ width: "15%" }}>{t("Mã")}</th>
+                <th>{t("Tên vật tư")}</th>
+                <th style={{ width: "18%" }}>{t("Nhóm")}</th>
+                <th style={{ width: "10%" }}>{t("ĐVT")}</th>
+                <th style={{ width: "13%", textAlign: "right" }}>{t("Giá tham khảo")}</th>
+                <th style={{ width: "16%", textAlign: "right" }}>{t("Thao tác")}</th>
               </tr>
             </thead>
             <tbody>
               {rows === null && (
                 <tr>
                   <td colSpan={6} className="task-empty">
-                    Đang tải…
+                    {t("Đang tải…")}
                   </td>
                 </tr>
               )}
               {rows !== null && hienThi.length === 0 && (
                 <tr>
                   <td colSpan={6} className="task-empty">
-                    Không có vật tư khớp bộ lọc.
+                    {t("Không có vật tư khớp bộ lọc.")}
                   </td>
                 </tr>
               )}
               {tVt.dongTrang.map((r) => (
                 <tr key={r.id}>
-                  <td data-label="Mã">{r.id}</td>
-                  <td data-label="Tên vật tư" className="strong">
+                  <td data-label={t("Mã")}>{r.id}</td>
+                  <td data-label={t("Tên vật tư")} className="strong">
                     {r.ten_vt}
                   </td>
-                  <td data-label="Nhóm" className="text-secondary">
+                  <td data-label={t("Nhóm")} className="text-secondary">
                     {r.ten_nhom ?? "-"}
                   </td>
-                  <td data-label="ĐVT">{r.don_vi_tinh ?? "-"}</td>
-                  <td data-label="Giá tham khảo" style={{ textAlign: "right" }}>
-                    {r.don_gia_tham_khao != null ? fmtSo(r.don_gia_tham_khao) : <span className="text-orange">Chưa có</span>}
+                  <td data-label={t("ĐVT")}>{r.don_vi_tinh ?? "-"}</td>
+                  <td data-label={t("Giá tham khảo")} style={{ textAlign: "right" }}>
+                    {r.don_gia_tham_khao != null ? fmtSo(r.don_gia_tham_khao) : <span className="text-orange">{t("Chưa có")}</span>}
                   </td>
-                  <td data-label="Thao tác" style={{ textAlign: "right" }}>
+                  <td data-label={t("Thao tác")} style={{ textAlign: "right" }}>
                     <div className="row-actions">
                       <button className="btn btn-outline btn-sm" onClick={() => navigate("cap-phat", { tab: "ton-kho", q: r.id })}>
-                        Tồn
+                        {t("Tồn")}
                       </button>
                       {canEdit && (
                         <>
-                          <button className="btn btn-outline btn-sm btn-icon" title="Sửa" aria-label="Sửa" onClick={() => openEdit(r)}>
+                          <button className="btn btn-outline btn-sm btn-icon" title={t("Sửa")} aria-label={t("Sửa")} onClick={() => openEdit(r)}>
                             <Edit size={12} />
                           </button>
-                          <button className="btn btn-outline btn-sm btn-icon danger-outline" title="Vô hiệu hoá" aria-label="Vô hiệu hoá" onClick={() => setXoa(r)}>
+                          <button className="btn btn-outline btn-sm btn-icon danger-outline" title={t("Vô hiệu hoá")} aria-label={t("Vô hiệu hoá")} onClick={() => setXoa(r)}>
                             <Trash2 size={12} />
                           </button>
                         </>
@@ -295,24 +296,24 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
             </tbody>
           </table>
         </div>
-        <PhanTrang trang={tVt.trang} tong={tVt.tong} onDoi={tVt.setTrang} donVi="vật tư" />
+        <PhanTrang trang={tVt.trang} tong={tVt.tong} onDoi={tVt.setTrang} donVi={t("vật tư")} />
       </div>
 
       {showForm && (
-        <Modal title={editingId ? `Sửa vật tư ${editingId}` : "Thêm vật tư"} onClose={() => setShowForm(false)}>
+        <Modal title={editingId ? t("Sửa vật tư {editingId}", { editingId }) : t("Thêm vật tư")} onClose={() => setShowForm(false)}>
           <div className="form-grid">
             <div className="field-group">
-              <label className="field-label">Mã vật tư *</label>
+              <label className="field-label">{t("Mã vật tư *")}</label>
               <input type="text" value={form.id} disabled={!!editingId} onChange={(e) => setForm({ ...form, id: e.target.value })} />
             </div>
             <div className="field-group">
-              <label className="field-label">Tên vật tư *</label>
+              <label className="field-label">{t("Tên vật tư *")}</label>
               <input type="text" value={form.ten_vt} onChange={(e) => setForm({ ...form, ten_vt: e.target.value })} />
             </div>
             <div className="field-group">
-              <label className="field-label">Nhóm</label>
+              <label className="field-label">{t("Nhóm")}</label>
               <select value={form.nhom_id} onChange={(e) => setForm({ ...form, nhom_id: e.target.value })}>
-                <option value="">-- Không thuộc nhóm --</option>
+                <option value="">{t("-- Không thuộc nhóm --")}</option>
                 {nhoms.map((n) => (
                   <option key={n.id} value={n.id}>
                     {n.ten_nhom}
@@ -321,37 +322,37 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
               </select>
             </div>
             <div className="field-group">
-              <label className="field-label">Đơn vị tính</label>
+              <label className="field-label">{t("Đơn vị tính")}</label>
               <input type="text" value={form.don_vi_tinh} onChange={(e) => setForm({ ...form, don_vi_tinh: e.target.value })} />
             </div>
             <div className="field-group">
-              <label className="field-label">Giá tham khảo (đ)</label>
+              <label className="field-label">{t("Giá tham khảo (đ)")}</label>
               <input type="number" min={0} value={form.don_gia_tham_khao} onChange={(e) => setForm({ ...form, don_gia_tham_khao: e.target.value })} />
             </div>
           </div>
           {error && <div className="alert alert-error">{error}</div>}
           <div className="modal-actions">
             <button className="btn" onClick={() => setShowForm(false)}>
-              Huỷ
+              {t("Huỷ")}
             </button>
             <button className="btn btn-primary" disabled={saving} onClick={submitForm}>
-              {saving ? "Đang lưu..." : "Lưu"}
+              {saving ? t("Đang lưu...") : t("Lưu")}
             </button>
           </div>
         </Modal>
       )}
 
       {xoa && (
-        <Modal title="Vô hiệu hoá vật tư" onClose={() => setXoa(null)}>
+        <Modal title={t("Vô hiệu hoá vật tư")} onClose={() => setXoa(null)}>
           <p>
-            Vô hiệu hoá <b>{xoa.ten_vt}</b> ({xoa.id})? Vật tư ẩn khỏi danh mục và không lập phiếu mới được; lịch sử phiếu vẫn giữ.
+            {t("Vô hiệu hoá")} <b>{xoa.ten_vt}</b> ({xoa.id}{t(")? Vật tư ẩn khỏi danh mục và không lập phiếu mới được; lịch sử phiếu vẫn giữ.")}
           </p>
           <div className="modal-actions">
             <button className="btn" onClick={() => setXoa(null)}>
-              Huỷ
+              {t("Huỷ")}
             </button>
             <button className="btn btn-danger" onClick={() => voHieu(xoa)}>
-              Vô hiệu hoá
+              {t("Vô hiệu hoá")}
             </button>
           </div>
         </Modal>

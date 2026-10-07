@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import { api } from "../api/client";
 
 // Dinh kem hoa don / chung tu / anh bang chung (backend routes/dinhKem.ts, tep luu tren Google Drive).
@@ -6,10 +7,10 @@ export type DoiTuongDinhKem = "chuyen_kho" | "giao_nhan" | "xu_ly" | "tai_san";
 export type LoaiDinhKem = "Hoa don" | "Chung tu" | "Bang chung" | "Khac";
 
 export const LOAI_DINH_KEM: Record<LoaiDinhKem, string> = {
-  "Hoa don": "Hóa đơn",
-  "Chung tu": "Chứng từ",
-  "Bang chung": "Ảnh bằng chứng",
-  Khac: "Khác",
+  "Hoa don": t("Hóa đơn"),
+  "Chung tu": t("Chứng từ"),
+  "Bang chung": t("Ảnh bằng chứng"),
+  Khac: t("Khác"),
 };
 
 export interface DinhKemRow {
@@ -58,8 +59,8 @@ export async function nenAnh(file: File): Promise<{ blob: Blob; mime: string }> 
 
 /** Kiem tra truoc o client (server kiem lai): null = hop le, nguoc lai la thong bao loi. */
 export function kiemTraTep(file: File): string | null {
-  if (!file.type.startsWith("image/") && file.type !== "application/pdf") return `"${file.name}" không phải ảnh hoặc PDF.`;
-  if (file.type === "application/pdf" && file.size > TOI_DA) return `"${file.name}" lớn hơn 10MB.`;
+  if (!file.type.startsWith("image/") && file.type !== "application/pdf") return t("\"{name}\" không phải ảnh hoặc PDF.", { name: file.name });
+  if (file.type === "application/pdf" && file.size > TOI_DA) return t("\"{name}\" lớn hơn 10MB.", { name: file.name });
   return null;
 }
 

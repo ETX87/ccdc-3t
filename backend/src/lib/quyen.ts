@@ -12,42 +12,68 @@ export interface KhoRow {
   loai: LoaiKho;
   nhan_vien_id: string | null;
   bat_tat: number;
+  cong_ty_id: number;
 }
 
 export async function getKho(db: D1Database, id: number): Promise<KhoRow | null> {
-  return db.prepare("SELECT id, ten_kho, loai, nhan_vien_id, bat_tat FROM kho WHERE id = ?").bind(id).first<KhoRow>();
+  return db.prepare("SELECT id, ten_kho, loai, nhan_vien_id, bat_tat, cong_ty_id FROM kho WHERE id = ?").bind(id).first<KhoRow>();
 }
 
-export function laKeToan(user: AppUser): boolean {
-  return user.vai_tro === "Admin" || user.vai_tro === "Ke toan";
+/** Tai khoan duoc thao tac cong ty nay (da phap nhan - migration 0014). */
+export function coCongTy(user: AppUser, congTyId: number | null | undefined): boolean {
+  return congTyId != null && user.cong_ty_ids.includes(congTyId);
 }
 
-export function laHcns(user: AppUser): boolean {
-  return user.vai_tro === "Admin" || user.vai_tro === "HCNS";
+/** Cong ty cho ban ghi MOI: gui len (cong_ty_id) hoac cong ty duy nhat dang xem. null = chua chon / ngoai quyen. */
+export function congTyTao(user: AppUser, guiLen?: number | string | null): number | null {
+  const id = Number(guiLen || (user.cong_ty_xem.length === 1 ? user.cong_ty_xem[0] : 0));
+  return id && coCongTy(user, id) ? id : null;
+}
+
+/** Cong ty de LOC danh muc (?cong_ty_id= cua form dang chon cong ty, neu duoc phep) - mac dinh cac cong ty dang xem. */
+export function congTyLoc(user: AppUser, query?: string | null): number[] {
+  const id = Number(query || 0);
+  return id && coCongTy(user, id) ? [id] : user.cong_ty_xem;
+}
+
+// Vai tro toan quyen (KT / HCNS) chi co hieu luc TRONG cac cong ty duoc gan: truyen congTyId cua ban ghi
+// dang thao tac de kiem them cong ty (bo trong = chi kiem vai tro).
+export function laKeToan(user: AppUser, congTyId?: number | null): boolean {
+  return (user.vai_tro === "Admin" || user.vai_tro === "Ke toan") && (congTyId === undefined || coCongTy(user, congTyId));
+}
+
+export function laHcns(user: AppUser, congTyId?: number | null): boolean {
+  return (user.vai_tro === "Admin" || user.vai_tro === "HCNS") && (congTyId === undefined || coCongTy(user, congTyId));
 }
 
 // Cac kho user duoc THAO TAC (xuat hang di / xac nhan nhan vao):
+//   CHI trong cac cong ty tai khoan duoc phep (user.cong_ty_ids).
 //   - Admin: moi kho dang hoat dong.
 //   - HCNS: moi kho loai 'HCNS' + 'Mua hang' (lap phieu nhap mua) - khong can gan tay.
 //   - Thu kho duoc gan (kho_thu_kho) - doc lap vai tro.
 //   - Nguoi phu trach kho: kho co nhan_vien_id = ho so nhan vien cua chinh ho (kho QL, hoac kho QL da
 //     doi thanh kho Mien - POST /kho/:id/doi-loai - van giu nguoi phu trach).
 export async function khoPhuTrach(db: D1Database, user: AppUser): Promise<KhoRow[]> {
+  const congTy = JSON.stringify(user.cong_ty_ids);
+  const cot = "id, ten_kho, loai, nhan_vien_id, bat_tat, cong_ty_id";
   if (user.vai_tro === "Admin") {
-    const { results } = await db.prepare("SELECT id, ten_kho, loai, nhan_vien_id, bat_tat FROM kho WHERE bat_tat = 1 ORDER BY id").all<KhoRow>();
+    const { results } = await db
+      .prepare(`SELECT ${cot} FROM kho WHERE bat_tat = 1 AND cong_ty_id IN (SELECT value FROM json_each(?)) ORDER BY id`)
+      .bind(congTy)
+      .all<KhoRow>();
     return results;
   }
   const { results } = await db
     .prepare(
-      `SELECT id, ten_kho, loai, nhan_vien_id, bat_tat FROM kho
-       WHERE bat_tat = 1 AND (
+      `SELECT ${cot} FROM kho
+       WHERE bat_tat = 1 AND cong_ty_id IN (SELECT value FROM json_each(?)) AND (
          id IN (SELECT kho_id FROM kho_thu_kho WHERE email = ?)
          OR (nhan_vien_id IS NOT NULL AND nhan_vien_id = ?)
          OR (? = 1 AND loai IN ('HCNS', 'Mua hang'))
        )
        ORDER BY id`,
     )
-    .bind(user.email, user.ma_nv ?? "", user.vai_tro === "HCNS" ? 1 : 0)
+    .bind(congTy, user.email, user.ma_nv ?? "", user.vai_tro === "HCNS" ? 1 : 0)
     .all<KhoRow>();
   return results;
 }

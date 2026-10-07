@@ -12,6 +12,12 @@ export interface AppUser {
   ma_nv: string | null;
   // URL anh Google (luu luc dang nhap, migration 0008) - null thi frontend hien chu cai dau.
   anh_dai_dien: string | null;
+  // Da phap nhan (migration 0014): cong ty tai khoan duoc xem/thao tac (Admin: moi cong ty dang hoat dong;
+  // khac: user_cong_ty, rong -> cong ty cua ho so nhan vien / cong ty mac dinh). cong_ty_xem = bo loc
+  // "cong ty" tren giao dien (header x-cong-ty) giao voi cong_ty_ids; tat_ca_cong_ty = dang xem MOI cong ty.
+  cong_ty_ids: number[];
+  cong_ty_xem: number[];
+  tat_ca_cong_ty: boolean;
 }
 
 export interface Env {

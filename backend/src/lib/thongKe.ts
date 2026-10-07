@@ -16,8 +16,13 @@ function cauLenh(db: D1Database, pv: PhamVi): D1PreparedStatement[] {
   const ts = dkTaiSan(pv);
   const pk = dkPhieuKho(pv);
   // Toan he thong: "Trong kho HCNS" dung nghia tren mau giao dien. Pham vi kho: trong kho cua pham vi.
-  const trongKho = pv.toanBo ? `c.kho_id IN (SELECT id FROM kho WHERE loai = 'HCNS')` : ts.sql;
-  const trongKhoBinds = pv.toanBo ? [] : ts.binds;
+  // Nhieu cong ty (congTyToan): kho HCNS cua cac cong ty do.
+  const trongKho = pv.toanBo
+    ? `c.kho_id IN (SELECT id FROM kho WHERE loai = 'HCNS')`
+    : pv.congTyToan
+      ? `c.kho_id IN (SELECT id FROM kho WHERE loai = 'HCNS' AND cong_ty_id IN (SELECT value FROM json_each(?)))`
+      : ts.sql;
+  const trongKhoBinds = pv.toanBo ? [] : pv.congTyToan ? [JSON.stringify(pv.congTyToan)] : ts.binds;
   return [
     db.prepare(`SELECT COUNT(*) AS sl, SUM(c.nguyen_gia) AS gt FROM ccdc c WHERE ${TS_CON_QUAN_LY} AND ${ts.sql}`).bind(...ts.binds),
     db
@@ -56,16 +61,21 @@ export async function tinhChiSo(db: D1Database, pv: PhamVi): Promise<BoChiSo> {
   return gop((await db.batch<Dong>(cauLenh(db, pv))) as D1Result<Dong>[]);
 }
 
-/** Chup chi so toan he thong + tung kho (UPSERT theo ngay - chay lai trong ngay chi ghi de). */
+/** Chup chi so toan he thong + tung cong ty + tung kho (UPSERT theo ngay - chay lai trong ngay chi ghi de). */
 export async function chupSoLieu(db: D1Database, ngay: string): Promise<void> {
   const { results: khos } = await db
-    .prepare("SELECT id, loai, nhan_vien_id FROM kho WHERE bat_tat = 1 AND loai != 'Mua hang'")
-    .all<{ id: number; loai: string; nhan_vien_id: string | null }>();
+    .prepare("SELECT id, loai, nhan_vien_id, cong_ty_id FROM kho WHERE bat_tat = 1 AND loai != 'Mua hang'")
+    .all<{ id: number; loai: string; nhan_vien_id: string | null; cong_ty_id: number }>();
+  const { results: congTys } = await db.prepare("SELECT id FROM cong_ty").all<{ id: number }>();
   const { results: capDuoi } = await db
     .prepare("SELECT ma_nv, quan_ly_id FROM nhan_vien WHERE quan_ly_id IS NOT NULL AND dang_lam_viec = 1")
     .all<{ ma_nv: string; quan_ly_id: string }>();
 
   const phamVis: { key: string; pv: PhamVi }[] = [{ key: "all", pv: { toanBo: true, khoIds: [], nhomMaNv: [], xemTongHop: true } }];
+  for (const ct of congTys) {
+    const khoIds = khos.filter((k) => k.cong_ty_id === ct.id).map((k) => k.id);
+    phamVis.push({ key: `cong_ty:${ct.id}`, pv: { toanBo: false, khoIds, nhomMaNv: [], xemTongHop: true, congTyToan: [ct.id] } });
+  }
   for (const k of khos) {
     const nhom =
       k.loai === "Quan ly" && k.nhan_vien_id
@@ -103,7 +113,7 @@ export async function chupNeuChuaCo(db: D1Database): Promise<void> {
  * null = chua co ban chup nao truoc moc -> giao dien ghi "Chua co so lieu ky truoc", KHONG bia.
  */
 export async function soLieuDaChup(db: D1Database, pv: PhamVi, ngayMoc: string): Promise<{ ngay: string; bo: BoChiSo } | null> {
-  const keys = pv.toanBo ? ["all"] : pv.khoIds.map((id) => `kho:${id}`);
+  const keys = pv.toanBo ? ["all"] : pv.congTyToan ? pv.congTyToan.map((id) => `cong_ty:${id}`) : pv.khoIds.map((id) => `kho:${id}`);
   if (!keys.length) return null;
   const q = keys.map(() => "?").join(",");
   const moc = await db

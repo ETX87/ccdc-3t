@@ -6,6 +6,16 @@ import { requireRole } from "../middleware/requireRole";
 import { nowVN } from "../lib/vnTime";
 import { docTrang, layTrang } from "../lib/phanTrang";
 import { LoiGop, lapKeHoach, lenhThucHien, type GiuEmail, type YeuCau } from "../lib/gopNhanVien";
+import { coCongTy, congTyLoc, congTyTao, laHcns } from "../lib/quyen";
+import type { AppUser } from "../types";
+
+/** Ho so ton tai + nguoi dung la HCNS/Admin cong ty cua ho so (da phap nhan). */
+async function nvQuanTri(db: D1Database, user: AppUser, maNv: string) {
+  const r = await db.prepare("SELECT cong_ty_id FROM nhan_vien WHERE ma_nv = ?").bind(maNv).first<{ cong_ty_id: number }>();
+  if (!r) return { error: "NOT_FOUND" as const, status: 404 as const };
+  if (!laHcns(user, r.cong_ty_id)) return { error: "FORBIDDEN" as const, status: 403 as const };
+  return { congTyId: r.cong_ty_id };
+}
 
 // Bo dau + viet thuong de so khop ten tieng Viet (khong phan biet hoa/thuong, dau).
 function boDau(s: string) {
@@ -28,8 +38,9 @@ function dkTrangThai(tt: string | undefined) {
 // ca ~1.800 ho so, moi dong 2 truy van con dem). ?gon=1 -> chi ma + ten (o chon nhan vien trong form).
 nhanVien.get("/", async (c) => {
   const q = (k: string) => c.req.query(k)?.trim() || undefined;
-  const conditions = [dkTrangThai(q("trang_thai"))];
-  const binds: unknown[] = [];
+  // Nhan vien cac cong ty dang xem; ?cong_ty_id= cho o chon nguoi nhan theo cong ty cua kho trong form.
+  const conditions = [dkTrangThai(q("trang_thai")), "n.cong_ty_id IN (SELECT value FROM json_each(?))"];
+  const binds: unknown[] = [JSON.stringify(congTyLoc(c.get("user"), q("cong_ty_id")))];
   const search = q("search");
   if (search) {
     const cot = ["n.ma_nv", "n.ten_nv", "COALESCE(n.bo_phan,'')", "COALESCE(n.chuc_vu,'')", "COALESCE(n.email_dang_nhap,'')"];
@@ -51,14 +62,14 @@ nhanVien.get("/", async (c) => {
   const where = conditions.join(" AND ");
 
   if (q("gon") === "1") {
-    const { results } = await c.env.DB.prepare(`SELECT n.ma_nv, n.ten_nv FROM nhan_vien n WHERE ${where} ORDER BY n.ten_nv`)
+    const { results } = await c.env.DB.prepare(`SELECT n.ma_nv, n.ten_nv, n.cong_ty_id FROM nhan_vien n WHERE ${where} ORDER BY n.ten_nv`)
       .bind(...binds)
       .all();
     return c.json({ rows: results });
   }
 
   const sql = `SELECT n.ma_nv, n.ten_nv, n.bo_phan, n.chuc_vu, n.sdt, n.email_dang_nhap, n.dang_lam_viec, n.ma_etx,
-            n.quan_ly_id, ql.ten_nv AS quan_ly_ten,
+            n.quan_ly_id, ql.ten_nv AS quan_ly_ten, n.cong_ty_id,
             (SELECT COUNT(*) FROM nhan_vien x WHERE x.quan_ly_id = n.ma_nv AND x.dang_lam_viec = 1) AS so_cap_duoi,
             (SELECT COUNT(*) FROM ccdc c WHERE c.nguoi_dang_giu = n.ma_nv AND c.vo_hieu_hoa = 0
                AND c.trang_thai_hien_tai NOT IN ('Da thanh ly', 'Da tieu huy')) AS so_ts_dang_giu,
@@ -76,7 +87,8 @@ nhanVien.get("/", async (c) => {
 // GET /thong-ke?trang_thai= - KPI + so dem tab + danh sach bo phan cho man Nhan vien (thay cho viec
 // tai ca danh sach ve trinh duyet de dem).
 nhanVien.get("/thong-ke", async (c) => {
-  const dk = dkTrangThai(c.req.query("trang_thai"));
+  // Cong ty dang xem: chen thang danh sach id (so nguyen tu loadUser, khong phai du lieu client).
+  const dk = `${dkTrangThai(c.req.query("trang_thai"))} AND n.cong_ty_id IN (${c.get("user").cong_ty_xem.map(Number).join(",") || "0"})`;
   const [tk, bp] = await c.env.DB.batch([
     c.env.DB.prepare(
       `SELECT COUNT(*) AS tong,
@@ -138,8 +150,9 @@ nhanVien.get("/etx", requireRole("Admin", "HCNS"), async (c) => {
 });
 
 nhanVien.get("/:ma_nv", async (c) => {
-  const row = await c.env.DB.prepare("SELECT * FROM nhan_vien WHERE ma_nv = ?").bind(c.req.param("ma_nv")).first();
+  const row = await c.env.DB.prepare("SELECT * FROM nhan_vien WHERE ma_nv = ?").bind(c.req.param("ma_nv")).first<{ cong_ty_id: number }>();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
+  if (!coCongTy(c.get("user"), row.cong_ty_id)) return c.json({ error: "FORBIDDEN" }, 403);
   return c.json({ row });
 });
 
@@ -152,14 +165,15 @@ interface Body {
   email_dang_nhap?: string | null;
   ghi_chu?: string | null;
   quan_ly_id?: string | null;
+  cong_ty_id?: number;
 }
 
 // Gan quan ly truc tiep -> dam bao QL do co kho QL rieng (chuoi kho ... -> KHO QL -> NV). Idempotent.
 function taoKhoQl(db: D1Database, qlMaNv: string) {
   return db
     .prepare(
-      `INSERT INTO kho (ten_kho, loai, nhan_vien_id, created_at, updated_at)
-       SELECT 'Kho QL - ' || ten_nv, 'Quan ly', ma_nv, ?, ? FROM nhan_vien WHERE ma_nv = ?
+      `INSERT INTO kho (ten_kho, loai, nhan_vien_id, cong_ty_id, created_at, updated_at)
+       SELECT 'Kho QL - ' || ten_nv, 'Quan ly', ma_nv, cong_ty_id, ?, ? FROM nhan_vien WHERE ma_nv = ?
        ON CONFLICT(nhan_vien_id) DO NOTHING`,
     )
     .bind(nowVN(), nowVN(), qlMaNv);
@@ -191,6 +205,8 @@ nhanVien.post("/", requireRole("Admin", "HCNS"), async (c) => {
 
   const existing = await c.env.DB.prepare("SELECT ma_nv FROM nhan_vien WHERE ma_nv = ?").bind(body.ma_nv.trim()).first();
   if (existing) return c.json({ error: "MA_NV_EXISTS" }, 409);
+  const congTyId = congTyTao(c.get("user"), body.cong_ty_id);
+  if (!congTyId || !laHcns(c.get("user"), congTyId)) return c.json({ error: "CHON_CONG_TY" }, 400);
   const loiQl = await kiemTraQuanLy(c.env.DB, body.ma_nv.trim(), body.quan_ly_id);
   if (loiQl) return c.json({ error: loiQl }, 400);
   const loiEmail = await kiemTraEmail(c.env.DB, body.email_dang_nhap, body.ma_nv.trim());
@@ -198,8 +214,8 @@ nhanVien.post("/", requireRole("Admin", "HCNS"), async (c) => {
 
   const stmts = [
     c.env.DB.prepare(
-      `INSERT INTO nhan_vien (ma_nv, ten_nv, bo_phan, chuc_vu, sdt, email_dang_nhap, ghi_chu, quan_ly_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO nhan_vien (ma_nv, ten_nv, bo_phan, chuc_vu, sdt, email_dang_nhap, ghi_chu, quan_ly_id, cong_ty_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(
       body.ma_nv.trim(),
       body.ten_nv.trim(),
@@ -209,6 +225,7 @@ nhanVien.post("/", requireRole("Admin", "HCNS"), async (c) => {
       body.email_dang_nhap || null,
       body.ghi_chu ?? null,
       body.quan_ly_id || null,
+      congTyId,
       nowVN(),
       nowVN(),
     ),
@@ -223,6 +240,19 @@ nhanVien.put("/:ma_nv", requireRole("Admin", "HCNS"), async (c) => {
   const maNv = c.req.param("ma_nv");
   const body = await c.req.json<Body>().catch(() => null);
   if (!body?.ten_nv?.trim()) return c.json({ error: "MISSING_FIELDS" }, 400);
+  const user = c.get("user");
+  const qt = await nvQuanTri(c.env.DB, user, maNv ?? "");
+  if ("error" in qt) return c.json({ error: qt.error }, qt.status);
+  // Doi cong ty: phai co quyen ca cong ty moi, va khong con giu TS cua cong ty cu (tai san moi cong ty doc lap -
+  // thu hoi hoac chuyen cong ty TS truoc).
+  const congTyMoi = body.cong_ty_id != null ? Number(body.cong_ty_id) : qt.congTyId;
+  if (congTyMoi !== qt.congTyId) {
+    if (!laHcns(user, congTyMoi)) return c.json({ error: "FORBIDDEN" }, 403);
+    const giu = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM ccdc WHERE nguoi_dang_giu = ? AND vo_hieu_hoa = 0 AND cong_ty_id != ?")
+      .bind(maNv, congTyMoi)
+      .first<{ n: number }>();
+    if ((giu?.n ?? 0) > 0) return c.json({ error: "DANG_GIU_TS_CONG_TY_CU", so_luong: giu?.n }, 400);
+  }
   const loiQl = await kiemTraQuanLy(c.env.DB, maNv ?? "", body.quan_ly_id);
   if (loiQl) return c.json({ error: loiQl }, 400);
   const loiEmail = await kiemTraEmail(c.env.DB, body.email_dang_nhap, maNv);
@@ -231,7 +261,7 @@ nhanVien.put("/:ma_nv", requireRole("Admin", "HCNS"), async (c) => {
   const stmts = [
     c.env.DB.prepare(
       `UPDATE nhan_vien SET ten_nv = ?, bo_phan = ?, chuc_vu = ?, sdt = ?, email_dang_nhap = ?, ghi_chu = ?,
-           quan_ly_id = CASE WHEN ? = 1 THEN ? ELSE quan_ly_id END, updated_at = ?
+           quan_ly_id = CASE WHEN ? = 1 THEN ? ELSE quan_ly_id END, cong_ty_id = ?, updated_at = ?
        WHERE ma_nv = ?`,
     ).bind(
       body.ten_nv.trim(),
@@ -243,6 +273,7 @@ nhanVien.put("/:ma_nv", requireRole("Admin", "HCNS"), async (c) => {
       // quan_ly_id vang mat trong body = giu nguyen (client cu khong gui truong nay).
       body.quan_ly_id === undefined ? 0 : 1,
       body.quan_ly_id || null,
+      congTyMoi,
       nowVN(),
       maNv,
     ),
@@ -261,6 +292,8 @@ nhanVien.post("/:ma_nv/lien-ket-tai-khoan", requireRole("Admin", "HCNS"), async 
   const body = await c.req.json<{ email?: string }>().catch(() => null);
   const email = body?.email?.trim().toLowerCase();
   if (!email) return c.json({ error: "MISSING_FIELDS" }, 400);
+  const qt = await nvQuanTri(c.env.DB, c.get("user"), maNv ?? "");
+  if ("error" in qt) return c.json({ error: qt.error }, qt.status);
   const loiEmail = await kiemTraEmail(c.env.DB, email);
   if (loiEmail) return c.json({ error: loiEmail }, 400);
 
@@ -295,6 +328,8 @@ nhanVien.post("/:ma_nv/doi-ma", requireRole("Admin", "HCNS"), async (c) => {
   const body = await c.req.json<{ loai?: string; dich?: string; ma_moi?: string; ma_etx?: string; giu_email?: GiuEmail; xem_truoc?: boolean }>().catch(() => null);
   const yc = docYeuCau(body);
   if (!yc) return c.json({ error: "MISSING_FIELDS" }, 400);
+  const qt = await nvQuanTri(c.env.DB, c.get("user"), c.req.param("ma_nv") ?? "");
+  if ("error" in qt) return c.json({ error: qt.error }, qt.status);
   try {
     const k = await lapKeHoach(c.env.DB, c.req.param("ma_nv") ?? "", yc, body?.giu_email === "nguon" ? "nguon" : "dich");
     if (body?.xem_truoc) return c.json({ ke_hoach: k });
@@ -326,6 +361,8 @@ nhanVien.get("/:ma_nv/lich-su-ma", async (c) => {
 // DELETE /:ma_nv - danh dau nghi viec (dang_lam_viec=0). Chan neu con dang giu CCDC nao.
 nhanVien.delete("/:ma_nv", requireRole("Admin", "HCNS"), async (c) => {
   const maNv = c.req.param("ma_nv");
+  const qt = await nvQuanTri(c.env.DB, c.get("user"), maNv ?? "");
+  if ("error" in qt) return c.json({ error: qt.error }, qt.status);
   const holding = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM ccdc WHERE nguoi_dang_giu = ?").bind(maNv).first<{ n: number }>();
   if (holding && holding.n > 0) return c.json({ error: "DANG_GIU_CCDC" }, 400);
 

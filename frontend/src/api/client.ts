@@ -1,5 +1,9 @@
 // Port tu vi-pham-app/linh-kien-app frontend/src/api/client.ts.
+import { congTyDangChon } from "../lib/congTy";
+
 const BASE = "/api";
+// Bo loc cong ty dang xem (da phap nhan) - server tu giao voi cong ty tai khoan duoc phep.
+const HEADER_CONG_TY: Record<string, string> = congTyDangChon ? { "x-cong-ty": congTyDangChon } : {};
 
 export class ApiError extends Error {
   status: number;
@@ -20,7 +24,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     credentials: "include",
     ...init,
-    headers: isFormBody ? init?.headers : { "Content-Type": "application/json", ...init?.headers },
+    headers: isFormBody ? { ...HEADER_CONG_TY, ...init?.headers } : { "Content-Type": "application/json", ...HEADER_CONG_TY, ...init?.headers },
   });
 
   if (!res.ok) {

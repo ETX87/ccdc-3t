@@ -4,7 +4,7 @@ import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { requireRole } from "../middleware/requireRole";
 import { nowVN } from "../lib/vnTime";
-import { khoPhuTrach, laHcns } from "../lib/quyen";
+import { coCongTy, congTyTao, khoPhuTrach, laHcns } from "../lib/quyen";
 import { dkTaiSan, layPhamVi } from "../lib/phamVi";
 import { sinhMaPhieu } from "../lib/maPhieu";
 import { docTrang, layTrang } from "../lib/phanTrang";
@@ -17,9 +17,10 @@ ccdc.use("*", verifySessionMiddleware, loadUser);
 // minh giu (truoc day route nay khong loc -> nhan vien liet ke duoc toan bo tai san cong ty).
 async function dieuKienLoc(c: Context<{ Bindings: Env }>, boTrangThai = false) {
   const q = (k: string) => c.req.query(k)?.trim() || undefined;
-  const conditions = ["c.vo_hieu_hoa = 0"];
-  const binds: unknown[] = [];
   const user = c.get("user");
+  // Luon chi tai san cac cong ty dang xem (da phap nhan).
+  const conditions = ["c.vo_hieu_hoa = 0", "c.cong_ty_id IN (SELECT value FROM json_each(?))"];
+  const binds: unknown[] = [JSON.stringify(user.cong_ty_xem)];
   const pv = await layPhamVi(c.env.DB, user);
   const moiTaiSan = pv.toanBo || (await khoPhuTrach(c.env.DB, user)).some((k) => k.loai === "HCNS" || k.loai === "Mien");
   if (!moiTaiSan) {
@@ -58,7 +59,7 @@ ccdc.get("/", async (c) => {
   const { where, binds } = await dieuKienLoc(c);
   const sql = `SELECT c.id, c.ten_ccdc, c.nhom_id, n.ten_nhom, c.don_vi_tinh, c.so_seri, c.ngay_mua,
             c.nguyen_gia, c.nha_cung_cap, c.han_bao_hanh, c.tinh_trang, c.trang_thai_hien_tai,
-            c.nguoi_dang_giu, nv.ten_nv AS nguoi_dang_giu_ten, c.kho_id, k.ten_kho, c.anh_url, c.ghi_chu
+            c.nguoi_dang_giu, nv.ten_nv AS nguoi_dang_giu_ten, c.kho_id, k.ten_kho, c.anh_url, c.ghi_chu, c.cong_ty_id
      FROM ccdc c
      LEFT JOIN nhom_ccdc n ON n.id = c.nhom_id
      LEFT JOIN nhan_vien nv ON nv.ma_nv = c.nguoi_dang_giu
@@ -103,8 +104,9 @@ ccdc.get("/:id", async (c) => {
      WHERE c.id = ?`,
   )
     .bind(id)
-    .first();
+    .first<{ cong_ty_id: number }>();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
+  if (!coCongTy(c.get("user"), row.cong_ty_id)) return c.json({ error: "FORBIDDEN" }, 403);
 
   const { results: lichSu } = await c.env.DB.prepare(
     `SELECT p.id AS phieu_id, p.ma_phieu, p.loai_phieu, p.ngay_lap, p.nguoi_lap, p.nhan_vien_id,
@@ -148,6 +150,21 @@ interface Body {
   tinh_trang?: string | null;
   anh_url?: string | null;
   ghi_chu?: string | null;
+  cong_ty_id?: number;
+}
+
+/** Nhom tai san phai cung cong ty (danh muc rieng tung cong ty). */
+async function nhomHopLe(db: D1Database, nhomId: number | null | undefined, congTyId: number): Promise<boolean> {
+  if (nhomId == null) return true;
+  return !!(await db.prepare("SELECT 1 AS ok FROM nhom_ccdc WHERE id = ? AND cong_ty_id = ?").bind(nhomId, congTyId).first());
+}
+
+/** TS ton tai + nguoi dung la HCNS/Admin cong ty cua TS. */
+async function tsQuanTri(db: D1Database, user: Parameters<typeof laHcns>[0], id: string) {
+  const r = await db.prepare("SELECT trang_thai_hien_tai, cong_ty_id FROM ccdc WHERE id = ?").bind(id).first<{ trang_thai_hien_tai: string; cong_ty_id: number }>();
+  if (!r) return { error: "NOT_FOUND" as const, status: 404 as const };
+  if (!laHcns(user, r.cong_ty_id)) return { error: "FORBIDDEN" as const, status: 403 as const };
+  return { ts: r };
 }
 
 ccdc.post("/", requireRole("Admin", "HCNS"), async (c) => {
@@ -157,6 +174,9 @@ ccdc.post("/", requireRole("Admin", "HCNS"), async (c) => {
 
   const existing = await c.env.DB.prepare("SELECT id FROM ccdc WHERE id = ?").bind(body.id.trim()).first();
   if (existing) return c.json({ error: "ID_EXISTS" }, 409);
+  const congTyId = congTyTao(user, body.cong_ty_id);
+  if (!congTyId || !laHcns(user, congTyId)) return c.json({ error: "CHON_CONG_TY" }, 400);
+  if (!(await nhomHopLe(c.env.DB, body.nhom_id, congTyId))) return c.json({ error: "NHOM_KHAC_CONG_TY" }, 400);
 
   // TS moi = hang nhap tu kho mua -> 'Cho duyet nhap' + tu sinh phieu Nhap mua cho Ke toan duyet
   // (quyet dinh user 2026-09-23). Ke toan duyet xong TS moi vao kho HCNS.
@@ -166,8 +186,8 @@ ccdc.post("/", requireRole("Admin", "HCNS"), async (c) => {
   await db.batch([
     db.prepare(
     `INSERT INTO ccdc (id, ten_ccdc, nhom_id, don_vi_tinh, so_seri, ngay_mua, nguyen_gia,
-                        nha_cung_cap, han_bao_hanh, tinh_trang, anh_url, ghi_chu, nguoi_tao, trang_thai_hien_tai, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Cho duyet nhap', datetime('now', '+7 hours'), datetime('now', '+7 hours'))`,
+                        nha_cung_cap, han_bao_hanh, tinh_trang, anh_url, ghi_chu, nguoi_tao, cong_ty_id, trang_thai_hien_tai, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Cho duyet nhap', datetime('now', '+7 hours'), datetime('now', '+7 hours'))`,
   )
     .bind(
       body.id.trim(),
@@ -183,6 +203,7 @@ ccdc.post("/", requireRole("Admin", "HCNS"), async (c) => {
       body.anh_url ?? null,
       body.ghi_chu ?? null,
       user.email,
+      congTyId,
     ),
     db
       .prepare(`INSERT INTO phieu_xu_ly_ts (id, loai, ly_do, ngay_de_xuat, nguoi_de_xuat, created_at) VALUES (?, 'Nhap mua', ?, ?, ?, ?)`)
@@ -203,6 +224,9 @@ ccdc.put("/:id", requireRole("Admin", "HCNS"), async (c) => {
   const id = c.req.param("id");
   const body = await c.req.json<Body>().catch(() => null);
   if (!body?.ten_ccdc?.trim()) return c.json({ error: "MISSING_FIELDS" }, 400);
+  const q = await tsQuanTri(c.env.DB, c.get("user"), id ?? "");
+  if ("error" in q) return c.json({ error: q.error }, q.status);
+  if (!(await nhomHopLe(c.env.DB, body.nhom_id, q.ts.cong_ty_id))) return c.json({ error: "NHOM_KHAC_CONG_TY" }, 400);
 
   const result = await c.env.DB.prepare(
     `UPDATE ccdc SET ten_ccdc = ?, nhom_id = ?, don_vi_tinh = ?, so_seri = ?, ngay_mua = ?,
@@ -234,8 +258,9 @@ ccdc.put("/:id", requireRole("Admin", "HCNS"), async (c) => {
 // thu hoi truoc khi vo hieu hoa, tranh mat dau vet CCDC dang o ngoai.
 ccdc.delete("/:id", requireRole("Admin", "HCNS"), async (c) => {
   const id = c.req.param("id");
-  const row = await c.env.DB.prepare("SELECT trang_thai_hien_tai FROM ccdc WHERE id = ?").bind(id).first<{ trang_thai_hien_tai: string }>();
-  if (!row) return c.json({ error: "NOT_FOUND" }, 404);
+  const q = await tsQuanTri(c.env.DB, c.get("user"), id ?? "");
+  if ("error" in q) return c.json({ error: q.error }, q.status);
+  const row = q.ts;
   if (row.trang_thai_hien_tai === "Dang cap phat") return c.json({ error: "DANG_CAP_PHAT" }, 400);
   if (row.trang_thai_hien_tai.startsWith("Cho ")) return c.json({ error: "DANG_CHO_DUYET" }, 400);
 
@@ -246,8 +271,9 @@ ccdc.delete("/:id", requireRole("Admin", "HCNS"), async (c) => {
 // POST /:id/sua-xong - HCNS dua TS 'Hong' (da bao hong, KT duyet) tro lai su dung sau khi sua.
 ccdc.post("/:id/sua-xong", async (c) => {
   const user = c.get("user");
-  if (!laHcns(user)) return c.json({ error: "CHI_HCNS" }, 403);
   const id = c.req.param("id");
+  const q = await tsQuanTri(c.env.DB, user, id ?? "");
+  if ("error" in q) return c.json({ error: q.status === 403 ? "CHI_HCNS" : q.error }, q.status);
   const ngay = nowVN();
   const r = await c.env.DB.prepare(
     `UPDATE ccdc SET trang_thai_hien_tai = 'Trong kho', tinh_trang = 'Tot',

@@ -119,9 +119,11 @@ function tinhHanhDong(loai: LoaiPhieu, row: Row, user: AppUser): HanhDong[] {
   const khoCuaToi = new Set(user.kho_phu_trach.map((k) => k.id));
   const id = encodeURIComponent(s(row.id));
   const ds: HanhDong[] = [];
+  // Da phap nhan: KT chi duyet phieu cua cong ty minh (chuyen cong ty: KT cong ty NGUON) - server kiem lai.
+  const ktCongTy = (ct: unknown) => isKeToan(user) && (ct == null || user.cong_ty.some((c) => c.id === n(ct)));
   if (loai === "chuyen_kho") {
     const base = `/phieu-chuyen-kho/${id}`;
-    if (row.trang_thai === "Cho ke toan duyet" && isKeToan(user)) {
+    if (row.trang_thai === "Cho ke toan duyet" && ktCongTy(row.tu_cong_ty_id)) {
       ds.push({ key: "duyet", nhan: t("Duyệt"), kieu: "primary", path: `${base}/ke-toan-duyet` });
       ds.push({ key: "tu-choi", nhan: t("Từ chối"), kieu: "danger", canLyDo: t("Lý do từ chối"), path: `${base}/ke-toan-tu-choi` });
     }
@@ -137,7 +139,12 @@ function tinhHanhDong(loai: LoaiPhieu, row: Row, user: AppUser): HanhDong[] {
       ds.push({ key: "xac-nhan", nhan: t("Xác nhận đã nhận"), kieu: "primary", path: `${base}/xac-nhan` });
     }
   } else if (loai === "giao_nhan") {
-    if (!n(row.da_xac_nhan)) {
+    if (row.trang_thai_duyet === "Cho ke toan duyet" && ktCongTy(row.tu_cong_ty_id)) {
+      ds.push({ key: "duyet", nhan: t("Duyệt chuyển công ty"), kieu: "primary", path: `/phieu-giao-nhan/${id}/ke-toan-duyet` });
+      ds.push({ key: "tu-choi", nhan: t("Từ chối"), kieu: "danger", canLyDo: t("Lý do từ chối"), path: `/phieu-giao-nhan/${id}/ke-toan-tu-choi` });
+    }
+    // Chuyen cong ty chua duyet / bi tu choi: chua xac nhan nhan duoc.
+    if (!n(row.da_xac_nhan) && (!row.trang_thai_duyet || row.trang_thai_duyet === "Da duyet")) {
       const nhanNV =
         (row.loai_phieu === "Cap phat" && row.nhan_vien_id === user.ma_nv) || (row.loai_phieu === "Dieu chuyen" && row.nhan_vien_nhan_moi_id === user.ma_nv);
       const nhanKho = (row.loai_phieu === "Thu hoi" || row.loai_phieu === "Chuyen kho") && khoCuaToi.has(n(row.den_kho_id));
@@ -261,9 +268,11 @@ function PhieuModal({ loai, id, onClose }: { loai: LoaiPhieu; id: string; onClos
   if (row) {
     const ma = s(row.ma_phieu) || s(row.id);
     if (loai === "chuyen_kho") {
-      tieuDe = `${LOAI_PHIEU_CK[s(row.loai)] ?? s(row.loai)} · ${ma}`;
+      const lienCt = row.den_cong_ty_id != null && n(row.den_cong_ty_id) !== n(row.tu_cong_ty_id);
+      tieuDe = `${lienCt ? t("Chuyển công ty") : (LOAI_PHIEU_CK[s(row.loai)] ?? s(row.loai))} · ${ma}`;
       trangThai = TRANG_THAI_CK[s(row.trang_thai)] ?? { label: s(row.trang_thai), tone: "neutral" };
       info = [
+        [t("Công ty"), lienCt ? `${s(row.tu_cong_ty_ma)} → ${s(row.den_cong_ty_ma)}` : ""],
         [t("Từ kho"), s(row.tu_kho_ten)],
         [t("Đến"), s(row.den_kho_ten) || s(row.den_nhan_vien_ten) || s(row.nguoi_nhan_ten_tu_do)],
         [t("Nhà cung cấp"), s(row.nha_cung_cap)],
@@ -273,8 +282,16 @@ function PhieuModal({ loai, id, onClose }: { loai: LoaiPhieu; id: string; onClos
         [t("Ghi chú"), s(row.ghi_chu)],
       ];
     } else if (loai === "giao_nhan") {
-      tieuDe = t("{x} TSCĐ · {ma}", { x: LOAI_GIAO_NHAN[s(row.loai_phieu)] ?? s(row.loai_phieu), ma });
-      trangThai = n(row.da_xac_nhan) ? { label: t("Đã xác nhận"), tone: "success" } : { label: t("Chờ xác nhận"), tone: "warning" };
+      const lienCt = row.trang_thai_duyet != null;
+      tieuDe = t("{x} TSCĐ · {ma}", { x: lienCt ? t("Chuyển công ty") : (LOAI_GIAO_NHAN[s(row.loai_phieu)] ?? s(row.loai_phieu)), ma });
+      trangThai =
+        row.trang_thai_duyet === "Cho ke toan duyet"
+          ? { label: t("Chờ kế toán duyệt"), tone: "warning" }
+          : row.trang_thai_duyet === "Ke toan tu choi"
+            ? { label: t("Kế toán từ chối"), tone: "danger" }
+            : n(row.da_xac_nhan)
+              ? { label: t("Đã xác nhận"), tone: "success" }
+              : { label: t("Chờ xác nhận"), tone: "warning" };
       info = [
         [t("Từ"), s(row.tu_kho_ten) || s(row.nhan_vien_ten)],
         [t("Đến"), s(row.den_kho_ten) || s(row.nhan_vien_nhan_moi_ten) || (row.loai_phieu === "Cap phat" ? s(row.nhan_vien_ten) : "")],

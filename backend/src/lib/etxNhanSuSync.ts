@@ -77,8 +77,9 @@ export async function runEtxNhanSuSync(env: Env, db: D1Database): Promise<EtxSyn
       writes.push(
         db
           .prepare(
-            `INSERT INTO nhan_vien (ma_nv, ten_nv, chuc_vu, gmail, ma_etx, dang_lam_viec, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
+            // ETX khong co thong tin cong ty -> cong ty mac dinh (cong_ty.mac_dinh), HCNS doi tay sau.
+            `INSERT INTO nhan_vien (ma_nv, ten_nv, chuc_vu, gmail, ma_etx, dang_lam_viec, cong_ty_id, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, 1, COALESCE((SELECT id FROM cong_ty WHERE mac_dinh = 1 AND bat_tat = 1 LIMIT 1), 1), ?, ?)`,
           )
           .bind(ma, it.hoTen, it.chucDanh, gmail, ma, now, now),
       );
@@ -149,8 +150,8 @@ export async function runEtxNhanSuSync(env: Env, db: D1Database): Promise<EtxSyn
     qlWrites.push(
       db
         .prepare(
-          `INSERT INTO kho (ten_kho, loai, nhan_vien_id, created_at, updated_at)
-           SELECT 'Kho QL - ' || ten_nv, 'Quan ly', ma_nv, ?, ? FROM nhan_vien WHERE ma_nv = ?
+          `INSERT INTO kho (ten_kho, loai, nhan_vien_id, cong_ty_id, created_at, updated_at)
+           SELECT 'Kho QL - ' || ten_nv, 'Quan ly', ma_nv, cong_ty_id, ?, ? FROM nhan_vien WHERE ma_nv = ?
            ON CONFLICT(nhan_vien_id) DO NOTHING`,
         )
         .bind(now, now, ql),

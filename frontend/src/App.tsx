@@ -12,6 +12,7 @@ import { TongQuanScreen } from "./modules/TongQuanScreen";
 import { ViecCanLamScreen } from "./modules/ViecCanLamScreen";
 import { CanhBaoScreen } from "./modules/CanhBaoScreen";
 import { AdminUsersScreen } from "./modules/AdminUsersScreen";
+import { CongTyScreen } from "./modules/CongTyScreen";
 import { DanhMucCcdcScreen } from "./modules/DanhMucCcdcScreen";
 import { NhanVienScreen } from "./modules/NhanVienScreen";
 import { GiaoNhanScreen } from "./modules/GiaoNhanScreen";
@@ -38,6 +39,7 @@ const SCREENS: Record<TabKey, () => JSX.Element | null> = {
   "kiem-ke": KiemKeScreen,
   "bao-cao": BaoCaoScreen,
   "tai-khoan": AdminUsersScreen,
+  "cong-ty": CongTyScreen,
   "nhan-vien": NhanVienScreen,
 };
 

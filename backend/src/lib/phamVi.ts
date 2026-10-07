@@ -2,10 +2,11 @@ import type { AppUser } from "../types";
 import { khoPhuTrach, getKho } from "./quyen";
 
 // Pham vi DU LIEU TONG HOP nguoi dung duoc xem (tong quan, viec can lam, canh bao, tim kiem):
-//   - Admin / Ke toan / HCNS: toan he thong.
+//   - Admin / Ke toan / HCNS: toan he thong (hoac toan bo cac cong ty dang xem - congTyToan, da phap nhan).
 //   - Thu kho / Quan ly: cac kho minh phu trach (tru kho mua hang ao) + tai san nhom minh giu
 //     (ban than + cap duoi truc tiep).
 //   - Nhan vien thuong: chi tai san minh giu (nhomMaNv = [ma_nv]).
+//   Moi pham vi chi trong user.cong_ty_xem (bo loc cong ty tren giao dien giao voi cong ty duoc phep).
 // MOI truy van tong hop PHAI loc qua day - khong tin kho_id client gui (kiem bang locTheoKho).
 
 export interface PhamVi {
@@ -14,24 +15,45 @@ export interface PhamVi {
   nhomMaNv: string[];
   /** Duoc xem man tong hop (tong quan / canh bao / bao cao). */
   xemTongHop: boolean;
+  /**
+   * Da phap nhan: vai tro toan quyen (Admin/KT/HCNS) nhung chi xem 1 so cong ty -> toanBo = false, khoIds =
+   * MOI kho + nhomMaNv = MOI nhan vien cac cong ty do (truy van cu tu loc dung), dkTaiSan loc thang theo
+   * ccdc.cong_ty_id. null = khong ap dung (toanBo that, hoac thu kho / QL / NV).
+   */
+  congTyToan?: number[] | null;
 }
 
 export async function layPhamVi(db: D1Database, user: AppUser): Promise<PhamVi> {
-  const toanBo = user.vai_tro === "Admin" || user.vai_tro === "Ke toan" || user.vai_tro === "HCNS";
-  const kho = (await khoPhuTrach(db, user)).filter((k) => k.loai !== "Mua hang");
+  const toanQuyen = user.vai_tro === "Admin" || user.vai_tro === "Ke toan" || user.vai_tro === "HCNS";
+  const congTy = JSON.stringify(user.cong_ty_xem);
+  if (toanQuyen && !user.tat_ca_cong_ty) {
+    const [kho, nv] = await db.batch<{ id: number; ma_nv: string }>([
+      db.prepare("SELECT id FROM kho WHERE loai != 'Mua hang' AND cong_ty_id IN (SELECT value FROM json_each(?))").bind(congTy),
+      db.prepare("SELECT ma_nv FROM nhan_vien WHERE cong_ty_id IN (SELECT value FROM json_each(?))").bind(congTy),
+    ]);
+    return {
+      toanBo: false,
+      khoIds: kho.results.map((r) => r.id),
+      nhomMaNv: nv.results.map((r) => r.ma_nv),
+      xemTongHop: true,
+      congTyToan: user.cong_ty_xem,
+    };
+  }
+  const kho = (await khoPhuTrach(db, user)).filter((k) => k.loai !== "Mua hang" && user.cong_ty_xem.includes(k.cong_ty_id));
   let nhom: string[] = [];
   if (user.ma_nv) {
     const { results } = await db
-      .prepare("SELECT ma_nv FROM nhan_vien WHERE quan_ly_id = ? AND dang_lam_viec = 1")
-      .bind(user.ma_nv)
+      .prepare("SELECT ma_nv FROM nhan_vien WHERE quan_ly_id = ? AND dang_lam_viec = 1 AND cong_ty_id IN (SELECT value FROM json_each(?))")
+      .bind(user.ma_nv, congTy)
       .all<{ ma_nv: string }>();
     nhom = [user.ma_nv, ...results.map((r) => r.ma_nv)];
   }
   return {
-    toanBo,
+    toanBo: toanQuyen,
     khoIds: kho.map((k) => k.id),
     nhomMaNv: nhom,
-    xemTongHop: toanBo || kho.length > 0 || nhom.length > 1,
+    xemTongHop: toanQuyen || kho.length > 0 || nhom.length > 1,
+    congTyToan: null,
   };
 }
 
@@ -63,6 +85,10 @@ const trong = (cot: string, ds: unknown[]) => ({ sql: `${cot} IN (SELECT value F
 /** Dieu kien tai san (bang ccdc, alias a) thuoc pham vi: nam trong kho pham vi HOAC nhom dang giu. */
 export function dkTaiSan(pv: PhamVi, a = "c"): DieuKien {
   if (pv.toanBo) return { sql: "1=1", binds: [] };
+  if (pv.congTyToan) {
+    const t = trong(`${a}.cong_ty_id`, pv.congTyToan);
+    return { sql: t.sql, binds: [t.bind] };
+  }
   const parts: string[] = [];
   const binds: unknown[] = [];
   for (const [cot, ds] of [[`${a}.kho_id`, pv.khoIds], [`${a}.nguoi_dang_giu`, pv.nhomMaNv]] as const) {

@@ -3,17 +3,31 @@ import type { AppUser, Env } from "../types";
 import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { nowVN } from "../lib/vnTime";
-import { getKho, guardTonKhongAm, khoPhuTrach, laCapDuoi, laHcns, laKeToan, laThuKho, tonKho } from "../lib/quyen";
+import { coCongTy, getKho, guardTonKhongAm, khoPhuTrach, laCapDuoi, laHcns, laKeToan, laThuKho, tonKho } from "../lib/quyen";
+import { ghepVatTu } from "../lib/ghepVatTu";
 import { sinhMaPhieu, TIEN_TO_CHUYEN_KHO } from "../lib/maPhieu";
 import { dkPhieuKho, layPhamVi, type PhamVi } from "../lib/phamVi";
 import { docTrang, layTrang } from "../lib/phanTrang";
 
-/** Phieu nguoi dung duoc xem: kho trong pham vi + phieu minh lap + phieu cap cho nhom minh (ban than/cap duoi). */
-function dkXemPhieu(pv: PhamVi, email: string) {
+/**
+ * Phieu nguoi dung duoc xem: kho trong pham vi + phieu minh lap + phieu cap cho nhom minh (ban than/cap duoi),
+ * va luon chi phieu co kho nguon HOAC dich thuoc cac cong ty dang xem (chuyen cong ty hien o ca 2 ben).
+ */
+function dkXemPhieu(pv: PhamVi, user: AppUser) {
   const k = dkPhieuKho(pv);
-  if (pv.toanBo) return k;
+  const ct = JSON.stringify(user.cong_ty_xem);
+  const congTy = user.tat_ca_cong_ty
+    ? { sql: "1=1", binds: [] as unknown[] }
+    : {
+        sql: "(p.tu_kho_id IN (SELECT id FROM kho WHERE cong_ty_id IN (SELECT value FROM json_each(?))) OR p.den_kho_id IN (SELECT id FROM kho WHERE cong_ty_id IN (SELECT value FROM json_each(?))))",
+        binds: [ct, ct] as unknown[],
+      };
+  if (pv.toanBo) return { sql: `(${k.sql} AND ${congTy.sql})`, binds: [...k.binds, ...congTy.binds] };
   const nhom = pv.nhomMaNv.length ? " OR p.den_nhan_vien_id IN (SELECT value FROM json_each(?))" : "";
-  return { sql: `(${k.sql} OR p.nguoi_lap = ?${nhom})`, binds: [...k.binds, email, ...(pv.nhomMaNv.length ? [JSON.stringify(pv.nhomMaNv)] : [])] };
+  return {
+    sql: `((${k.sql} OR p.nguoi_lap = ?${nhom}) AND ${congTy.sql})`,
+    binds: [...k.binds, user.email, ...(pv.nhomMaNv.length ? [JSON.stringify(pv.nhomMaNv)] : []), ...congTy.binds],
+  };
 }
 
 // Phieu chuyen kho TAI SAN TIEU HAO (thay phieu_tieu_hao phang cu). Luong da chot voi user 2026-09-23:
@@ -32,7 +46,7 @@ type Loai = (typeof LOAI)[number];
 phieuChuyenKho.get("/", async (c) => {
   const user = c.get("user");
   const q = (k: string) => c.req.query(k);
-  const pham = dkXemPhieu(await layPhamVi(c.env.DB, user), user.email);
+  const pham = dkXemPhieu(await layPhamVi(c.env.DB, user), user);
   const conditions: string[] = [pham.sql];
   const binds: unknown[] = [...pham.binds];
 
@@ -69,6 +83,7 @@ phieuChuyenKho.get("/", async (c) => {
   }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
   const sql = `SELECT p.id, p.ma_phieu, p.loai, p.tu_kho_id, kt.ten_kho AS tu_kho_ten, p.den_kho_id, kd.ten_kho AS den_kho_ten,
+            kt.cong_ty_id AS tu_cong_ty_id, kd.cong_ty_id AS den_cong_ty_id,
             p.den_nhan_vien_id, nv.ten_nv AS den_nhan_vien_ten, p.nguoi_nhan_ten_tu_do, p.nha_cung_cap,
             p.nguoi_lap, p.trang_thai, p.da_xac_nhan, p.ghi_chu, p.created_at,
             (SELECT COUNT(*) FROM phieu_chuyen_kho_ct ct WHERE ct.phieu_id = p.id) AS so_dong,
@@ -100,7 +115,7 @@ phieuChuyenKho.get("/thong-ke", async (c) => {
   const thang = /^\d{4}-\d{2}$/.test(c.req.query("thang") ?? "") ? c.req.query("thang")! : nowVN().slice(0, 7);
   const [y, m] = thang.split("-").map(Number);
   const thangTruoc = new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 7);
-  const pham = dkXemPhieu(await layPhamVi(db, user), user.email);
+  const pham = dkXemPhieu(await layPhamVi(db, user), user);
   const khoId = Number(c.req.query("kho_id")) || null;
   const dk = `${pham.sql}${khoId ? " AND (p.tu_kho_id = ? OR p.den_kho_id = ?)" : ""}`;
   const b = [...pham.binds, ...(khoId ? [khoId, khoId] : [])];
@@ -133,19 +148,24 @@ phieuChuyenKho.get("/thong-ke", async (c) => {
 phieuChuyenKho.get("/:id", async (c) => {
   const id = c.req.param("id");
   const row = await c.env.DB.prepare(
-    `SELECT p.*, kt.ten_kho AS tu_kho_ten, kt.loai AS tu_kho_loai, kd.ten_kho AS den_kho_ten, nv.ten_nv AS den_nhan_vien_ten
+    `SELECT p.*, kt.ten_kho AS tu_kho_ten, kt.loai AS tu_kho_loai, kd.ten_kho AS den_kho_ten, nv.ten_nv AS den_nhan_vien_ten,
+            kt.cong_ty_id AS tu_cong_ty_id, kd.cong_ty_id AS den_cong_ty_id, ctt.ma AS tu_cong_ty_ma, ctd.ma AS den_cong_ty_ma
      FROM phieu_chuyen_kho p
+     LEFT JOIN cong_ty ctt ON ctt.id = (SELECT cong_ty_id FROM kho WHERE id = p.tu_kho_id)
+     LEFT JOIN cong_ty ctd ON ctd.id = (SELECT cong_ty_id FROM kho WHERE id = p.den_kho_id)
      JOIN kho kt ON kt.id = p.tu_kho_id
      LEFT JOIN kho kd ON kd.id = p.den_kho_id
      LEFT JOIN nhan_vien nv ON nv.ma_nv = p.den_nhan_vien_id
      WHERE p.id = ?`,
   )
     .bind(id)
-    .first();
+    .first<{ tu_cong_ty_id: number; den_cong_ty_id: number | null }>();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
+  const user = c.get("user");
+  if (!coCongTy(user, row.tu_cong_ty_id) && !coCongTy(user, row.den_cong_ty_id)) return c.json({ error: "FORBIDDEN" }, 403);
   const [{ results: items }, { results: log }] = await Promise.all([
     c.env.DB.prepare(
-      `SELECT ct.id, ct.vt_id, v.ten_vt, v.don_vi_tinh, ct.so_luong, ct.don_gia, ct.thanh_tien
+      `SELECT ct.id, ct.vt_id, v.ten_vt, v.don_vi_tinh, ct.so_luong, ct.don_gia, ct.thanh_tien, ct.vt_id_den
        FROM phieu_chuyen_kho_ct ct JOIN vt_tieu_hao v ON v.id = ct.vt_id WHERE ct.phieu_id = ?`,
     )
       .bind(id)
@@ -175,17 +195,26 @@ interface CreateBody {
 
 type Loi = { error: string; [k: string]: unknown };
 
-// Kiem tra nguon/dich + quyen theo loai phieu. Tra ve trang thai khoi tao, hoac loi.
-async function kiemTraTao(db: D1Database, user: AppUser, body: CreateBody): Promise<{ trangThai: string } | Loi> {
+// Kiem tra nguon/dich + quyen theo loai phieu. Tra ve trang thai khoi tao + cong ty kho nguon, hoac loi.
+// Da phap nhan: moi phieu trong 1 cong ty, RIENG "Chuyen kho" sang kho cong ty khac -> 'Cho ke toan duyet'
+// (KT cong ty nguon duyet moi tru ton - xem /:id/ke-toan-duyet).
+async function kiemTraTao(db: D1Database, user: AppUser, body: CreateBody): Promise<{ trangThai: string; congTyId: number } | Loi> {
+  const r = await kiemTraTaoGoc(db, user, body);
+  if ("error" in r) return r;
+  const tu = (await getKho(db, Number(body.tu_kho_id)))!;
+  return { trangThai: r.trangThai, congTyId: tu.cong_ty_id };
+}
+
+async function kiemTraTaoGoc(db: D1Database, user: AppUser, body: CreateBody): Promise<{ trangThai: string } | Loi> {
   const tu = await getKho(db, Number(body.tu_kho_id));
   if (!tu || !tu.bat_tat) return { error: "TU_KHO_NOT_FOUND" };
   if (!(await laThuKho(db, user, tu.id))) return { error: "KHONG_PHU_TRACH_KHO_NGUON" };
 
   if (body.loai === "Nhap mua") {
-    if (!laHcns(user)) return { error: "CHI_HCNS_NHAP_MUA" };
+    if (!laHcns(user, tu.cong_ty_id)) return { error: "CHI_HCNS_NHAP_MUA" };
     if (tu.loai !== "Mua hang") return { error: "NHAP_MUA_PHAI_TU_KHO_MUA" };
     const den = await getKho(db, Number(body.den_kho_id));
-    if (!den || !den.bat_tat || den.loai !== "HCNS") return { error: "NHAP_MUA_PHAI_VAO_KHO_HCNS" };
+    if (!den || !den.bat_tat || den.loai !== "HCNS" || den.cong_ty_id !== tu.cong_ty_id) return { error: "NHAP_MUA_PHAI_VAO_KHO_HCNS" };
     return { trangThai: "Cho ke toan duyet" };
   }
 
@@ -196,6 +225,8 @@ async function kiemTraTao(db: D1Database, user: AppUser, body: CreateBody): Prom
     if (!den || !den.bat_tat) return { error: "DEN_KHO_NOT_FOUND" };
     if (den.id === tu.id) return { error: "TRUNG_KHO" };
     if (den.loai === "Mua hang") return { error: "KHONG_CHUYEN_VE_KHO_MUA" };
+    // Sang cong ty khac: cho KT cong ty nguon duyet (chua tru ton), bo qua rang buoc kho QL.
+    if (den.cong_ty_id !== tu.cong_ty_id) return { trangThai: "Cho ke toan duyet" };
     // Kho QL chi tra nguoc ve HCNS/Mien, khong chuyen ngang sang kho QL khac.
     if (tu.loai === "Quan ly" && den.loai === "Quan ly") return { error: "QL_KHONG_CHUYEN_SANG_KHO_QL_KHAC" };
     return { trangThai: "Dang chuyen" };
@@ -206,8 +237,12 @@ async function kiemTraTao(db: D1Database, user: AppUser, body: CreateBody): Prom
   const coTuDo = !!body.nguoi_nhan_ten_tu_do?.trim();
   if (coNv === coTuDo) return { error: "CHON_1_NGUOI_NHAN" };
   if (coNv) {
-    const nv = await db.prepare("SELECT ma_nv FROM nhan_vien WHERE ma_nv = ? AND dang_lam_viec = 1").bind(body.den_nhan_vien_id).first();
+    const nv = await db
+      .prepare("SELECT ma_nv, cong_ty_id FROM nhan_vien WHERE ma_nv = ? AND dang_lam_viec = 1")
+      .bind(body.den_nhan_vien_id)
+      .first<{ cong_ty_id: number }>();
     if (!nv) return { error: "NHAN_VIEN_NOT_FOUND" };
+    if (nv.cong_ty_id !== tu.cong_ty_id) return { error: "NHAN_VIEN_KHAC_CONG_TY" };
   }
   if (tu.loai === "Quan ly") {
     // QL chi phat cho cap duoi truc tiep cua chu kho (hoac chinh QL) - ten tu do khong kiem chung
@@ -234,16 +269,16 @@ phieuChuyenKho.post("/", async (c) => {
 
   const vtIds = [...new Set(body.items.map((i) => i.vt_id))];
   const { results: vts } = await c.env.DB.prepare(
-    `SELECT id FROM vt_tieu_hao WHERE vo_hieu_hoa = 0 AND id IN (${vtIds.map(() => "?").join(",")})`,
+    `SELECT id FROM vt_tieu_hao WHERE vo_hieu_hoa = 0 AND cong_ty_id = ? AND id IN (${vtIds.map(() => "?").join(",")})`,
   )
-    .bind(...vtIds)
+    .bind(kt.congTyId, ...vtIds)
     .all<{ id: string }>();
   if (vts.length !== vtIds.length) return c.json({ error: "VT_NOT_FOUND" }, 400);
 
   const truTon = kt.trangThai !== "Cho ke toan duyet";
   // Kiem tra truoc de tra loi ro rang (vat tu nao thieu, ton bao nhieu); chot chan trong batch lo
-  // truong hop 2 phieu lap cung luc.
-  if (truTon) {
+  // truong hop 2 phieu lap cung luc. Chuyen cong ty chua tru ton nhung van bao som neu khong du hang.
+  if (body.loai !== "Nhap mua") {
     const canXuat = new Map<string, number>();
     for (const it of body.items) canXuat.set(it.vt_id, (canXuat.get(it.vt_id) ?? 0) + Number(it.so_luong));
     for (const [vtId, sl] of canXuat) {
@@ -332,22 +367,62 @@ async function docGhiChu(c: Context<{ Bindings: Env }>): Promise<string | null> 
   return b.ghi_chu?.trim() || null;
 }
 
-// Ke toan duyet / tu choi phieu Nhap mua.
+// Ke toan duyet / tu choi: phieu Nhap mua, va phieu Chuyen kho sang cong ty khac (KT cong ty NGUON).
+async function congTyKhoNguon(db: D1Database, p: PhieuRow): Promise<number | null> {
+  return (await getKho(db, p.tu_kho_id))?.cong_ty_id ?? null;
+}
+
 phieuChuyenKho.post("/:id/ke-toan-duyet", async (c) => {
-  if (!laKeToan(c.get("user"))) return c.json({ error: "CHI_KE_TOAN" }, 403);
+  const user = c.get("user");
+  const db = c.env.DB;
   const p = await layPhieu(c);
   if (!p) return c.json({ error: "NOT_FOUND" }, 404);
-  if (p.loai !== "Nhap mua" || p.trang_thai !== "Cho ke toan duyet") return c.json({ error: "SAI_TRANG_THAI" }, 409);
-  return doiTrangThai(c, p, "Cho ke toan duyet", "Da nhan", await docGhiChu(c));
+  if (!laKeToan(user, await congTyKhoNguon(db, p))) return c.json({ error: "CHI_KE_TOAN" }, 403);
+  if (p.trang_thai !== "Cho ke toan duyet" || (p.loai !== "Nhap mua" && p.loai !== "Chuyen kho")) return c.json({ error: "SAI_TRANG_THAI" }, 409);
+  const ghiChu = await docGhiChu(c);
+  if (p.loai === "Nhap mua") return doiTrangThai(c, p, "Cho ke toan duyet", "Da nhan", ghiChu);
+
+  // Chuyen cong ty: ghep ma vat tu ben nhan + tru ton nguon (-> 'Dang chuyen', kho dich xac nhan nhu thuong).
+  const den = await getKho(db, p.den_kho_id!);
+  if (!den) return c.json({ error: "DEN_KHO_NOT_FOUND" }, 400);
+  const { results: cts } = await db.prepare("SELECT id, vt_id, so_luong FROM phieu_chuyen_kho_ct WHERE phieu_id = ?").bind(p.id).all<{ id: number; vt_id: string; so_luong: number }>();
+  const vtIds = [...new Set(cts.map((r) => r.vt_id))];
+  const canXuat = new Map<string, number>();
+  for (const r of cts) canXuat.set(r.vt_id, (canXuat.get(r.vt_id) ?? 0) + r.so_luong);
+  for (const [vtId, sl] of canXuat) {
+    const ton = await tonKho(db, p.tu_kho_id, vtId);
+    if (ton < sl) return c.json({ error: "VUOT_TON", vt_id: vtId, ton, can_xuat: sl }, 400);
+  }
+  const { map, lenh } = await ghepVatTu(db, vtIds, den.cong_ty_id, user.email);
+  const ngay = nowVN();
+  const stmts: D1PreparedStatement[] = [
+    ...lenh,
+    ...cts.map((r) => db.prepare("UPDATE phieu_chuyen_kho_ct SET vt_id_den = ? WHERE id = ?").bind(map.get(r.vt_id) ?? r.vt_id, r.id)),
+    db.prepare(`UPDATE phieu_chuyen_kho SET trang_thai = 'Dang chuyen', updated_at = ? WHERE id = ? AND trang_thai = 'Cho ke toan duyet'`).bind(ngay, p.id),
+    // 2 KT bam cung luc: UPDATE tren khong doi dong nao -> chot chan loi -> rollback ca batch.
+    db.prepare("INSERT INTO batch_guard (x) SELECT changes()"),
+    db.prepare("DELETE FROM batch_guard"),
+    db
+      .prepare(`INSERT INTO phieu_chuyen_kho_log (phieu_id, trang_thai, nguoi_xu_ly, ngay_xu_ly, ghi_chu) VALUES (?, 'Dang chuyen', ?, ?, ?)`)
+      .bind(p.id, user.email, ngay, ghiChu ? `KT duyệt chuyển công ty. ${ghiChu}` : "KT duyệt chuyển công ty"),
+    ...guardTonKhongAm(db, p.tu_kho_id, vtIds),
+  ];
+  try {
+    await db.batch(stmts);
+  } catch (e) {
+    if (String(e).includes("CHECK constraint failed")) return c.json({ error: "VUOT_TON" }, 409);
+    throw e;
+  }
+  return c.json({ ok: true });
 });
 
 phieuChuyenKho.post("/:id/ke-toan-tu-choi", async (c) => {
-  if (!laKeToan(c.get("user"))) return c.json({ error: "CHI_KE_TOAN" }, 403);
   const ghiChu = await docGhiChu(c);
   if (!ghiChu) return c.json({ error: "CAN_LY_DO" }, 400);
   const p = await layPhieu(c);
   if (!p) return c.json({ error: "NOT_FOUND" }, 404);
-  if (p.loai !== "Nhap mua" || p.trang_thai !== "Cho ke toan duyet") return c.json({ error: "SAI_TRANG_THAI" }, 409);
+  if (!laKeToan(c.get("user"), await congTyKhoNguon(c.env.DB, p))) return c.json({ error: "CHI_KE_TOAN" }, 403);
+  if (p.trang_thai !== "Cho ke toan duyet" || (p.loai !== "Nhap mua" && p.loai !== "Chuyen kho")) return c.json({ error: "SAI_TRANG_THAI" }, 409);
   return doiTrangThai(c, p, "Cho ke toan duyet", "Ke toan tu choi", ghiChu);
 });
 

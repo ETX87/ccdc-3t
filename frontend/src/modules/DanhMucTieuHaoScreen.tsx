@@ -11,11 +11,14 @@ import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtSo } from "../lib/format";
 import { isHcns, thongBaoLoi } from "../lib/nhan";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
+import { TruongCongTy } from "../components/ChonCongTy";
+import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
 
 interface NhomCcdc {
   id: number;
   ten_nhom: string;
   bat_tat: number;
+  cong_ty_id: number;
 }
 interface VtRow {
   id: string;
@@ -24,10 +27,11 @@ interface VtRow {
   ten_nhom: string | null;
   don_vi_tinh: string | null;
   don_gia_tham_khao: number | null;
+  cong_ty_id: number;
 }
 
-function emptyForm() {
-  return { id: "", ten_vt: "", nhom_id: "", don_vi_tinh: "", don_gia_tham_khao: "" };
+function emptyForm(congTyId: number | null = null) {
+  return { id: "", ten_vt: "", nhom_id: "", don_vi_tinh: "", don_gia_tham_khao: "", cong_ty_id: congTyId };
 }
 
 // Danh muc vat tu tieu hao (ton tinh dong o tab Ton kho, khong luu san). HCNS / Admin them - sua - tat.
@@ -35,6 +39,10 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
   const auth = useAuth();
   const { navigate } = useNav();
   const canEdit = auth.status === "authenticated" && isHcns(auth.user);
+  const user = auth.status === "authenticated" ? auth.user : null;
+  // Da phap nhan: danh muc rieng tung cong ty - form chon cong ty khi dang xem nhieu cong ty.
+  const ctTao = congTyMacDinh(user);
+  const nhieuCt = hienCongTy(user);
 
   const [nhoms, setNhoms] = useState<NhomCcdc[]>([]);
   const [rows, setRows] = useState<VtRow[] | null>(null);
@@ -93,7 +101,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
 
   function openAdd() {
     setEditingId(null);
-    setForm(emptyForm());
+    setForm(emptyForm(ctTao.macDinh));
     setError(null);
     setShowForm(true);
   }
@@ -105,6 +113,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       nhom_id: row.nhom_id != null ? String(row.nhom_id) : "",
       don_vi_tinh: row.don_vi_tinh ?? "",
       don_gia_tham_khao: row.don_gia_tham_khao != null ? String(row.don_gia_tham_khao) : "",
+      cong_ty_id: row.cong_ty_id,
     });
     setError(null);
     setShowForm(true);
@@ -123,6 +132,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       nhom_id: form.nhom_id === "" ? null : Number(form.nhom_id),
       don_vi_tinh: form.don_vi_tinh.trim() || null,
       don_gia_tham_khao: form.don_gia_tham_khao ? Number(form.don_gia_tham_khao) : null,
+      cong_ty_id: form.cong_ty_id,
     };
     try {
       if (editingId) await api.put(`/vt-tieu-hao/${encodeURIComponent(editingId)}`, body);
@@ -266,6 +276,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
                   <td data-label={t("Mã")}>{r.id}</td>
                   <td data-label={t("Tên vật tư")} className="strong">
                     {r.ten_vt}
+                    {nhieuCt && <span className="muted small"> · {maCongTy(user, r.cong_ty_id)}</span>}
                   </td>
                   <td data-label={t("Nhóm")} className="text-secondary">
                     {r.ten_nhom ?? "-"}
@@ -302,6 +313,9 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       {showForm && (
         <Modal title={editingId ? t("Sửa vật tư {editingId}", { editingId }) : t("Thêm vật tư")} onClose={() => setShowForm(false)}>
           <div className="form-grid">
+            {!editingId && ctTao.canChon && (
+              <TruongCongTy value={form.cong_ty_id} ds={ctTao.ds} onChange={(id) => setForm({ ...form, cong_ty_id: id, nhom_id: "" })} />
+            )}
             <div className="field-group">
               <label className="field-label">{t("Mã vật tư *")}</label>
               <input type="text" value={form.id} disabled={!!editingId} onChange={(e) => setForm({ ...form, id: e.target.value })} />
@@ -314,7 +328,9 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
               <label className="field-label">{t("Nhóm")}</label>
               <select value={form.nhom_id} onChange={(e) => setForm({ ...form, nhom_id: e.target.value })}>
                 <option value="">{t("-- Không thuộc nhóm --")}</option>
-                {nhoms.map((n) => (
+                {nhoms
+                  .filter((n) => n.cong_ty_id === form.cong_ty_id)
+                  .map((n) => (
                   <option key={n.id} value={n.id}>
                     {n.ten_nhom}
                   </option>

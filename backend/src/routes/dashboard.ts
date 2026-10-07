@@ -73,6 +73,8 @@ dashboard.get("/tong-quan", async (c) => {
   const tuKho = dkCotKho(pv, "p.tu_kho_id");
   const denKho = dkCotKho(pv, "p.den_kho_id");
   const tonKho = dkCotKho(pv, "t.kho_id");
+  // TS nhap moi (chua co kho / nguoi giu): chi pham vi toan quyen (toan bo hoac theo cong ty) moi dem.
+  const nhapTs = pv.toanBo || pv.congTyToan ? ts : { sql: "0=1", binds: [] as unknown[] };
 
   const [chiSo, kyTruoc] = await Promise.all([tinhChiSo(db, pv), soLieuDaChup(db, pv, denTruoc)]);
 
@@ -130,9 +132,9 @@ dashboard.get("/tong-quan", async (c) => {
         `SELECT
            (SELECT COUNT(*) FROM phieu_chuyen_kho p WHERE p.loai = 'Nhap mua' AND substr(p.created_at, 1, 10) BETWEEN ? AND ? AND ${pk.sql})
            + (SELECT COUNT(*) FROM phieu_xu_ly_ts x WHERE x.loai = 'Nhap mua' AND substr(x.created_at, 1, 10) BETWEEN ? AND ?
-                AND EXISTS (SELECT 1 FROM phieu_xu_ly_ts_ct ct JOIN ccdc c ON c.id = ct.ccdc_id WHERE ct.phieu_id = x.id AND ${pv.toanBo ? "1=1" : "0=1"})) AS nhap_hang,
+                AND EXISTS (SELECT 1 FROM phieu_xu_ly_ts_ct ct JOIN ccdc c ON c.id = ct.ccdc_id WHERE ct.phieu_id = x.id AND ${nhapTs.sql})) AS nhap_hang,
            (SELECT COUNT(*) FROM phieu_chuyen_kho p WHERE p.trang_thai = 'Dang chuyen' AND ${pk.sql})
-           + (SELECT COUNT(*) FROM phieu_giao_nhan g WHERE g.da_xac_nhan = 0 AND ${
+           + (SELECT COUNT(*) FROM phieu_giao_nhan g WHERE g.da_xac_nhan = 0 AND g.trang_thai_duyet IS NOT 'Ke toan tu choi' AND ${
              pv.toanBo ? "1=1" : "(g.tu_kho_id IN (SELECT value FROM json_each(?)) OR g.den_kho_id IN (SELECT value FROM json_each(?)) OR g.nhan_vien_id IN (SELECT value FROM json_each(?)) OR g.nhan_vien_nhan_moi_id IN (SELECT value FROM json_each(?)))"
            }) AS ban_giao,
            (SELECT COUNT(*) FROM ccdc c WHERE c.vo_hieu_hoa = 0 AND c.trang_thai_hien_tai IN ('Cho thanh ly', 'Cho tieu huy') AND ${ts.sql}) AS xu_ly,
@@ -140,7 +142,7 @@ dashboard.get("/tong-quan", async (c) => {
       )
       .bind(
         tu, den, ...pk.binds,
-        tu, den,
+        tu, den, ...nhapTs.binds,
         ...pk.binds,
         ...(pv.toanBo ? [] : [JSON.stringify(pv.khoIds), JSON.stringify(pv.khoIds), JSON.stringify(pv.nhomMaNv), JSON.stringify(pv.nhomMaNv)]),
         ...ts.binds,
@@ -188,10 +190,10 @@ dashboard.get("/tong-quan", async (c) => {
     tu,
     den,
     ky_truoc: { tu: tuTruoc, den: denTruoc, ngay_chup: kyTruoc?.ngay ?? null },
-    toan_bo: pv.toanBo,
+    toan_bo: pv.toanBo || !!pv.congTyToan,
     kpi: {
       tong_ts: { ...chiSo.tong_ts, xu_huong: xh("tong_ts") },
-      trong_kho: { ...chiSo.trong_kho, nhan: pv.toanBo ? "Trong kho HCNS" : "Trong kho", xu_huong: xh("trong_kho") },
+      trong_kho: { ...chiSo.trong_kho, nhan: pv.toanBo || pv.congTyToan ? "Trong kho HCNS" : "Trong kho", xu_huong: xh("trong_kho") },
       dang_su_dung: { ...chiSo.dang_su_dung, xu_huong: xh("dang_su_dung") },
       tieu_hao_da_cap: {
         so_luong: thN.sl,
@@ -221,6 +223,7 @@ dashboard.get("/tong-quan", async (c) => {
 // ======================================================================================
 export type HanhDong =
   | "ke_toan_duyet_ck"
+  | "ke_toan_duyet_gn"
   | "ke_toan_duyet_xl"
   | "nhan_kho"
   | "xac_nhan_gn"
@@ -258,6 +261,10 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
   const moc = truGio(nowVN(), QUA_HAN_GIO);
   const tuanTruoc = truGio(nowVN(), 7 * 24);
   const khoJson = JSON.stringify(pv.khoIds);
+  // KT / HCNS: chi phieu / tai san / dot kiem ke cua cac cong ty dang xem (pv da gioi han cong ty).
+  const pkV = dkPhieuKho(pv);
+  const tsV = dkTaiSan(pv);
+  const coTsV = `EXISTS (SELECT 1 FROM phieu_xu_ly_ts_ct ct JOIN ccdc c ON c.id = ct.ccdc_id WHERE ct.phieu_id = x.id AND ${tsV.sql})`;
   const rows: ViecRow[] = [];
   type R = Record<string, string | number | null>;
   const stmts: { kind: string; stmt: D1PreparedStatement }[] = [];
@@ -266,17 +273,27 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
     stmts.push({
       kind: "kt_ck",
       stmt: db.prepare(
-        `SELECT p.id, p.ma_phieu, p.created_at AS t, ${TEN_NGUOI("p.nguoi_lap")} AS nguoi, kd.ten_kho AS den, ${TOM_TAT_CK} AS tom_tat
-         FROM phieu_chuyen_kho p LEFT JOIN kho kd ON kd.id = p.den_kho_id WHERE p.trang_thai = 'Cho ke toan duyet' ORDER BY p.created_at`,
-      ),
+        `SELECT p.id, p.ma_phieu, p.loai, p.created_at AS t, ${TEN_NGUOI("p.nguoi_lap")} AS nguoi, kt.ten_kho AS tu, kd.ten_kho AS den, ${TOM_TAT_CK} AS tom_tat
+         FROM phieu_chuyen_kho p JOIN kho kt ON kt.id = p.tu_kho_id LEFT JOIN kho kd ON kd.id = p.den_kho_id WHERE p.trang_thai = 'Cho ke toan duyet' AND ${pkV.sql} ORDER BY p.created_at`,
+      ).bind(...pkV.binds),
+    });
+    stmts.push({
+      kind: "kt_gn",
+      stmt: db
+        .prepare(
+          `SELECT g.id, g.ma_phieu, g.ngay_lap AS t, ${TEN_NGUOI("g.nguoi_lap")} AS nguoi, kt.ten_kho AS tu, kd.ten_kho AS den, ${TOM_TAT_GN} AS tom_tat
+           FROM phieu_giao_nhan g JOIN kho kt ON kt.id = g.tu_kho_id JOIN kho kd ON kd.id = g.den_kho_id
+           WHERE g.trang_thai_duyet = 'Cho ke toan duyet' AND kt.cong_ty_id IN (SELECT value FROM json_each(?)) ORDER BY g.ngay_lap`,
+        )
+        .bind(JSON.stringify(user.cong_ty_xem)),
     });
     stmts.push({
       kind: "kt_xl",
       stmt: db.prepare(
         `SELECT x.id, x.ma_phieu, x.loai, x.ly_do, x.created_at AS t, ${TEN_NGUOI("x.nguoi_de_xuat")} AS nguoi, ${TOM_TAT_XL} AS tom_tat,
                 (SELECT COUNT(*) FROM phieu_xu_ly_ts_ct ct WHERE ct.phieu_id = x.id) AS so_ts
-         FROM phieu_xu_ly_ts x WHERE x.trang_thai = 'Cho ke toan duyet' ORDER BY x.created_at`,
-      ),
+         FROM phieu_xu_ly_ts x WHERE x.trang_thai = 'Cho ke toan duyet' AND ${coTsV} ORDER BY x.created_at`,
+      ).bind(...tsV.binds),
     });
   }
   if (pv.khoIds.length) {
@@ -296,7 +313,8 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
         .prepare(
           `SELECT g.id, g.ma_phieu, g.loai_phieu, g.ngay_lap AS t, kd.ten_kho AS den, ${TEN_NGUOI("g.nguoi_lap")} AS nguoi, ${TOM_TAT_GN} AS tom_tat
            FROM phieu_giao_nhan g JOIN kho kd ON kd.id = g.den_kho_id
-           WHERE g.da_xac_nhan = 0 AND g.loai_phieu IN ('Thu hoi', 'Chuyen kho') AND g.den_kho_id IN (SELECT value FROM json_each(?))`,
+           WHERE g.da_xac_nhan = 0 AND g.loai_phieu IN ('Thu hoi', 'Chuyen kho') AND (g.trang_thai_duyet IS NULL OR g.trang_thai_duyet = 'Da duyet')
+             AND g.den_kho_id IN (SELECT value FROM json_each(?))`,
         )
         .bind(khoJson),
     });
@@ -328,21 +346,21 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
       kind: "hoan_tat",
       stmt: db.prepare(
         `SELECT x.id, x.ma_phieu, x.loai, x.created_at AS t, ${TEN_NGUOI("x.nguoi_de_xuat")} AS nguoi, ${TOM_TAT_XL} AS tom_tat
-         FROM phieu_xu_ly_ts x WHERE x.trang_thai = 'Da duyet' AND x.loai IN ('Thanh ly', 'Tieu huy')`,
-      ),
+         FROM phieu_xu_ly_ts x WHERE x.trang_thai = 'Da duyet' AND x.loai IN ('Thanh ly', 'Tieu huy') AND ${coTsV}`,
+      ).bind(...tsV.binds),
     });
     stmts.push({
       kind: "hong",
       stmt: db.prepare(
-        `SELECT COUNT(*) AS n, MIN(updated_at) AS t, SUM(COALESCE(nguyen_gia, 0)) AS gt FROM ccdc WHERE vo_hieu_hoa = 0 AND trang_thai_hien_tai = 'Hong'`,
-      ),
+        `SELECT COUNT(*) AS n, MIN(c.updated_at) AS t, SUM(COALESCE(c.nguyen_gia, 0)) AS gt FROM ccdc c WHERE c.vo_hieu_hoa = 0 AND c.trang_thai_hien_tai = 'Hong' AND ${tsV.sql}`,
+      ).bind(...tsV.binds),
     });
     stmts.push({
       kind: "kiem_ke",
       stmt: db.prepare(
         `SELECT d.id, d.ma_phieu, d.ten_dot, d.ngay_bat_dau AS t, (SELECT COUNT(*) FROM kiem_ke_ct k WHERE k.dot_kiem_ke_id = d.id) AS da_kiem
-         FROM dot_kiem_ke d WHERE d.trang_thai = 'Dang thuc hien'`,
-      ),
+         FROM dot_kiem_ke d WHERE d.trang_thai = 'Dang thuc hien' AND d.cong_ty_id IN (SELECT value FROM json_each(?))`,
+      ).bind(JSON.stringify(user.cong_ty_xem)),
     });
   }
   stmts.push({
@@ -374,7 +392,10 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
       const base = { id: s(r.id), ma_phieu: (r.ma_phieu as string) ?? null, thoi_gian: s(r.t) };
       switch (kind) {
         case "kt_ck":
-          rows.push({ ...base, key: `kt_ck:${r.id}`, tab: "cho-duyet", loai: "Nhập mua tiêu hao", loai_phieu: "chuyen_kho", noi_dung: s(r.tom_tat), don_vi_nguoi_tao: `${s(r.den)} · ${s(r.nguoi)}`, trang_thai: "Chờ kế toán duyệt", qua_han: quaHan(r.t), hanh_dong: "ke_toan_duyet_ck" });
+          rows.push({ ...base, key: `kt_ck:${r.id}`, tab: "cho-duyet", loai: r.loai === "Chuyen kho" ? "Chuyển công ty" : "Nhập mua tiêu hao", loai_phieu: "chuyen_kho", noi_dung: s(r.tom_tat), don_vi_nguoi_tao: r.loai === "Chuyen kho" ? `${s(r.tu)} → ${s(r.den)} · ${s(r.nguoi)}` : `${s(r.den)} · ${s(r.nguoi)}`, trang_thai: "Chờ kế toán duyệt", qua_han: quaHan(r.t), hanh_dong: "ke_toan_duyet_ck" });
+          break;
+        case "kt_gn":
+          rows.push({ ...base, key: `kt_gn:${r.id}`, tab: "cho-duyet", loai: "Chuyển công ty TSCĐ", loai_phieu: "giao_nhan", noi_dung: s(r.tom_tat), don_vi_nguoi_tao: `${s(r.tu)} → ${s(r.den)} · ${s(r.nguoi)}`, trang_thai: "Chờ kế toán duyệt", qua_han: quaHan(r.t), hanh_dong: "ke_toan_duyet_gn" });
           break;
         case "kt_xl":
           rows.push({ ...base, key: `kt_xl:${r.id}`, tab: "cho-duyet", loai: LOAI_XL[s(r.loai)] ?? s(r.loai), loai_phieu: "xu_ly", noi_dung: `${r.so_ts} TS: ${s(r.tom_tat)}`, don_vi_nguoi_tao: s(r.nguoi), trang_thai: "Chờ kế toán duyệt", qua_han: quaHan(r.t), hanh_dong: "ke_toan_duyet_xl" });
@@ -457,13 +478,13 @@ function cauLenhCanhBao(db: D1Database, pv: PhamVi) {
          WHERE p.trang_thai = 'Dang chuyen' AND p.created_at < ? AND ${pk.sql}
          UNION ALL
          SELECT g.ma_phieu, 'Giao nhận TSCĐ chưa xác nhận', g.loai_phieu, g.ngay_lap, 'giao_nhan', g.id
-         FROM phieu_giao_nhan g WHERE g.da_xac_nhan = 0 AND g.ngay_lap < ? AND ${gnDk.sql}
+         FROM phieu_giao_nhan g WHERE g.da_xac_nhan = 0 AND g.trang_thai_duyet IS NOT 'Ke toan tu choi' AND g.ngay_lap < ? AND ${gnDk.sql}
          ORDER BY 4`,
       )
       .bind(moc, ...pk.binds, moc, ...gnDk.binds),
     "qua-han-duyet": db
       .prepare(
-        `SELECT p.ma_phieu AS ma, 'Nhập mua tiêu hao' AS ten, ${TOM_TAT_CK} AS chi_tiet, p.created_at AS thoi_gian, 'chuyen_kho' AS kind, p.id AS ref
+        `SELECT p.ma_phieu AS ma, CASE p.loai WHEN 'Chuyen kho' THEN 'Chuyển công ty' ELSE 'Nhập mua tiêu hao' END AS ten, ${TOM_TAT_CK} AS chi_tiet, p.created_at AS thoi_gian, 'chuyen_kho' AS kind, p.id AS ref
          FROM phieu_chuyen_kho p WHERE p.trang_thai = 'Cho ke toan duyet' AND p.created_at < ? AND ${pk.sql}
          UNION ALL
          SELECT x.ma_phieu, CASE x.loai WHEN 'Nhap mua' THEN 'Nhập tài sản' WHEN 'Bao hong' THEN 'Báo hỏng' WHEN 'Thanh ly' THEN 'Thanh lý' ELSE 'Tiêu hủy' END,
@@ -494,7 +515,7 @@ function cauLenhCanhBao(db: D1Database, pv: PhamVi) {
                 k.kiem_ke_luc AS thoi_gian, 'tai_san' AS kind, k.ccdc_id AS ref
          FROM kiem_ke_ct k JOIN dot_kiem_ke d ON d.id = k.dot_kiem_ke_id JOIN ccdc c ON c.id = k.ccdc_id
          WHERE k.tinh_trang_thuc_te != 'Dung vi tri' AND ${ts.sql}
-           AND d.id = (SELECT id FROM dot_kiem_ke ORDER BY created_at DESC LIMIT 1)
+           AND d.id IN (SELECT (SELECT d2.id FROM dot_kiem_ke d2 WHERE d2.cong_ty_id = ct.id ORDER BY d2.created_at DESC LIMIT 1) FROM cong_ty ct)
          ORDER BY k.kiem_ke_luc DESC`,
       )
       .bind(...ts.binds),
@@ -579,7 +600,7 @@ dashboard.get("/viec-can-lam", async (c) => {
       "viec-can-lam": rows.length,
       kho: dem((r) => r.hanh_dong === "nhan_kho"),
       "cap-phat": dem((r) => r.hanh_dong === "ke_toan_duyet_ck"),
-      "giao-nhan": dem((r) => r.hanh_dong === "xac_nhan_gn"),
+      "giao-nhan": dem((r) => r.hanh_dong === "xac_nhan_gn" || r.hanh_dong === "ke_toan_duyet_gn"),
       "bao-hong": laKT ? dem((r) => r.hanh_dong === "ke_toan_duyet_xl" && r.loai === "Báo hỏng") : hong,
       "thanh-ly": laKT
         ? dem((r) => r.hanh_dong === "ke_toan_duyet_xl" && (r.loai === "Thanh lý" || r.loai === "Tiêu hủy"))
@@ -697,15 +718,19 @@ dashboard.post("/canh-bao/sua-gia-tham-khao", XU_LY_CANH_BAO, async (c) => {
   if (!items.length) return c.json({ error: "MISSING_FIELDS" }, 400);
   const db = c.env.DB;
   const email = c.get("user").email;
+  // Chi vat tu cac cong ty tai khoan duoc phep (da phap nhan).
+  const congTy = JSON.stringify(c.get("user").cong_ty_ids);
   const now = nowVN();
   const stmts = items.flatMap((i) => [
     db
       .prepare(
         `INSERT INTO vt_gia_log (vt_id, gia_cu, gia_moi, nguoi, ly_do, created_at)
-         SELECT id, don_gia_tham_khao, ?, ?, 'Sửa theo đề xuất cảnh báo đơn giá bất thường', ? FROM vt_tieu_hao WHERE id = ?`,
+         SELECT id, don_gia_tham_khao, ?, ?, 'Sửa theo đề xuất cảnh báo đơn giá bất thường', ? FROM vt_tieu_hao WHERE id = ? AND cong_ty_id IN (SELECT value FROM json_each(?))`,
       )
-      .bind(i.don_gia, email, now, i.vt_id),
-    db.prepare("UPDATE vt_tieu_hao SET don_gia_tham_khao = ?, updated_at = ? WHERE id = ?").bind(i.don_gia, now, i.vt_id),
+      .bind(i.don_gia, email, now, i.vt_id, congTy),
+    db
+      .prepare("UPDATE vt_tieu_hao SET don_gia_tham_khao = ?, updated_at = ? WHERE id = ? AND cong_ty_id IN (SELECT value FROM json_each(?))")
+      .bind(i.don_gia, now, i.vt_id, congTy),
   ]);
   await db.batch(stmts);
   return c.json({ ok: true, so_luong: items.length });
@@ -743,8 +768,10 @@ dashboard.get("/tim-kiem", async (c) => {
       )
       .bind(...tkTs.binds, ...ts.binds),
     db
-      .prepare(`SELECT id, ten_vt AS ten, don_vi_tinh FROM vt_tieu_hao WHERE vo_hieu_hoa = 0 AND ? = 1 AND ${tkVt.sql} ORDER BY ten_vt LIMIT 6`)
-      .bind(pv.xemTongHop ? 1 : 0, ...tkVt.binds),
+      .prepare(
+        `SELECT id, ten_vt AS ten, don_vi_tinh FROM vt_tieu_hao WHERE vo_hieu_hoa = 0 AND ? = 1 AND cong_ty_id IN (SELECT value FROM json_each(?)) AND ${tkVt.sql} ORDER BY ten_vt LIMIT 6`,
+      )
+      .bind(pv.xemTongHop ? 1 : 0, JSON.stringify(user.cong_ty_xem), ...tkVt.binds),
     db
       .prepare(
         `SELECT ma_nv AS id, ten_nv AS ten, bo_phan FROM nhan_vien

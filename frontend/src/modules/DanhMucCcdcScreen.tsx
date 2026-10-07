@@ -12,6 +12,8 @@ import { useChiTiet } from "../components/ChiTiet";
 import { ChonTep } from "../components/DinhKem";
 import { taiLenTepCho, type TepCho } from "../lib/dinhKem";
 import { PhanTrang, useTrangKhach, useTrangServer } from "../components/PhanTrang";
+import { TruongCongTy } from "../components/ChonCongTy";
+import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
 import { exportRowsToExcel } from "../lib/exportExcel";
 import { inTemQr } from "../lib/inTem";
 import { useNav } from "../lib/navigation";
@@ -44,6 +46,7 @@ interface NhomCcdc {
   ten_nhom: string;
   bat_tat: number;
   stt: number;
+  cong_ty_id: number;
 }
 
 interface CcdcRow {
@@ -64,6 +67,7 @@ interface CcdcRow {
   kho_id: number | null;
   ten_kho: string | null;
   ghi_chu: string | null;
+  cong_ty_id: number;
 }
 
 interface ThongKe {
@@ -80,8 +84,9 @@ interface KhoRow {
 
 const NHOM_XU_LY = ["Hong", "Cho duyet bao hong", "Cho thanh ly", "Cho tieu huy"];
 
-function emptyForm() {
+function emptyForm(congTyId: number | null = null) {
   return {
+    cong_ty_id: congTyId,
     id: "",
     ten_ccdc: "",
     nhom_id: "",
@@ -102,6 +107,9 @@ export function DanhMucCcdcScreen() {
   const { moTaiSan } = useChiTiet();
   const user = auth.status === "authenticated" ? auth.user : null;
   const canEdit = !!user && isHcns(user);
+  // Da phap nhan: danh muc rieng tung cong ty - form chon cong ty khi dang xem nhieu cong ty.
+  const ctTao = congTyMacDinh(user);
+  const nhieuCt = hienCongTy(user);
 
   const [nhoms, setNhoms] = useState<NhomCcdc[]>([]);
   const [khos, setKhos] = useState<KhoRow[]>([]);
@@ -223,7 +231,7 @@ export function DanhMucCcdcScreen() {
   // ---- Form them / sua ----
   function openAdd() {
     setEditingId(null);
-    setForm(emptyForm());
+    setForm(emptyForm(ctTao.macDinh));
     setTep([]);
     setFormLoi(null);
     setShowForm(true);
@@ -231,6 +239,7 @@ export function DanhMucCcdcScreen() {
   function openEdit(r: CcdcRow) {
     setEditingId(r.id);
     setForm({
+      cong_ty_id: r.cong_ty_id,
       id: r.id,
       ten_ccdc: r.ten_ccdc,
       nhom_id: r.nhom_id != null ? String(r.nhom_id) : "",
@@ -268,6 +277,7 @@ export function DanhMucCcdcScreen() {
       han_bao_hanh: rong(form.han_bao_hanh),
       tinh_trang: form.tinh_trang,
       ghi_chu: rong(form.ghi_chu),
+      cong_ty_id: form.cong_ty_id,
     };
     try {
       if (editingId) {
@@ -356,7 +366,7 @@ export function DanhMucCcdcScreen() {
         actions={
           <>
             <button className="btn btn-outline" onClick={inTem} disabled={!rows?.length} title={t("In tem QR các dòng đã chọn (hoặc các dòng đang hiển thị)")}>
-              <QrCode size={14} /> In tem QR{chon.size ? ` (${chon.size})` : ""}
+              <QrCode size={14} /> {t("In tem QR")}{chon.size ? ` (${chon.size})` : ""}
             </button>
             <button className="btn btn-outline" onClick={exportExcel} disabled={!tong}>
               <Download size={14} /> {t("Xuất Excel")}
@@ -549,7 +559,10 @@ export function DanhMucCcdcScreen() {
                         </span>
                       </td>
                       <td data-label={t("Tên tài sản")}>
-                        <div className="strong">{r.ten_ccdc}</div>
+                        <div className="strong">
+                          {r.ten_ccdc}
+                          {nhieuCt && <span className="muted"> · {maCongTy(user, r.cong_ty_id)}</span>}
+                        </div>
                         {r.so_seri && <div className="muted small">SN: {r.so_seri}</div>}
                       </td>
                       <td data-label={t("Nhóm")} className="text-secondary">
@@ -606,6 +619,9 @@ export function DanhMucCcdcScreen() {
               <div className="alert alert-info">{t("Tài sản mới được tạo kèm phiếu nhập (mã NT-…) chờ Kế toán duyệt; duyệt xong tài sản vào kho HCNS.")}</div>
             )}
             <div className="form-grid">
+              {!editingId && ctTao.canChon && (
+                <TruongCongTy value={form.cong_ty_id} ds={ctTao.ds} onChange={(id) => setForm({ ...form, cong_ty_id: id, nhom_id: "" })} />
+              )}
               <div className="field-group">
                 <label className="field-label">{t("Mã tài sản *")}</label>
                 <input type="text" value={form.id} disabled={editingId !== null} onChange={(e) => setForm({ ...form, id: e.target.value })} placeholder="vd TS3T-001200" required />
@@ -618,7 +634,7 @@ export function DanhMucCcdcScreen() {
                 <label className="field-label">{t("Nhóm tài sản")}</label>
                 <select value={form.nhom_id} onChange={(e) => setForm({ ...form, nhom_id: e.target.value })}>
                   <option value="">{t("-- Chọn nhóm --")}</option>
-                  {nhomDangDung.map((n) => (
+                  {nhomDangDung.filter((n) => n.cong_ty_id === form.cong_ty_id).map((n) => (
                     <option key={n.id} value={n.id}>
                       {n.ten_nhom}
                     </option>
@@ -694,14 +710,29 @@ export function DanhMucCcdcScreen() {
         </Modal>
       )}
 
-      {showNhom && <QuanLyNhomModal nhoms={nhoms} onClose={() => setShowNhom(false)} onDoi={loadNhoms} />}
+      {showNhom && <QuanLyNhomModal nhoms={nhoms} ctTao={ctTao} nhieuCt={nhieuCt} maCt={(id) => maCongTy(user, id)} onClose={() => setShowNhom(false)} onDoi={loadNhoms} />}
     </div>
   );
 }
 
-function QuanLyNhomModal({ nhoms, onClose, onDoi }: { nhoms: NhomCcdc[]; onClose: () => void; onDoi: () => Promise<void> }) {
+function QuanLyNhomModal({
+  nhoms,
+  ctTao,
+  nhieuCt,
+  maCt,
+  onClose,
+  onDoi,
+}: {
+  nhoms: NhomCcdc[];
+  ctTao: ReturnType<typeof congTyMacDinh>;
+  nhieuCt: boolean;
+  maCt: (id: number) => string;
+  onClose: () => void;
+  onDoi: () => Promise<void>;
+}) {
   const tNhom = useTrangKhach(nhoms);
   const [moi, setMoi] = useState("");
+  const [congTyMoi, setCongTyMoi] = useState<number | null>(ctTao.macDinh);
   const [sua, setSua] = useState<{ id: number; ten: string } | null>(null);
   const [loi, setLoi] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -728,9 +759,18 @@ function QuanLyNhomModal({ nhoms, onClose, onDoi }: { nhoms: NhomCcdc[]; onClose
         style={{ marginTop: 0, marginBottom: 12 }}
         onSubmit={(e) => {
           e.preventDefault();
-          if (moi.trim()) chay(() => api.post("/nhom-ccdc", { ten_nhom: moi.trim() })).then(() => setMoi(""));
+          if (moi.trim()) chay(() => api.post("/nhom-ccdc", { ten_nhom: moi.trim(), cong_ty_id: congTyMoi })).then(() => setMoi(""));
         }}
       >
+        {ctTao.canChon && (
+          <select value={congTyMoi ?? ""} onChange={(e) => setCongTyMoi(Number(e.target.value))} aria-label={t("Công ty")} style={{ maxWidth: 120 }}>
+            {ctTao.ds.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.ma}
+              </option>
+            ))}
+          </select>
+        )}
         <input type="text" placeholder={t("Tên nhóm mới…")} value={moi} onChange={(e) => setMoi(e.target.value)} />
         <button type="submit" className="btn btn-primary" disabled={busy || !moi.trim()}>
           {t("Thêm nhóm")}
@@ -752,7 +792,10 @@ function QuanLyNhomModal({ nhoms, onClose, onDoi }: { nhoms: NhomCcdc[]; onClose
                   {sua?.id === n.id ? (
                     <input type="text" value={sua.ten} autoFocus onChange={(e) => setSua({ ...sua, ten: e.target.value })} />
                   ) : (
-                    <span className="strong">{n.ten_nhom}</span>
+                    <span className="strong">
+                      {n.ten_nhom}
+                      {nhieuCt && <span className="muted"> · {maCt(n.cong_ty_id)}</span>}
+                    </span>
                   )}
                 </td>
                 <td>{n.bat_tat ? <StatusBadge label={t("Đang dùng")} tone="success" /> : <StatusBadge label={t("Đã tắt")} />}</td>

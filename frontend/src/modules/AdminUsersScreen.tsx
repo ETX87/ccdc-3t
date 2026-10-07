@@ -1,6 +1,6 @@
 import { t } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, HardDrive, Lock, Search, ShieldCheck, UserCheck, UserPlus, UserX } from "lucide-react";
+import { Building2, ChevronDown, HardDrive, Lock, Search, ShieldCheck, UserCheck, UserPlus, UserX } from "lucide-react";
 import { api } from "../api/client";
 import type { TrangThaiDuyet, VaiTro } from "../types";
 import { Modal } from "../components/Modal";
@@ -27,6 +27,15 @@ interface UserRow {
   ten_nv: string | null;
   bo_phan: string | null;
   kho_thu_kho: string | null;
+  cong_ty_nv: number | null;
+  cong_ty_gan: number[];
+}
+interface CongTyRow {
+  id: number;
+  ma: string;
+  ten: string;
+  bat_tat: number;
+  mac_dinh: number;
 }
 type Tab = "cho-duyet" | "da-duyet" | "tu-choi" | "bi-khoa" | "tat-ca";
 interface ThayDoi {
@@ -69,13 +78,18 @@ export function AdminUsersScreen() {
   const [loi, setLoi] = useState<string | null>(null);
   const [dangTai, setDangTai] = useState(false);
   const [capNhatLuc, setCapNhatLuc] = useState<string | null>(null);
+  // Da phap nhan: cong ty duoc xem = cong ty cua ho so NV (mac nhien) + cong ty gan them (user_cong_ty).
+  const [congTys, setCongTys] = useState<CongTyRow[]>([]);
+  const [ganCt, setGanCt] = useState<{ user: UserRow; chon: number[] } | null>(null);
+  const maCt = (id: number) => congTys.find((c) => c.id === id)?.ma ?? String(id);
 
   const load = useCallback(async () => {
     setDangTai(true);
     setLoi(null);
     try {
-      const res = await api.get<{ rows: UserRow[] }>("/admin/users?tab=tat-ca");
+      const [res, ct] = await Promise.all([api.get<{ rows: UserRow[] }>("/admin/users?tab=tat-ca"), api.get<{ rows: CongTyRow[] }>("/cong-ty")]);
       setRows(res.rows);
+      setCongTys(ct.rows);
       setCapNhatLuc(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
     } catch (e) {
       setLoi(thongBaoLoi(e, t("Không tải được danh sách tài khoản.")));
@@ -244,6 +258,7 @@ export function AdminUsersScreen() {
                 <th style={{ width: "20%" }}>{t("Hồ sơ nhân viên")}</th>
                 <th style={{ width: "16%" }}>{t("Vai trò")}</th>
                 <th style={{ width: "15%" }}>{t("Thủ kho")}</th>
+                <th style={{ width: "10%" }}>{t("Công ty")}</th>
                 <th style={{ width: "11%", textAlign: "center" }}>{t("Trạng thái")}</th>
                 <th style={{ width: "17%", textAlign: "right" }}>{t("Thao tác")}</th>
               </tr>
@@ -251,14 +266,14 @@ export function AdminUsersScreen() {
             <tbody>
               {rows === null && (
                 <tr>
-                  <td colSpan={6} className="task-empty">
+                  <td colSpan={7} className="task-empty">
                     {t("Đang tải…")}
                   </td>
                 </tr>
               )}
               {rows !== null && ds.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="task-empty">
+                  <td colSpan={7} className="task-empty">
                     {tab === "cho-duyet" ? t("Không có tài khoản nào chờ duyệt.") : t("Không có tài khoản phù hợp.")}
                   </td>
                 </tr>
@@ -321,6 +336,26 @@ export function AdminUsersScreen() {
                     <td data-label={t("Thủ kho")} className="text-secondary small">
                       {u.kho_thu_kho ?? "-"}
                     </td>
+                    <td data-label={t("Công ty")} className="small">
+                      {u.vai_tro === "Admin" ? (
+                        <span className="muted">{t("Tất cả")}</span>
+                      ) : (
+                        <button
+                          className="btn btn-outline btn-sm"
+                          title={t("Công ty được xem: công ty của hồ sơ nhân viên + công ty gán thêm")}
+                          disabled={!daDuyet}
+                          onClick={() => {
+                            setLoiModal(null);
+                            // Chua gan + khong ho so NV = dang ngam xem cong ty mac dinh -> tich san de khong mat khi gan them.
+                            const macDinh = congTys.find((c) => c.mac_dinh)?.id;
+                            setGanCt({ user: u, chon: u.cong_ty_gan.length || u.cong_ty_nv != null || macDinh == null ? u.cong_ty_gan : [macDinh] });
+                          }}
+                        >
+                          <Building2 size={12} />{" "}
+                          {[...new Set([...(u.cong_ty_nv != null ? [u.cong_ty_nv] : []), ...u.cong_ty_gan])].map(maCt).join(" + ") || (congTys.find((c) => c.mac_dinh)?.ma ?? "-")}
+                        </button>
+                      )}
+                    </td>
                     <td data-label={t("Trạng thái")} style={{ textAlign: "center" }}>
                       <div className="cell-stack" style={{ alignItems: "center" }}>
                         <StatusBadge label={st.label} tone={st.tone} />
@@ -357,6 +392,65 @@ export function AdminUsersScreen() {
         </div>
         <PhanTrang trang={tUser.trang} tong={tUser.tong} onDoi={tUser.setTrang} donVi={t("tài khoản")} />
       </div>
+
+      {ganCt && (
+        <Modal title={t("Công ty được xem")} onClose={() => setGanCt(null)}>
+          <p>
+            <b>{ganCt.user.ten || ganCt.user.email}</b> ({ganCt.user.email})
+          </p>
+          <p className="muted small">{t("Công ty của hồ sơ nhân viên luôn được xem. Tích thêm công ty để người này xem / quản lý số liệu công ty đó theo vai trò của họ.")}</p>
+          <div className="cell-stack" style={{ gap: 8, margin: "12px 0" }}>
+            {congTys
+              .filter((c) => c.bat_tat)
+              .map((c) => {
+                const macNhien = c.id === ganCt.user.cong_ty_nv;
+                return (
+                  <label key={c.id} className="icon-text">
+                    <input
+                      type="checkbox"
+                      checked={macNhien || ganCt.chon.includes(c.id)}
+                      disabled={macNhien}
+                      onChange={(e) =>
+                        setGanCt({ ...ganCt, chon: e.target.checked ? [...ganCt.chon, c.id] : ganCt.chon.filter((x) => x !== c.id) })
+                      }
+                    />
+                    <b>{c.ma}</b> - {c.ten}
+                    {macNhien && <span className="muted small"> {t("(hồ sơ nhân viên)")}</span>}
+                  </label>
+                );
+              })}
+          </div>
+          {loiModal && <div className="alert alert-error">{loiModal}</div>}
+          <div className="modal-actions">
+            <button className="btn" onClick={() => setGanCt(null)}>
+              {t("Huỷ")}
+            </button>
+            <button
+              className="btn btn-primary"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setLoiModal(null);
+                try {
+                  await api.put(`/admin/users/${encodeURIComponent(ganCt.user.email)}/cong-ty`, {
+                    cong_ty_ids: ganCt.chon.filter((x) => x !== ganCt.user.cong_ty_nv),
+                  });
+                  setMsg(t("Đã cập nhật công ty được xem của {x}.", { x: ganCt.user.email }));
+                  setGanCt(null);
+                  baoThayDoi();
+                  await load();
+                } catch (e) {
+                  setLoiModal(thongBaoLoi(e));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              {busy ? t("Đang lưu...") : t("Lưu")}
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {thayDoi && (
         <Modal title={thayDoi.moTa} onClose={() => setThayDoi(null)}>

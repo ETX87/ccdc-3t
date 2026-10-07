@@ -15,6 +15,8 @@ import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { thongBaoLoi } from "../lib/nhan";
 import { DoiMaNhanVienModal } from "./DoiMaNhanVienModal";
+import { TruongCongTy } from "../components/ChonCongTy";
+import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
 
 interface NhanVienRow {
   ma_nv: string;
@@ -29,6 +31,7 @@ interface NhanVienRow {
   quan_ly_ten: string | null;
   so_cap_duoi: number;
   so_ts_dang_giu: number;
+  cong_ty_id: number;
 }
 interface EtxStatus {
   last_run_at: string | null;
@@ -48,14 +51,15 @@ interface ThongKeNv {
   bo_phan: string[];
 }
 
-function emptyForm() {
-  return { ma_nv: "", ten_nv: "", bo_phan: "", chuc_vu: "", sdt: "", email_dang_nhap: "", quan_ly_id: "" };
+function emptyForm(congTyId: number | null = null) {
+  return { ma_nv: "", ten_nv: "", bo_phan: "", chuc_vu: "", sdt: "", email_dang_nhap: "", quan_ly_id: "", cong_ty_id: congTyId };
 }
 const LOI_FORM: Record<string, string> = {
   MA_NV_EXISTS: t("Mã nhân viên này đã tồn tại."),
   QUAN_LY_LA_CHINH_MINH: t("Không thể tự làm quản lý của chính mình."),
   QUAN_LY_NOT_FOUND: t("Quản lý đã chọn không còn làm việc."),
   USER_CHUA_DANG_NHAP: t("Email này chưa từng đăng nhập hệ thống - người đó cần đăng nhập Google 1 lần trước."),
+  DANG_GIU_TS_CONG_TY_CU: t("Nhân viên còn giữ tài sản của công ty cũ - thu hồi hoặc điều chuyển hết trước khi đổi công ty."),
   EMAIL_DA_LIEN_KET: t("Email này đã gắn với hồ sơ nhân viên khác - 1 tài khoản chỉ gắn 1 hồ sơ (dùng “Đổi mã / gộp” nếu là cùng 1 người)."),
 };
 
@@ -65,6 +69,11 @@ export function NhanVienScreen() {
   const auth = useAuth();
   const { params, navigate } = useNav();
   const canEdit = auth.status === "authenticated" && (auth.user.vai_tro === "Admin" || auth.user.vai_tro === "HCNS");
+  const user = auth.status === "authenticated" ? auth.user : null;
+  // Da phap nhan: moi nhan vien thuoc 1 cong ty - them moi chon trong cac cong ty dang xem, sua doi duoc sang
+  // cong ty khac tai khoan duoc phep (server chan neu con giu tai san cong ty cu).
+  const ctTao = congTyMacDinh(user);
+  const nhieuCt = hienCongTy(user);
 
   const [rows, setRows] = useState<NhanVienRow[] | null>(null);
   const [trangThai, setTrangThai] = useState<"dang-lam" | "nghi">("dang-lam");
@@ -176,7 +185,7 @@ export function NhanVienScreen() {
 
   function openAdd() {
     setEditingMaNv(null);
-    setForm(emptyForm());
+    setForm(emptyForm(ctTao.macDinh));
     setError(null);
     setShowForm(true);
   }
@@ -190,6 +199,7 @@ export function NhanVienScreen() {
       sdt: row.sdt ?? "",
       email_dang_nhap: row.email_dang_nhap ?? "",
       quan_ly_id: row.quan_ly_id ?? "",
+      cong_ty_id: row.cong_ty_id,
     });
     setError(null);
     setShowForm(true);
@@ -210,6 +220,7 @@ export function NhanVienScreen() {
       sdt: form.sdt.trim() || null,
       email_dang_nhap: form.email_dang_nhap.trim() || null,
       quan_ly_id: form.quan_ly_id || null,
+      cong_ty_id: form.cong_ty_id,
     };
     try {
       if (editingMaNv) await api.put(`/nhan-vien/${encodeURIComponent(editingMaNv)}`, body);
@@ -443,6 +454,7 @@ export function NhanVienScreen() {
                   <td data-label={t("Họ tên")}>
                     <div className="cell-stack">
                       <span className="strong">{r.ten_nv}</span>
+                      {nhieuCt && <span className="muted small"> · {maCongTy(user, r.cong_ty_id)}</span>}
                       {r.email_dang_nhap && <span className="small text-secondary">{r.email_dang_nhap}</span>}
                     </div>
                   </td>
@@ -529,6 +541,9 @@ export function NhanVienScreen() {
       {showForm && (
         <Modal title={editingMaNv ? t("Sửa nhân viên") : t("Thêm nhân viên")} onClose={() => setShowForm(false)}>
           <div className="form-grid">
+            {(editingMaNv ? (user?.cong_ty.length ?? 0) > 1 : ctTao.canChon) && (
+              <TruongCongTy value={form.cong_ty_id} ds={editingMaNv ? (user?.cong_ty ?? []) : ctTao.ds} onChange={(id) => setForm({ ...form, cong_ty_id: id })} />
+            )}
             {!editingMaNv && (
               <div className="field-group">
                 <label className="field-label">{t("Mã nhân viên *")}</label>

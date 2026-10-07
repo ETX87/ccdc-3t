@@ -26,16 +26,20 @@ interface KhoRow {
   loai: LoaiKho;
   nhan_vien_id: string | null;
   bat_tat: number;
+  cong_ty_id: number;
+  cong_ty_ma?: string;
 }
 interface VtRow {
   id: string;
   ten_vt: string;
   don_vi_tinh: string | null;
   don_gia_tham_khao: number | null;
+  cong_ty_id: number;
 }
 interface NvRow {
   ma_nv: string;
   ten_nv: string;
+  cong_ty_id?: number;
 }
 interface PhieuRow {
   id: string;
@@ -96,6 +100,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
   const myKho = useMemo(() => user?.kho_phu_trach ?? [], [user]);
 
   const [khoAll, setKhoAll] = useState<KhoRow[]>([]);
+  const [khoDichAll, setKhoDichAll] = useState<KhoRow[]>([]);
   const [vts, setVts] = useState<VtRow[]>([]);
   const [nvs, setNvs] = useState<NvRow[]>([]);
   const [capDuoi, setCapDuoi] = useState<NvRow[]>([]);
@@ -182,9 +187,11 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
       api.get<{ rows: VtRow[] }>("/vt-tieu-hao"),
       api.get<{ rows: NvRow[] }>("/nhan-vien?gon=1"),
       api.get<{ rows: NvRow[] }>("/nhan-vien/cap-duoi"),
+      api.get<{ rows: KhoRow[] }>("/kho/dich"),
     ])
-      .then(([k, v, n, cd]) => {
+      .then(([k, v, n, cd, kd]) => {
         setKhoAll(k.rows.filter((x) => x.bat_tat));
+        setKhoDichAll(kd.rows);
         setVts(v.rows);
         setNvs(n.rows);
         setCapDuoi(cd.rows);
@@ -200,22 +207,29 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
   }, [loadPhu]);
   useKhiThayDoi(loadList);
 
-  const tuKhoRow = khoAll.find((k) => k.id === tuKho);
+  const tuKhoRow = khoAll.find((k) => k.id === tuKho) ?? khoDichAll.find((k) => k.id === tuKho);
+  const congTyNguon = tuKhoRow?.cong_ty_id ?? (myKho.find((k) => k.id === tuKho)?.cong_ty_id ?? null);
   const khoNguonHopLe = myKho.filter((k) => (loai === "Nhap mua" ? k.loai === "Mua hang" : k.loai !== "Mua hang"));
-  const khoDichHopLe = khoAll.filter((k) => {
-    if (loai === "Nhap mua") return k.loai === "HCNS";
+  // Da phap nhan: kho dich cung cong ty theo quy tac cu; kho cong ty KHAC (chi phieu Chuyen kho) = chuyen cong ty,
+  // cho KT cong ty nguon duyet.
+  const khoDichHopLe = (loai === "Nhap mua" ? khoAll : khoDichAll).filter((k) => {
+    if (loai === "Nhap mua") return k.loai === "HCNS" && k.cong_ty_id === congTyNguon;
     if (k.id === tuKho || k.loai === "Mua hang") return false;
+    if (k.cong_ty_id !== congTyNguon) return true;
     if (tuKhoRow?.loai === "Quan ly") return k.loai === "HCNS" || k.loai === "Mien";
     return true;
   });
-  // Kho QL chi cap cho chinh QL + cap duoi truc tiep; kho HCNS/Mien cap cho moi nhan vien.
+  const denKhoRow = khoDichAll.find((k) => k.id === denKho);
+  const chuyenCongTy = loai === "Chuyen kho" && !!denKhoRow && congTyNguon != null && denKhoRow.cong_ty_id !== congTyNguon;
+  // Kho QL chi cap cho chinh QL + cap duoi truc tiep; kho HCNS/Mien cap cho moi nhan vien CUNG CONG TY kho.
   const nvHopLe = useMemo(() => {
+    const cungCt = (n: NvRow) => n.cong_ty_id == null || n.cong_ty_id === congTyNguon;
     if (tuKhoRow?.loai === "Quan ly") {
       const self = nvs.find((n) => n.ma_nv === tuKhoRow.nhan_vien_id);
-      return [...(self ? [self] : []), ...capDuoi];
+      return [...(self ? [self] : []), ...capDuoi].filter(cungCt);
     }
-    return nvs;
-  }, [tuKhoRow, nvs, capDuoi]);
+    return nvs.filter(cungCt);
+  }, [tuKhoRow, nvs, capDuoi, congTyNguon]);
 
   useEffect(() => {
     if (!tuKho || loai === "Nhap mua") return setTonNguon({});
@@ -229,7 +243,8 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
     setLoai(l);
     const nguon = myKho.filter((k) => (l === "Nhap mua" ? k.loai === "Mua hang" : k.loai !== "Mua hang"));
     setTuKho(nguon[0]?.id ?? "");
-    setDenKho(l === "Nhap mua" ? (khoAll.find((k) => k.loai === "HCNS")?.id ?? "") : "");
+    const ctNguon = nguon[0]?.cong_ty_id ?? null;
+    setDenKho(l === "Nhap mua" ? (khoAll.find((k) => k.loai === "HCNS" && k.cong_ty_id === ctNguon)?.id ?? "") : "");
     setDenNv("");
     setTuDo("");
     setDungTuDo(false);
@@ -244,9 +259,9 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
   const vtOptions = useMemo(
     () =>
       vts
-        .filter((v) => loai === "Nhap mua" || (tonNguon[v.id] ?? 0) > 0)
+        .filter((v) => v.cong_ty_id === congTyNguon && (loai === "Nhap mua" || (tonNguon[v.id] ?? 0) > 0))
         .map((v) => ({ value: v.id, label: `${v.ten_vt} (${v.id})${loai !== "Nhap mua" ? t(" — tồn {x}", { x: tonNguon[v.id] ?? 0 }) : ""}` })),
-    [vts, tonNguon, loai],
+    [vts, tonNguon, loai, congTyNguon],
   );
 
   async function luu() {
@@ -616,10 +631,18 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                   <option value="">{t("-- Chọn kho --")}</option>
                   {khoDichHopLe.map((k) => (
                     <option key={k.id} value={k.id}>
+                      {k.cong_ty_id !== congTyNguon ? `[${k.cong_ty_ma ?? ""}] ` : ""}
                       {k.ten_kho} ({LOAI_KHO[k.loai]})
                     </option>
                   ))}
                 </select>
+                {chuyenCongTy && (
+                  <div className="field-hint text-orange">
+                    {t("Chuyển sang công ty {x}: phiếu chờ Kế toán công ty nguồn duyệt rồi mới trừ tồn; mặt hàng ghép theo tên + ĐVT trong danh mục công ty nhận (chưa có sẽ tự tạo).", {
+                      x: denKhoRow?.cong_ty_ma ?? "",
+                    })}
+                  </div>
+                )}
               </div>
             )}
             {loai === "Cap phat NV" && (

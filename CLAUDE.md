@@ -81,6 +81,26 @@ state đang dùng.
 - Script import dữ liệu cũ: `scripts/generate_import_sql.py` (quyết định ánh xạ ghi ở docstring đầu
   file). Phải import TRƯỚC lần đồng bộ ETX đầu tiên trên production (xem `DEPLOY.md`).
 
+## Đa pháp nhân / công ty (2026-10-07, migration 0014)
+
+- Bảng `cong_ty` (id 1 = `3T` mặc định — nhận nhân sự mới từ ETX; id 2 = `NSKX`), `user_cong_ty` (email ↔ công ty
+  gán thêm). Cột `cong_ty_id` trên `kho`, `vt_tieu_hao`, `nhom_ccdc`, `ccdc`, `nhan_vien`, `dot_kiem_ke` — tồn kho,
+  danh mục, tài sản, nhân viên RIÊNG từng công ty. Mỗi NV thuộc 1 công ty. Tạo công ty (màn "Công ty (pháp nhân)",
+  Admin) tự tạo kèm Kho mua hàng + Kho tổng HCNS riêng. **Bảng mới có dữ liệu theo công ty phải thêm `cong_ty_id`.**
+- Công ty được xem (`loadUser`): Admin = mọi công ty; còn lại = `user_cong_ty` ∪ công ty hồ sơ NV ∪ công ty các kho
+  là thủ kho; rỗng → công ty mặc định. Bộ lọc đang xem: header `x-cong-ty` (localStorage `ccdc_cong_ty`, ô
+  `ChonCongTy` ở topbar, đổi = tải lại trang) → `user.cong_ty_xem`. Vai trò toàn quyền xem 1 phần công ty →
+  `PhamVi.congTyToan`. Helper `quyen.ts`: `coCongTy`, `congTyTao` (công ty bản ghi mới), `congTyLoc` (lọc danh sách,
+  `?cong_ty_id=`), `laKeToan/laHcns(user, congTyId)`. Form tạo mới: `TruongCongTy` + `congTyMacDinh(user)`
+  (chỉ hiện ô chọn khi đang xem nhiều công ty).
+- **Chuyển giữa 2 công ty**: tiêu hao = `phieu_chuyen_kho` loại `Chuyen kho` tới kho công ty khác → `Cho ke toan
+  duyet` (chưa trừ tồn) → KT công ty NGUỒN duyệt: `lib/ghepVatTu.ts` ghép mặt hàng theo tên + ĐVT trong danh mục công
+  ty nhận (thiếu thì tạo `${id}-${MA}`, ghi `phieu_chuyen_kho_ct.vt_id_den`), trừ tồn → `Dang chuyen` → kho nhận
+  xác nhận. `v_ton_kho` vế nhập dùng `COALESCE(vt_id_den, vt_id)`. TSCĐ = `phieu_giao_nhan` `Chuyen kho` tới kho công
+  ty khác → `trang_thai_duyet` `Cho ke toan duyet`; duyệt mới chuyển TS (đổi `cong_ty_id`, nhóm ghép theo tên); chưa
+  duyệt thì không xác nhận được (`CHUA_KE_TOAN_DUYET`). Danh sách kho đích cho cả 2: `GET /kho/dich`.
+- Báo cáo so sánh: `GET /bao-cao/theo-cong-ty` (tab "Theo công ty", Admin/KT/HCNS xem ≥2 công ty).
+
 ## Giao diện chạy dữ liệu thật (Giai đoạn 1.6, 2026-09-24)
 
 - **Không phần tử trang trí/demo**: mọi số KPI, badge, biểu đồ, nút, link phải lấy từ API thật và bấm

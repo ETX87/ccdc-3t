@@ -11,6 +11,8 @@ export const CHUOI_SERVER = [
   "Thanh lý",
   "Tiêu hủy",
   "Nhập mua tiêu hao",
+  "Chuyển công ty",
+  "Chuyển công ty TSCĐ",
   "Nhận chuyển kho",
   "Thu hồi về kho",
   "Chuyển TSCĐ về kho",

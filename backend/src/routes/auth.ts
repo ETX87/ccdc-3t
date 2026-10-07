@@ -152,11 +152,16 @@ auth.get("/me", verifySessionMiddleware, loadUser, async (c) => {
   const user = c.get("user");
   // Bo sung cho frontend dung de hien menu: kho user duoc thao tac + co nhom cap duoi hay khong.
   const kho = await khoPhuTrach(c.env.DB, user);
+  const { results: congTy } = await c.env.DB.prepare(
+    "SELECT id, ma, ten FROM cong_ty WHERE id IN (SELECT value FROM json_each(?)) ORDER BY id",
+  )
+    .bind(JSON.stringify(user.cong_ty_ids))
+    .all<{ id: number; ma: string; ten: string }>();
   const capDuoi = user.ma_nv
     ? await c.env.DB.prepare("SELECT 1 AS ok FROM nhan_vien WHERE quan_ly_id = ? AND dang_lam_viec = 1 LIMIT 1").bind(user.ma_nv).first()
     : null;
   return c.json({
-    user: { ...user, kho_phu_trach: kho.map((k) => ({ id: k.id, ten_kho: k.ten_kho, loai: k.loai, nhan_vien_id: k.nhan_vien_id })), co_cap_duoi: !!capDuoi },
+    user: { ...user, kho_phu_trach: kho.map((k) => ({ id: k.id, ten_kho: k.ten_kho, loai: k.loai, nhan_vien_id: k.nhan_vien_id, cong_ty_id: k.cong_ty_id })), co_cap_duoi: !!capDuoi, cong_ty: congTy },
   });
 });
 

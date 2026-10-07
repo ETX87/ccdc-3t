@@ -104,6 +104,19 @@ const LOI: Record<string, string> = {
   SAI_DINH_DANG: t("Chỉ nhận ảnh (JPG, PNG, WEBP, HEIC) hoặc PDF."),
   DANG_CAP_PHAT: t("Tài sản đang nằm trong một phiếu cấp phát chưa hoàn tất."),
   DANG_CHO_DUYET: t("Đang có phiếu chờ duyệt cho tài sản này."),
+  CHON_CONG_TY: t("Vui lòng chọn công ty."),
+  CONG_TY_NOT_FOUND: t("Không tìm thấy công ty hoặc công ty đã ngừng hoạt động."),
+  KHAC_CONG_TY: t("Các tài sản / hồ sơ phải cùng một công ty."),
+  NHOM_KHAC_CONG_TY: t("Nhóm đã chọn thuộc công ty khác."),
+  NHAN_VIEN_KHAC_CONG_TY: t("Nhân viên thuộc công ty khác với kho."),
+  TS_KHAC_CONG_TY: t("Có tài sản thuộc công ty khác."),
+  DANG_CHO_CHUYEN_CONG_TY: t("Tài sản đang nằm trong phiếu chuyển công ty chờ duyệt."),
+  CHUA_KE_TOAN_DUYET: t("Phiếu chuyển công ty chưa được Kế toán duyệt."),
+  DANG_GIU_TS_CONG_TY_CU: t("Nhân viên còn giữ tài sản của công ty cũ - thu hồi hoặc điều chuyển hết trước khi đổi công ty."),
+  MA_CONG_TY_TRUNG: t("Mã công ty đã tồn tại."),
+  KHONG_TAT_CONG_TY_MAC_DINH: t("Không thể ngừng công ty mặc định."),
+  KHONG_TAT_KHO_HE_THONG: t("Không thể ngừng kho mua hàng / kho HCNS cuối cùng của công ty."),
+  VT_NOT_FOUND: t("Có mặt hàng không thuộc danh mục công ty của kho nguồn."),
 };
 
 export function thongBaoLoi(e: unknown, macDinh = t("Không thực hiện được - vui lòng thử lại.")) {

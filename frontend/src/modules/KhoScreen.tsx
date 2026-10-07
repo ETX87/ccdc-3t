@@ -15,12 +15,15 @@ import { fmtGiaTri, fmtGiaTriDong, fmtSo } from "../lib/format";
 import { isHcns, LOAI_KHO, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
+import { TruongCongTy } from "../components/ChonCongTy";
+import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
 
 interface TongHopKho {
   id: number;
   ten_kho: string;
   loai: LoaiKho;
   bat_tat: number;
+  cong_ty_id: number;
   nhan_vien_ten: string | null;
   ts_trong_kho: number;
   gt_ts: number;
@@ -40,6 +43,7 @@ interface KhoRow {
   bat_tat: number;
   ghi_chu: string | null;
   thu_kho: string[];
+  cong_ty_id: number;
 }
 
 type Tab = "ton" | "cau-hinh";
@@ -259,6 +263,7 @@ export function KhoScreen() {
                         </span>
                         {k.ten_kho}
                       </span>
+                      {hienCongTy(user) && <span className="muted small"> · {maCongTy(user, k.cong_ty_id)}</span>}
                       {!k.bat_tat && <span className="muted small"> {t("(đã ngừng)")}</span>}
                     </td>
                     <td data-label={t("Loại")} className="text-secondary">
@@ -313,6 +318,12 @@ export function KhoScreen() {
 // ---------------------------------------------------------------------------------------------
 function CauHinhKho() {
   const refreshUser = useRefreshUser();
+  const auth = useAuth();
+  const user = auth.status === "authenticated" ? auth.user : null;
+  // Da phap nhan: kho thuoc 1 cong ty - them kho khi dang xem nhieu cong ty thi chon cong ty.
+  const ctTao = congTyMacDinh(user);
+  const nhieuCt = hienCongTy(user);
+  const [congTyMoi, setCongTyMoi] = useState<number | null>(ctTao.macDinh);
   const [rows, setRows] = useState<KhoRow[] | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [tenMoi, setTenMoi] = useState("");
@@ -399,6 +410,7 @@ function CauHinhKho() {
               <tr key={k.id}>
                 <td data-label={t("Tên kho")} className="strong">
                   {k.ten_kho}
+                  {nhieuCt && <span className="muted small"> · {maCongTy(user, k.cong_ty_id)}</span>}
                 </td>
                 <td data-label={t("Loại kho")}>
                   <span className="status-badge badge-cyan-solid">{LOAI_KHO[k.loai]}</span>
@@ -479,6 +491,7 @@ function CauHinhKho() {
 
       {showAdd && (
         <Modal title={t("Thêm kho mới")} onClose={() => setShowAdd(false)}>
+          {ctTao.canChon && <TruongCongTy value={congTyMoi} ds={ctTao.ds} onChange={setCongTyMoi} />}
           <div className="field-group">
             <label className="field-label">{t("Tên kho *")}</label>
             <input type="text" value={tenMoi} onChange={(e) => setTenMoi(e.target.value)} placeholder={t("vd: Kho vận Miền Trung")} autoFocus />
@@ -501,7 +514,7 @@ function CauHinhKho() {
               disabled={!tenMoi.trim()}
               onClick={() =>
                 run(async () => {
-                  await api.post("/kho", { ten_kho: tenMoi.trim(), loai: loaiMoi });
+                  await api.post("/kho", { ten_kho: tenMoi.trim(), loai: loaiMoi, cong_ty_id: congTyMoi });
                   setShowAdd(false);
                   setTenMoi("");
                 }, t("Đã thêm kho {x}.", { x: tenMoi.trim() }))

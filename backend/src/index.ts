@@ -17,6 +17,7 @@ import baoCao from "./routes/baoCao";
 import dashboard from "./routes/dashboard";
 import dinhKem from "./routes/dinhKem";
 import settings from "./routes/settings";
+import congTy from "./routes/congTy";
 import { chupSoLieu } from "./lib/thongKe";
 import { nowVN } from "./lib/vnTime";
 
@@ -51,6 +52,7 @@ app.route("/api/bao-cao", baoCao);
 app.route("/api/dashboard", dashboard);
 app.route("/api/dinh-kem", dinhKem);
 app.route("/api/settings", settings);
+app.route("/api/cong-ty", congTy);
 
 app.get("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 

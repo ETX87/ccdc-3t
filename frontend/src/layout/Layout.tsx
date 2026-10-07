@@ -12,6 +12,7 @@ import { GlobalSearch } from "../components/GlobalSearch";
 import { QrScanButton } from "../components/QrScanner";
 import { NotificationBell } from "../components/NotificationBell";
 import { ChonNgonNgu } from "../components/ChonNgonNgu";
+import { ChonCongTy } from "../components/ChonCongTy";
 import { BottomNav } from "./BottomNav";
 import { CaiDatAppButton } from "../components/CaiDatAppButton";
 
@@ -153,6 +154,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <GlobalSearch />
 
           <div className="topbar-right">
+            <ChonCongTy />
             <ChonNgonNgu />
             <QrScanButton />
             <NotificationBell />

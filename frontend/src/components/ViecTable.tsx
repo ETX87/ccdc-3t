@@ -16,6 +16,7 @@ import { PhanTrang, useTrangKhach } from "./PhanTrang";
 const ICON: Record<ViecRow["hanh_dong"], { icon: typeof Box; cls: string; dot: string }> = {
   ke_toan_duyet_ck: { icon: Box, cls: "text-green-icon", dot: "bg-green-circle" },
   ke_toan_duyet_xl: { icon: Trash2, cls: "text-orange-icon", dot: "bg-orange-circle" },
+  ke_toan_duyet_gn: { icon: ArrowLeftRight, cls: "text-green-icon", dot: "bg-green-circle" },
   nhan_kho: { icon: ArrowLeftRight, cls: "text-indigo-icon", dot: "bg-indigo-circle" },
   xac_nhan_gn: { icon: GitBranch, cls: "text-indigo-icon", dot: "bg-indigo-circle" },
   xac_nhan_cp: { icon: Tag, cls: "text-blue-icon", dot: "bg-blue-circle" },
@@ -45,6 +46,12 @@ const NHANH: Partial<Record<ViecRow["hanh_dong"], { nhan: string; path: (id: str
     nhan: t("Duyệt"),
     path: (id) => `/phieu-xu-ly-ts/${id}/ke-toan-duyet`,
     tuChoi: (id) => `/phieu-xu-ly-ts/${id}/ke-toan-tu-choi`,
+    lyDoTuChoi: t("Lý do từ chối"),
+  },
+  ke_toan_duyet_gn: {
+    nhan: t("Duyệt"),
+    path: (id) => `/phieu-giao-nhan/${id}/ke-toan-duyet`,
+    tuChoi: (id) => `/phieu-giao-nhan/${id}/ke-toan-tu-choi`,
     lyDoTuChoi: t("Lý do từ chối"),
   },
   nhan_kho: {

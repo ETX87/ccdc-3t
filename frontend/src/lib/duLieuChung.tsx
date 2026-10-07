@@ -19,6 +19,7 @@ export interface ViecRow {
   qua_han: boolean;
   hanh_dong:
     | "ke_toan_duyet_ck"
+    | "ke_toan_duyet_gn"
     | "ke_toan_duyet_xl"
     | "nhan_kho"
     | "xac_nhan_gn"

@@ -18,6 +18,8 @@ import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtNgay, fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { isHcns, thongBaoLoi, TINH_TRANG_KIEM_KE, TRANG_THAI_TS } from "../lib/nhan";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
+import { TruongCongTy } from "../components/ChonCongTy";
+import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
 
 interface DotRow {
   id: string;
@@ -28,6 +30,7 @@ interface DotRow {
   trang_thai: string;
   nguoi_tao: string;
   so_luong_da_kiem: number;
+  cong_ty_id: number;
 }
 interface CcdcRow {
   id: string;
@@ -36,6 +39,7 @@ interface CcdcRow {
   nguoi_dang_giu: string | null;
   nguoi_dang_giu_ten: string | null;
   ten_kho: string | null;
+  cong_ty_id: number;
 }
 interface NhanVienRow {
   ma_nv: string;
@@ -214,6 +218,7 @@ export function KiemKeScreen() {
                   </td>
                   <td data-label={t("Tên đợt")} className="strong">
                     {d.ten_dot}
+                    {hienCongTy(user) && <span className="muted small"> · {maCongTy(user, d.cong_ty_id)}</span>}
                   </td>
                   <td data-label={t("Bắt đầu")}>{fmtNgay(d.ngay_bat_dau)}</td>
                   <td data-label={t("Kết thúc")}>{d.ngay_ket_thuc ? fmtNgay(d.ngay_ket_thuc) : "-"}</td>
@@ -248,12 +253,17 @@ export function KiemKeScreen() {
 }
 
 function TaoDotModal({ onClose, onDone }: { onClose: () => void; onDone: (id: string) => void }) {
+  const auth = useAuth();
+  // Da phap nhan: moi dot kiem ke thuoc 1 cong ty (chi kiem tai san cong ty do).
+  const ctTao = congTyMacDinh(auth.status === "authenticated" ? auth.user : null);
+  const [congTy, setCongTy] = useState<number | null>(ctTao.macDinh);
   const [tenDot, setTenDot] = useState(t("Kiểm kê tháng {x}/{x2}", { x: homNayVN().slice(5, 7), x2: homNayVN().slice(0, 4) }));
   const [ngay, setNgay] = useState(homNayVN());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   return (
     <Modal title={t("Tạo đợt kiểm kê")} onClose={onClose}>
+      {ctTao.canChon && <TruongCongTy value={congTy} ds={ctTao.ds} onChange={setCongTy} />}
       <div className="field-group">
         <label className="field-label">{t("Tên đợt *")}</label>
         <input type="text" value={tenDot} onChange={(e) => setTenDot(e.target.value)} autoFocus />
@@ -274,7 +284,7 @@ function TaoDotModal({ onClose, onDone }: { onClose: () => void; onDone: (id: st
             setBusy(true);
             setErr(null);
             try {
-              const r = await api.post<{ id: string }>("/dot-kiem-ke", { ten_dot: tenDot.trim(), ngay_bat_dau: ngay });
+              const r = await api.post<{ id: string }>("/dot-kiem-ke", { ten_dot: tenDot.trim(), ngay_bat_dau: ngay, cong_ty_id: congTy });
               onDone(r.id);
             } catch (e) {
               setErr(thongBaoLoi(e, t("Không tạo được đợt kiểm kê.")));
@@ -325,13 +335,13 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
 
   useEffect(() => {
     loadItems();
-    Promise.all([api.get<{ rows: CcdcRow[] }>("/ccdc"), api.get<{ rows: NhanVienRow[] }>("/nhan-vien?gon=1")])
+    Promise.all([api.get<{ rows: CcdcRow[] }>("/ccdc"), api.get<{ rows: NhanVienRow[] }>(`/nhan-vien?gon=1&cong_ty_id=${dot.cong_ty_id}`)])
       .then(([cc, nv]) => {
-        setCcdcs(cc.rows.filter(CAN_KIEM));
+        setCcdcs(cc.rows.filter((r) => CAN_KIEM(r) && r.cong_ty_id === dot.cong_ty_id));
         setNhanViens(nv.rows);
       })
       .catch(() => undefined);
-  }, [loadItems]);
+  }, [loadItems, dot.cong_ty_id]);
 
   const daKiemIds = useMemo(() => new Set((items ?? []).map((i) => i.ccdc_id)), [items]);
   const chuaKiem = ccdcs.filter((c) => !daKiemIds.has(c.id));

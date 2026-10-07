@@ -57,6 +57,7 @@ export interface NvRow {
   quan_ly_id: string | null;
   ma_etx: string | null;
   gmail: string | null;
+  cong_ty_id: number;
 }
 interface EtxRow {
   ma_nhan_su: string;
@@ -89,7 +90,7 @@ export interface KeHoach {
   canhBao: string[];
 }
 
-const COT_NV_SELECT = "ma_nv, ten_nv, bo_phan, chuc_vu, sdt, email_dang_nhap, dang_lam_viec, ghi_chu, quan_ly_id, ma_etx, gmail";
+const COT_NV_SELECT = "ma_nv, ten_nv, bo_phan, chuc_vu, sdt, email_dang_nhap, dang_lam_viec, ghi_chu, quan_ly_id, ma_etx, gmail, cong_ty_id";
 export const MA_NV_RE = /^[A-Za-z0-9._-]{2,40}$/;
 
 export class LoiGop extends Error {
@@ -141,6 +142,10 @@ export async function lapKeHoach(db: D1Database, maNguon: string, yc: YeuCau, gi
     thaoTac = "Gop ho so";
     maDich = dich.ma_nv;
   }
+
+  // Da phap nhan: 2 ho so thuoc 2 cong ty khac nhau -> khong gop (tai san / kho moi cong ty doc lap) - doi cong ty
+  // cho 1 ho so truoc (sua nhan vien) roi moi gop.
+  if (dich && dich.cong_ty_id !== nguon.cong_ty_id) throw new LoiGop("KHAC_CONG_TY");
 
   // Hai ho so gan 2 ma ETX khac nhau = 2 nguoi that khac nhau -> khong gop (tru gan-etx: ma cua nguon la ma sai).
   if (dich && yc.loai !== "gan-etx" && nguon.ma_etx && dich.ma_etx && nguon.ma_etx !== dich.ma_etx) {
@@ -227,8 +232,8 @@ export function lenhThucHien(db: D1Database, k: KeHoach, nguoi: string): D1Prepa
       s.push(
         db
           .prepare(
-            `INSERT INTO nhan_vien (ma_nv, ten_nv, bo_phan, chuc_vu, sdt, email_dang_nhap, dang_lam_viec, ghi_chu, quan_ly_id, gmail, created_at, updated_at)
-             SELECT ?, ten_nv, bo_phan, chuc_vu, sdt, email_dang_nhap, dang_lam_viec, ghi_chu, quan_ly_id, gmail, created_at, ? FROM nhan_vien WHERE ma_nv = ?`,
+            `INSERT INTO nhan_vien (ma_nv, ten_nv, bo_phan, chuc_vu, sdt, email_dang_nhap, dang_lam_viec, ghi_chu, quan_ly_id, gmail, cong_ty_id, created_at, updated_at)
+             SELECT ?, ten_nv, bo_phan, chuc_vu, sdt, email_dang_nhap, dang_lam_viec, ghi_chu, quan_ly_id, gmail, cong_ty_id, created_at, ? FROM nhan_vien WHERE ma_nv = ?`,
           )
           .bind(d, now, n.ma_nv),
       );

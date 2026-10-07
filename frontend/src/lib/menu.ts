@@ -96,6 +96,7 @@ export const MENU: MenuItem[] = [
     show: xemTongHop,
     children: [
       { label: t("Tổng hợp"), tab: "bao-cao", params: { tab: "tong-quan" }, show: moiNguoi },
+      { label: t("Theo công ty"), tab: "bao-cao", params: { tab: "theo-cong-ty" }, show: (u) => laQuanTri(u) && u.cong_ty.length > 1 },
       { label: t("Theo nhân viên"), tab: "bao-cao", params: { tab: "theo-nhan-vien" }, show: moiNguoi },
       { label: t("Theo bộ phận"), tab: "bao-cao", params: { tab: "theo-bo-phan" }, show: moiNguoi },
       { label: t("Sắp hết bảo hành"), tab: "bao-cao", params: { tab: "sap-het-bao-hanh" }, show: moiNguoi },
@@ -111,6 +112,7 @@ export const MENU: MenuItem[] = [
     show: laQuanTri,
     children: [
       { label: t("Tài khoản & phân quyền"), tab: "tai-khoan", show: (u) => u.vai_tro === "Admin" },
+      { label: t("Công ty (pháp nhân)"), tab: "cong-ty", show: (u) => u.vai_tro === "Admin" },
       { label: t("Nhân viên & sơ đồ quản lý"), tab: "nhan-vien", show: laQuanTri },
     ],
   },

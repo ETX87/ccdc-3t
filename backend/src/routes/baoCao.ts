@@ -35,13 +35,13 @@ baoCao.get("/ton-kho", async (c) => {
       `SELECT v.id, v.ten_vt, v.don_vi_tinh, n.ten_nhom, v.don_gia_tham_khao,
               COALESCE(t.ton, 0) AS ton,
               COALESCE((SELECT SUM(ct.so_luong) FROM phieu_chuyen_kho p JOIN phieu_chuyen_kho_ct ct ON ct.phieu_id = p.id
-                        WHERE p.den_kho_id = ?1 AND p.trang_thai = 'Dang chuyen' AND ct.vt_id = v.id), 0) AS dang_chuyen_den
+                        WHERE p.den_kho_id = ?1 AND p.trang_thai = 'Dang chuyen' AND COALESCE(ct.vt_id_den, ct.vt_id) = v.id), 0) AS dang_chuyen_den
        FROM vt_tieu_hao v
        LEFT JOIN nhom_ccdc n ON n.id = v.nhom_id
        LEFT JOIN v_ton_kho t ON t.vt_id = v.id AND t.kho_id = ?1
        WHERE v.vo_hieu_hoa = 0 AND (COALESCE(t.ton, 0) != 0 OR EXISTS (
          SELECT 1 FROM phieu_chuyen_kho p JOIN phieu_chuyen_kho_ct ct ON ct.phieu_id = p.id
-         WHERE p.den_kho_id = ?1 AND p.trang_thai = 'Dang chuyen' AND ct.vt_id = v.id))
+         WHERE p.den_kho_id = ?1 AND p.trang_thai = 'Dang chuyen' AND COALESCE(ct.vt_id_den, ct.vt_id) = v.id))
        ORDER BY v.ten_vt`,
     )
       .bind(Number(khoId))
@@ -56,11 +56,11 @@ baoCao.get("/ton-kho", async (c) => {
      FROM vt_tieu_hao v
      LEFT JOIN nhom_ccdc n ON n.id = v.nhom_id
      LEFT JOIN v_ton_kho t ON t.vt_id = v.id AND (?1 = 1 OR t.kho_id IN (SELECT value FROM json_each(?2)))
-     WHERE v.vo_hieu_hoa = 0
+     WHERE v.vo_hieu_hoa = 0 AND v.cong_ty_id IN (SELECT value FROM json_each(?3))
      GROUP BY v.id
      ORDER BY v.ten_vt`,
   )
-    .bind(pv.toanBo ? 1 : 0, JSON.stringify(pv.khoIds))
+    .bind(pv.toanBo ? 1 : 0, JSON.stringify(pv.khoIds), JSON.stringify(c.get("user").cong_ty_xem))
     .all();
   return c.json({ rows: results });
 });
@@ -118,7 +118,9 @@ baoCao.get("/tong-quan", async (c) => {
     )
       .bind(...ts.binds)
       .first<{ n: number }>(),
-    c.env.DB.prepare(`SELECT COUNT(*) AS n FROM dot_kiem_ke WHERE trang_thai = 'Dang thuc hien'`).first<{ n: number }>(),
+    c.env.DB.prepare(`SELECT COUNT(*) AS n FROM dot_kiem_ke WHERE trang_thai = 'Dang thuc hien' AND cong_ty_id IN (SELECT value FROM json_each(?))`)
+      .bind(JSON.stringify(c.get("user").cong_ty_xem))
+      .first<{ n: number }>(),
   ]);
   return c.json({
     theo_trang_thai: theoTrangThai.results,
@@ -244,6 +246,32 @@ baoCao.get("/da-thanh-ly", async (c) => {
     .bind(nam, nam, ...ts.binds)
     .all();
   return c.json({ rows: results });
+});
+
+// GET /theo-cong-ty - so sanh cac cong ty dang xem (da phap nhan): TSCD (tong / trong kho / dang dung / hong),
+// gia tri ton tieu hao, cap tieu hao am, phieu cho KT. Chi vai tro toan quyen (so lieu ca cong ty).
+baoCao.get("/theo-cong-ty", async (c) => {
+  const user = c.get("user");
+  if (!(user.vai_tro === "Admin" || user.vai_tro === "Ke toan" || user.vai_tro === "HCNS")) return c.json({ error: "FORBIDDEN" }, 403);
+  const { results } = await c.env.DB.prepare(
+    `SELECT ct.id, ct.ma, ct.ten,
+            (SELECT COUNT(*) FROM ccdc c WHERE c.cong_ty_id = ct.id AND ${CON_QUAN_LY} AND c.trang_thai_hien_tai != 'Cho duyet nhap') AS so_ts,
+            (SELECT COALESCE(SUM(c.nguyen_gia), 0) FROM ccdc c WHERE c.cong_ty_id = ct.id AND ${CON_QUAN_LY} AND c.trang_thai_hien_tai != 'Cho duyet nhap') AS gt_ts,
+            (SELECT COUNT(*) FROM ccdc c WHERE c.cong_ty_id = ct.id AND c.vo_hieu_hoa = 0 AND c.trang_thai_hien_tai = 'Trong kho') AS ts_trong_kho,
+            (SELECT COUNT(*) FROM ccdc c WHERE c.cong_ty_id = ct.id AND c.vo_hieu_hoa = 0 AND c.trang_thai_hien_tai = 'Dang cap phat') AS ts_dang_dung,
+            (SELECT COUNT(*) FROM ccdc c WHERE c.cong_ty_id = ct.id AND c.vo_hieu_hoa = 0 AND c.trang_thai_hien_tai = 'Hong') AS ts_hong,
+            (SELECT COALESCE(SUM(t.ton * COALESCE(v.don_gia_tham_khao, 0)), 0) FROM v_ton_kho t JOIN kho k ON k.id = t.kho_id
+               JOIN vt_tieu_hao v ON v.id = t.vt_id WHERE k.cong_ty_id = ct.id AND t.ton > 0) AS gt_tieu_hao,
+            (SELECT COUNT(*) FROM v_ton_kho t JOIN kho k ON k.id = t.kho_id WHERE k.cong_ty_id = ct.id AND t.ton < 0) AS ton_am,
+            (SELECT COUNT(*) FROM kho k WHERE k.cong_ty_id = ct.id AND k.bat_tat = 1 AND k.loai != 'Mua hang') AS so_kho,
+            (SELECT COUNT(*) FROM nhan_vien nv WHERE nv.cong_ty_id = ct.id AND nv.dang_lam_viec = 1) AS so_nv,
+            (SELECT COUNT(*) FROM phieu_chuyen_kho p JOIN kho k ON k.id = p.tu_kho_id WHERE k.cong_ty_id = ct.id AND p.trang_thai = 'Cho ke toan duyet')
+              + (SELECT COUNT(*) FROM phieu_giao_nhan g JOIN kho k ON k.id = g.tu_kho_id WHERE k.cong_ty_id = ct.id AND g.trang_thai_duyet = 'Cho ke toan duyet') AS cho_kt
+     FROM cong_ty ct WHERE ct.id IN (SELECT value FROM json_each(?)) ORDER BY ct.id`,
+  )
+    .bind(JSON.stringify(user.cong_ty_xem))
+    .all();
+  return c.json({ rows: results, cap_nhat_luc: nowVN() });
 });
 
 export default baoCao;

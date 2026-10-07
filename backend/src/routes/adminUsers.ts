@@ -35,7 +35,9 @@ adminUsers.get("/", async (c) => {
   const { results } = await c.env.DB.prepare(
     `SELECT u.email, u.ten, u.vai_tro, u.trang_thai_duyet, u.bi_khoa, u.created_at, u.anh_dai_dien,
             nv.ma_nv, nv.ten_nv, nv.bo_phan,
-            (SELECT GROUP_CONCAT(k.ten_kho, ', ') FROM kho_thu_kho t JOIN kho k ON k.id = t.kho_id WHERE t.email = u.email) AS kho_thu_kho
+            (SELECT GROUP_CONCAT(k.ten_kho, ', ') FROM kho_thu_kho t JOIN kho k ON k.id = t.kho_id WHERE t.email = u.email) AS kho_thu_kho,
+            nv.cong_ty_id AS cong_ty_nv,
+            (SELECT GROUP_CONCAT(g.cong_ty_id) FROM user_cong_ty g WHERE g.email = u.email) AS cong_ty_gan
      FROM users u
      -- email_dang_nhap khong UNIQUE: lay 1 ho so (uu tien dang lam viec) de khong nhan doi dong user
      LEFT JOIN nhan_vien nv ON nv.ma_nv = (SELECT x.ma_nv FROM nhan_vien x WHERE x.email_dang_nhap = u.email
@@ -51,7 +53,33 @@ adminUsers.get("/", async (c) => {
       bi_khoa: number;
       created_at: string;
     }>();
-  return c.json({ rows: results.map((r) => ({ ...r, bi_khoa: !!r.bi_khoa })) });
+  return c.json({
+    rows: results.map((r) => {
+      const gan = (r as { cong_ty_gan?: string | null }).cong_ty_gan;
+      return { ...r, bi_khoa: !!r.bi_khoa, cong_ty_gan: gan ? gan.split(",").map(Number) : [] };
+    }),
+  });
+});
+
+// PUT /:email/cong-ty - gan cac cong ty tai khoan duoc XEM / thao tac them (da phap nhan). Cong ty cua ho so
+// nhan vien + cong ty cac kho la thu kho luon duoc tinh them (middleware/loadUser.ts), khong can gan o day.
+adminUsers.put("/:email/cong-ty", async (c) => {
+  const email = decodeURIComponent(c.req.param("email"));
+  const body = await c.req.json<{ cong_ty_ids?: number[] }>().catch(() => null);
+  const ids = [...new Set((body?.cong_ty_ids ?? []).map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+  const db = c.env.DB;
+  const u = await db.prepare("SELECT email FROM users WHERE email = ?").bind(email).first();
+  if (!u) return c.json({ error: "NOT_FOUND" }, 404);
+  if (ids.length) {
+    const { results } = await db.prepare("SELECT id FROM cong_ty WHERE id IN (SELECT value FROM json_each(?))").bind(JSON.stringify(ids)).all();
+    if (results.length !== ids.length) return c.json({ error: "CONG_TY_NOT_FOUND" }, 400);
+  }
+  const now = nowVN();
+  await db.batch([
+    db.prepare("DELETE FROM user_cong_ty WHERE email = ?").bind(email),
+    ...ids.map((id) => db.prepare("INSERT INTO user_cong_ty (email, cong_ty_id, created_at) VALUES (?, ?, ?)").bind(email, id, now)),
+  ]);
+  return c.json({ ok: true });
 });
 
 interface PatchUserBody {

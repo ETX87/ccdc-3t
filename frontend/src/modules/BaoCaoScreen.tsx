@@ -14,10 +14,14 @@ import { useNav } from "../lib/navigation";
 import { useKhiThayDoi } from "../lib/suKien";
 import { thongBaoLoi, TINH_TRANG_KIEM_KE, TRANG_THAI_TS } from "../lib/nhan";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
+import { useAuth } from "../auth/AuthContext";
+import { laQuanTri } from "../lib/menu";
+import { setCongTy } from "../lib/congTy";
 
-type SubTab = "tong-quan" | "theo-nhan-vien" | "theo-bo-phan" | "sap-het-bao-hanh" | "kiem-ke-chenh-lech" | "da-thanh-ly";
+type SubTab = "tong-quan" | "theo-cong-ty" | "theo-nhan-vien" | "theo-bo-phan" | "sap-het-bao-hanh" | "kiem-ke-chenh-lech" | "da-thanh-ly";
 const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: "tong-quan", label: t("Tổng hợp") },
+  { key: "theo-cong-ty", label: t("Theo công ty") },
   { key: "theo-nhan-vien", label: t("Theo nhân viên") },
   { key: "theo-bo-phan", label: t("Theo bộ phận") },
   { key: "sap-het-bao-hanh", label: t("Sắp hết bảo hành") },
@@ -51,6 +55,21 @@ interface TheoNhanVienRow {
   so_luong_ccdc: number;
   gia_tri: number;
   so_hong: number;
+}
+interface TheoCongTyRow {
+  id: number;
+  ma: string;
+  ten: string;
+  so_ts: number;
+  gt_ts: number;
+  ts_trong_kho: number;
+  ts_dang_dung: number;
+  ts_hong: number;
+  gt_tieu_hao: number;
+  ton_am: number;
+  so_kho: number;
+  so_nv: number;
+  cho_kt: number;
 }
 interface TheoBoPhanRow {
   bo_phan: string;
@@ -110,6 +129,7 @@ interface DotOpt {
 
 type DuLieu =
   | { tab: "tong-quan"; tq: TongQuan; kho: TheoKhoRow[] }
+  | { tab: "theo-cong-ty"; rows: TheoCongTyRow[] }
   | { tab: "theo-nhan-vien"; rows: TheoNhanVienRow[] }
   | { tab: "theo-bo-phan"; rows: TheoBoPhanRow[] }
   | { tab: "sap-het-bao-hanh"; res: BaoHanhRes }
@@ -149,7 +169,11 @@ function Rong({ cot, children }: { cot: number; children: ReactNode }) {
 export function BaoCaoScreen() {
   const { params, navigate } = useNav();
   const { moTaiSan, moPhieu } = useChiTiet();
-  const [tab, setTab] = useState<SubTab>(SUB_TABS.some((x) => x.key === params.tab) ? (params.tab as SubTab) : "tong-quan");
+  const auth = useAuth();
+  const user = auth.status === "authenticated" ? auth.user : null;
+  // Da phap nhan: bao cao so sanh cac cong ty - chi vai tro toan quyen va duoc xem tu 2 cong ty.
+  const subTabs = SUB_TABS.filter((x) => x.key !== "theo-cong-ty" || (!!user && laQuanTri(user) && user.cong_ty.length > 1));
+  const [tab, setTab] = useState<SubTab>(subTabs.some((x) => x.key === params.tab) ? (params.tab as SubTab) : "tong-quan");
   const [khoId, setKhoId] = useState(params.kho_id ?? "");
   const [tim, setTim] = useState(params.q ?? "");
   const [soNgay, setSoNgay] = useState("30");
@@ -229,6 +253,39 @@ export function BaoCaoScreen() {
         "Tong hop",
         { nhom: t("Nhóm"), ten: t("Chỉ tiêu"), so_luong: t("Số lượng"), gia_tri: t("Giá trị (đ)") },
       );
+    } else if (d.tab === "theo-cong-ty") {
+      await exportRowsToExcel(
+        d.rows.map((r) => ({
+          ma: r.ma,
+          ten: r.ten,
+          so_kho: r.so_kho,
+          so_nv: r.so_nv,
+          so_ts: r.so_ts,
+          gt_ts: r.gt_ts,
+          trong_kho: r.ts_trong_kho,
+          dang_dung: r.ts_dang_dung,
+          hong: r.ts_hong,
+          gt_th: r.gt_tieu_hao,
+          ton_am: r.ton_am,
+          cho_kt: r.cho_kt,
+        })),
+        `Bao_cao_theo_cong_ty_${ngay}.xlsx`,
+        "Theo cong ty",
+        {
+          ma: t("Mã công ty"),
+          ten: t("Tên công ty"),
+          so_kho: t("Số kho"),
+          so_nv: t("Số NV"),
+          so_ts: t("Số TS"),
+          gt_ts: t("Nguyên giá (đ)"),
+          trong_kho: t("Trong kho"),
+          dang_dung: t("Đang cấp phát"),
+          hong: t("Hỏng"),
+          gt_th: t("Tồn tiêu hao (đ)"),
+          ton_am: t("Tồn âm"),
+          cho_kt: t("Chờ KT duyệt"),
+        },
+      );
     } else if (d.tab === "theo-nhan-vien") {
       await exportRowsToExcel(
         dsNv.map((r) => ({ ma_nv: r.ma_nv, ten_nv: r.ten_nv, bo_phan: r.bo_phan ?? "", so_luong: r.so_luong_ccdc, gia_tri: r.gia_tri, so_hong: r.so_hong })),
@@ -305,7 +362,7 @@ export function BaoCaoScreen() {
         <select value={soNgay} onChange={(e) => setSoNgay(e.target.value)} aria-label={t("Khoảng thời gian")}>
           {["30", "60", "90", "180", "365"].map((n) => (
             <option key={n} value={n}>
-              Trong {n} {t("ngày tới")}
+              {t("Trong {n} ngày tới", { n })}
             </option>
           ))}
         </select>
@@ -344,7 +401,7 @@ export function BaoCaoScreen() {
         title={t("Báo cáo")}
         filters={
           <>
-            <KhoFilter value={khoId} onChange={setKhoId} />
+            {tab !== "theo-cong-ty" && <KhoFilter value={khoId} onChange={setKhoId} />}
             {locRieng}
           </>
         }
@@ -359,7 +416,7 @@ export function BaoCaoScreen() {
       />
       {loi && <div className="alert alert-error">{loi}</div>}
 
-      <FilterTabs<SubTab> value={tab} onChange={doiTab} tabs={SUB_TABS} />
+      <FilterTabs<SubTab> value={tab} onChange={doiTab} tabs={subTabs} />
 
       {!d && !loi && <div className="content-card task-empty">{t("Đang tải báo cáo…")}</div>}
 
@@ -614,6 +671,103 @@ export function BaoCaoScreen() {
                   </table>
                 </div>
                 <PhanTrang trang={tNv.trang} tong={tNv.tong} onDoi={tNv.setTrang} donVi={t("nhân viên")} />
+              </div>
+            </>
+          );
+        })()}
+
+      {/* ================================================================ THEO CONG TY */}
+      {d?.tab === "theo-cong-ty" &&
+        (() => {
+          const cong = (k: keyof TheoCongTyRow) => d.rows.reduce((s, r) => s + Number(r[k] ?? 0), 0);
+          return (
+            <>
+              <div className="kpi-grid kpi-grid-4">
+                <KpiCard tone="cyan" icon={<Building2 size={20} className="text-white" />} watermark={<Building2 size={52} />} label={t("Công ty")} value={fmtSo(d.rows.length)} />
+                <KpiCard
+                  tone="blue-light"
+                  icon={<Package size={20} className="text-white" />}
+                  watermark={<Package size={52} />}
+                  label={t("Tài sản đang quản lý")}
+                  value={fmtSo(cong("so_ts"))}
+                  trend={<div className="kpi-trend"><span className="trend-sub">{fmtGiaTriDong(cong("gt_ts"))}</span></div>}
+                />
+                <KpiCard tone="purple" icon={<Archive size={20} className="text-white" />} watermark={<Archive size={52} />} label={t("Tồn tiêu hao")} value={fmtGiaTri(cong("gt_tieu_hao"))} />
+                <KpiCard
+                  tone={cong("cho_kt") ? "yellow" : "blue"}
+                  icon={<ShieldCheck size={20} className="text-white" />}
+                  watermark={<ShieldCheck size={52} />}
+                  label={t("Phiếu chờ KT duyệt")}
+                  value={fmtSo(cong("cho_kt"))}
+                />
+              </div>
+              <div className="content-card task-card-full">
+                <div className="card-header">
+                  <div className="card-title-wrap">
+                    <Building2 size={17} className="card-title-icon text-teal" />
+                    <h2 className="card-title">{t("So sánh theo công ty")}</h2>
+                  </div>
+                  <span className="small muted">{t("Bấm 1 công ty để xem riêng số liệu công ty đó")}</span>
+                </div>
+                <div className="task-table-wrapper">
+                  <table className="task-table">
+                    <thead>
+                      <tr>
+                        <th>{t("Công ty")}</th>
+                        <th style={{ textAlign: "right" }}>{t("Số kho")}</th>
+                        <th style={{ textAlign: "right" }}>{t("Số NV")}</th>
+                        <th style={{ textAlign: "right" }}>{t("Số TS")}</th>
+                        <th style={{ textAlign: "right" }}>{t("Nguyên giá")}</th>
+                        <th style={{ textAlign: "right" }}>{t("Trong kho")}</th>
+                        <th style={{ textAlign: "right" }}>{t("Đang cấp phát")}</th>
+                        <th style={{ textAlign: "right" }}>{t("Hỏng")}</th>
+                        <th style={{ textAlign: "right" }}>{t("Tồn tiêu hao")}</th>
+                        <th style={{ textAlign: "right" }}>{t("Tồn âm")}</th>
+                        <th style={{ textAlign: "right" }}>{t("Chờ KT duyệt")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {d.rows.length === 0 && <Rong cot={11}>{t("Không có dữ liệu.")}</Rong>}
+                      {d.rows.map((r) => (
+                        <tr key={r.id} className="row-clickable" title={t("Xem riêng công ty {x}", { x: r.ma })} onClick={() => setCongTy(String(r.id))}>
+                          <td data-label={t("Công ty")}>
+                            <div className="cell-stack">
+                              <span className="strong">{r.ma}</span>
+                              <span className="small text-secondary">{r.ten}</span>
+                            </div>
+                          </td>
+                          <td data-label={t("Số kho")} style={{ textAlign: "right" }}>{fmtSo(r.so_kho)}</td>
+                          <td data-label={t("Số NV")} style={{ textAlign: "right" }}>{fmtSo(r.so_nv)}</td>
+                          <td data-label={t("Số TS")} style={{ textAlign: "right" }} className="strong">{fmtSo(r.so_ts)}</td>
+                          <td data-label={t("Nguyên giá")} style={{ textAlign: "right" }}>{fmtGiaTri(r.gt_ts)}</td>
+                          <td data-label={t("Trong kho")} style={{ textAlign: "right" }}>{fmtSo(r.ts_trong_kho)}</td>
+                          <td data-label={t("Đang cấp phát")} style={{ textAlign: "right" }}>{fmtSo(r.ts_dang_dung)}</td>
+                          <td data-label={t("Hỏng")} style={{ textAlign: "right" }} className={r.ts_hong ? "text-red" : ""}>{fmtSo(r.ts_hong)}</td>
+                          <td data-label={t("Tồn tiêu hao")} style={{ textAlign: "right" }}>{fmtGiaTri(r.gt_tieu_hao)}</td>
+                          <td data-label={t("Tồn âm")} style={{ textAlign: "right" }} className={r.ton_am ? "text-red" : ""}>{fmtSo(r.ton_am)}</td>
+                          <td data-label={t("Chờ KT duyệt")} style={{ textAlign: "right" }}>
+                            {r.cho_kt ? <StatusBadge label={fmtSo(r.cho_kt)} tone="warning" /> : "0"}
+                          </td>
+                        </tr>
+                      ))}
+                      {d.rows.length > 1 && (
+                        <tr>
+                          <td className="strong">{t("Tổng cộng")}</td>
+                          <td style={{ textAlign: "right" }} className="strong">{fmtSo(cong("so_kho"))}</td>
+                          <td style={{ textAlign: "right" }} className="strong">{fmtSo(cong("so_nv"))}</td>
+                          <td style={{ textAlign: "right" }} className="strong">{fmtSo(cong("so_ts"))}</td>
+                          <td style={{ textAlign: "right" }} className="strong">{fmtGiaTri(cong("gt_ts"))}</td>
+                          <td style={{ textAlign: "right" }} className="strong">{fmtSo(cong("ts_trong_kho"))}</td>
+                          <td style={{ textAlign: "right" }} className="strong">{fmtSo(cong("ts_dang_dung"))}</td>
+                          <td style={{ textAlign: "right" }} className="strong">{fmtSo(cong("ts_hong"))}</td>
+                          <td style={{ textAlign: "right" }} className="strong">{fmtGiaTri(cong("gt_tieu_hao"))}</td>
+                          <td style={{ textAlign: "right" }} className="strong">{fmtSo(cong("ton_am"))}</td>
+                          <td style={{ textAlign: "right" }} className="strong">{fmtSo(cong("cho_kt"))}</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </>
           );

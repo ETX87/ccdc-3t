@@ -23,12 +23,15 @@ import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 interface NhanVienRow {
   ma_nv: string;
   ten_nv: string;
+  cong_ty_id?: number;
 }
 interface KhoRow {
   id: number;
   ten_kho: string;
   loai: LoaiKho;
   bat_tat: number;
+  cong_ty_id: number;
+  cong_ty_ma?: string;
 }
 interface CcdcRow {
   id: string;
@@ -50,6 +53,7 @@ interface PhieuRow {
   nguoi_lap: string;
   ngay_lap: string;
   da_xac_nhan: number;
+  trang_thai_duyet: string | null;
   so_luong_ccdc: number;
   tom_tat: string | null;
 }
@@ -269,20 +273,24 @@ export function GiaoNhanScreen() {
                         {p.ma_phieu ?? p.id.slice(0, 8)}
                       </span>
                     </td>
-                    <td data-label={t("Loại")}>{LOAI_GIAO_NHAN[p.loai_phieu] ?? p.loai_phieu}</td>
+                    <td data-label={t("Loại")}>{p.trang_thai_duyet ? t("Chuyển công ty") : (LOAI_GIAO_NHAN[p.loai_phieu] ?? p.loai_phieu)}</td>
                     <td data-label={t("Từ")} className="text-secondary">
                       {tu ?? "-"}
                     </td>
                     <td data-label={t("Đến")}>{den ?? "-"}</td>
                     <td data-label={t("Tài sản")}>
-                      <span className="strong">{p.so_luong_ccdc} TS</span>
+                      <span className="strong">{t("{x} TS", { x: p.so_luong_ccdc })}</span>
                       {p.tom_tat && <span className="muted small"> · {p.tom_tat}</span>}
                     </td>
                     <td data-label={t("Ngày lập")} className="text-secondary">
                       {fmtNgayGio(p.ngay_lap)}
                     </td>
                     <td data-label={t("Xác nhận")} style={{ textAlign: "center" }}>
-                      {p.da_xac_nhan ? (
+                      {p.trang_thai_duyet === "Cho ke toan duyet" ? (
+                        <StatusBadge label={t("Chờ kế toán duyệt")} tone="warning" />
+                      ) : p.trang_thai_duyet === "Ke toan tu choi" ? (
+                        <StatusBadge label={t("Kế toán từ chối")} tone="danger" />
+                      ) : p.da_xac_nhan ? (
                         <StatusBadge label={t("Đã xác nhận")} tone="success" />
                       ) : (
                         <StatusBadge label={tre ? t("Quá 48 giờ") : t("Chờ xác nhận")} tone={tre ? "danger" : "warning"} />
@@ -351,7 +359,8 @@ function LapPhieuModal({
     Promise.all([
       api.get<{ rows: NhanVienRow[] }>("/nhan-vien?gon=1"),
       api.get<{ rows: CcdcRow[] }>("/ccdc"),
-      api.get<{ rows: KhoRow[] }>("/kho"),
+      // Kho nhan cua phieu Chuyen kho: moi cong ty (khac cong ty = chuyen cong ty, KT duyet).
+      api.get<{ rows: KhoRow[] }>("/kho/dich"),
       api.get<{ rows: NhanVienRow[] }>("/nhan-vien/cap-duoi"),
     ])
       .then(([nv, cc, k, cd]) => {
@@ -366,7 +375,25 @@ function LapPhieuModal({
       .catch((e) => setError(thongBaoLoi(e, t("Không tải được dữ liệu."))));
   }, [toanQuyen, user]);
 
-  const nvOptions = useMemo(() => nhanViens.map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` })), [nhanViens]);
+  // Da phap nhan: nhan vien cung cong ty voi kho (cap phat: kho nguon, thu hoi: kho nhan); dieu chuyen: nguoi nhan
+  // moi cung cong ty nguoi dang giu.
+  const congTyKho = (id: number | "") => myKho.find((k) => k.id === id)?.cong_ty_id ?? khoAll.find((k) => k.id === id)?.cong_ty_id;
+  const congTyLoai = loai === "Cap phat" ? congTyKho(tuKho) : loai === "Thu hoi" ? congTyKho(denKho) : undefined;
+  const loc = (ct: number | undefined) => (n: NhanVienRow) => ct == null || n.cong_ty_id == null || n.cong_ty_id === ct;
+  const nvOptions = useMemo(
+    () => nhanViens.filter(loc(congTyLoai)).map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nhanViens, congTyLoai],
+  );
+  const ctNguoiGiu = nhanViens.find((n) => n.ma_nv === nhanVienId)?.cong_ty_id;
+  const nvMoiOptions = useMemo(
+    () => nhanViens.filter(loc(ctNguoiGiu)).map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nhanViens, ctNguoiGiu],
+  );
+  const ctNguon = congTyKho(tuKho);
+  const denRow = khoAll.find((k) => k.id === denKho);
+  const chuyenCongTy = loai === "Chuyen kho" && !!denRow && ctNguon != null && denRow.cong_ty_id !== ctNguon;
   const eligible = useMemo(() => {
     const ds = ccdcs ?? [];
     let kq: CcdcRow[];
@@ -461,7 +488,7 @@ function LapPhieuModal({
         {loai === "Dieu chuyen" && (
           <div className="field-group">
             <label className="field-label">{t("Nhân viên nhận mới")}</label>
-            <SearchSelect options={nvOptions} value={nhanVienMoiId} onChange={setNhanVienMoiId} placeholder={t("Tìm nhân viên...")} />
+            <SearchSelect options={nvMoiOptions} value={nhanVienMoiId} onChange={setNhanVienMoiId} placeholder={t("Tìm nhân viên...")} />
           </div>
         )}
         {(loai === "Thu hoi" || loai === "Chuyen kho") && (
@@ -469,12 +496,26 @@ function LapPhieuModal({
             <label className="field-label">{t("Kho nhận")}</label>
             <select value={denKho} onChange={(e) => setDenKho(e.target.value ? Number(e.target.value) : "")}>
               <option value="">{t("-- Chọn kho --")}</option>
-              {(loai === "Thu hoi" ? myKho : khoAll.filter((k) => k.id !== tuKho)).map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.ten_kho} ({LOAI_KHO[k.loai]})
-                </option>
-              ))}
+              {loai === "Thu hoi"
+                ? myKho.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.ten_kho} ({LOAI_KHO[k.loai]})
+                    </option>
+                  ))
+                : khoAll
+                    .filter((k) => k.id !== tuKho)
+                    .map((k) => (
+                      <option key={k.id} value={k.id}>
+                        {k.cong_ty_id !== ctNguon ? `[${k.cong_ty_ma ?? ""}] ` : ""}
+                        {k.ten_kho} ({LOAI_KHO[k.loai]})
+                      </option>
+                    ))}
             </select>
+            {chuyenCongTy && (
+              <div className="field-hint text-orange">
+                {t("Chuyển tài sản sang công ty {x}: chờ Kế toán công ty nguồn duyệt, tài sản ở nguyên kho nguồn tới khi được duyệt.", { x: denRow?.cong_ty_ma ?? "" })}
+              </div>
+            )}
           </div>
         )}
       </div>

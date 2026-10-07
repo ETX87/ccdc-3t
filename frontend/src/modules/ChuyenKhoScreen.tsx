@@ -427,59 +427,6 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
       {msg && <div className="alert alert-success">{msg}</div>}
       {loi && <div className="alert alert-error">{loi}</div>}
 
-      {choNhan.length > 0 && (
-        <div className="content-card">
-          <div className="card-header">
-            <div className="card-title-wrap">
-              <Truck size={17} className="card-title-icon text-teal" />
-              <h2 className="card-title">Hàng đang chuyển tới kho của tôi ({choNhan.length})</h2>
-            </div>
-          </div>
-          <div className="task-table-wrapper">
-            <table className="task-table">
-              <thead>
-                <tr>
-                  <th>Mã phiếu</th>
-                  <th>Từ kho</th>
-                  <th>Đến kho</th>
-                  <th>Hàng</th>
-                  <th>Ngày lập</th>
-                  <th style={{ textAlign: "right" }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tChoNhan.dongTrang.map((p) => (
-                  <tr key={p.id}>
-                    <td data-label="Mã phiếu">
-                      <span className="code-link" onClick={() => moPhieu("chuyen_kho", p.id)}>
-                        {p.ma_phieu ?? p.id.slice(0, 8)}
-                      </span>
-                    </td>
-                    <td data-label="Từ kho">{p.tu_kho_ten}</td>
-                    <td data-label="Đến kho">{p.den_kho_ten}</td>
-                    <td data-label="Hàng">{p.tom_tat}</td>
-                    <td data-label="Ngày lập" className="text-secondary">
-                      {fmtNgayGio(p.created_at)}
-                    </td>
-                    <td data-label="Thao tác" style={{ textAlign: "right" }}>
-                      <div className="row-actions">
-                        <button className="btn btn-primary btn-sm" disabled={busy !== null} onClick={() => nhanNhanh(p)}>
-                          {busy === p.id ? "…" : "Đã nhận đủ"}
-                        </button>
-                        <button className="btn btn-outline btn-sm danger-outline" onClick={() => moPhieu("chuyen_kho", p.id)}>
-                          Từ chối…
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <PhanTrang trang={tChoNhan.trang} tong={tChoNhan.tong} onDoi={tChoNhan.setTrang} donVi="phiếu" />
-        </div>
-      )}
-
       <div className="content-card task-card-full">
         <div className="filter-bar">
           <label className="header-dropdown select-dropdown">
@@ -594,6 +541,59 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
         </div>
         <PhanTrang trang={trang} tong={tong} onDoi={setTrang} donVi="phiếu" />
       </div>
+
+      {choNhan.length > 0 && (
+        <div className="content-card">
+          <div className="card-header">
+            <div className="card-title-wrap">
+              <Truck size={17} className="card-title-icon text-teal" />
+              <h2 className="card-title">Hàng đang chuyển tới kho của tôi ({choNhan.length})</h2>
+            </div>
+          </div>
+          <div className="task-table-wrapper">
+            <table className="task-table">
+              <thead>
+                <tr>
+                  <th>Mã phiếu</th>
+                  <th>Từ kho</th>
+                  <th>Đến kho</th>
+                  <th>Hàng</th>
+                  <th>Ngày lập</th>
+                  <th style={{ textAlign: "right" }}>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tChoNhan.dongTrang.map((p) => (
+                  <tr key={p.id}>
+                    <td data-label="Mã phiếu">
+                      <span className="code-link" onClick={() => moPhieu("chuyen_kho", p.id)}>
+                        {p.ma_phieu ?? p.id.slice(0, 8)}
+                      </span>
+                    </td>
+                    <td data-label="Từ kho">{p.tu_kho_ten}</td>
+                    <td data-label="Đến kho">{p.den_kho_ten}</td>
+                    <td data-label="Hàng">{p.tom_tat}</td>
+                    <td data-label="Ngày lập" className="text-secondary">
+                      {fmtNgayGio(p.created_at)}
+                    </td>
+                    <td data-label="Thao tác" style={{ textAlign: "right" }}>
+                      <div className="row-actions">
+                        <button className="btn btn-primary btn-sm" disabled={busy !== null} onClick={() => nhanNhanh(p)}>
+                          {busy === p.id ? "…" : "Đã nhận đủ"}
+                        </button>
+                        <button className="btn btn-outline btn-sm danger-outline" onClick={() => moPhieu("chuyen_kho", p.id)}>
+                          Từ chối…
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <PhanTrang trang={tChoNhan.trang} tong={tChoNhan.tong} onDoi={tChoNhan.setTrang} donVi="phiếu" />
+        </div>
+      )}
 
       {showForm && (
         <Modal size="lg" title={`Lập phiếu: ${LOAI_PHIEU_CK[loai]}`} onClose={() => setShowForm(false)}>

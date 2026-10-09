@@ -23,12 +23,17 @@ export const LOAI_KHO: Record<LoaiKho, string> = {
   HCNS: t("Kho HCNS"),
   Mien: t("Kho miền"),
   "Quan ly": t("Kho quản lý"),
+  "Tieu hao": t("Kho tiêu hao"),
 };
+
+/** Kho TINH TON (khong phai kho mua hang - nguon ao, hay kho tieu hao - diem tieu dung van phong). */
+export const laKhoTon = (k: { loai: LoaiKho | string }) => k.loai !== "Mua hang" && k.loai !== "Tieu hao";
 
 export const LOAI_PHIEU_CK: Record<string, string> = {
   "Nhap mua": t("Nhập mua"),
   "Chuyen kho": t("Chuyển kho"),
   "Cap phat NV": t("Cấp phát NV"),
+  "Dieu chinh": t("Điều chỉnh tồn"),
 };
 
 export const TRANG_THAI_CK: Record<string, { label: string; tone: Tone }> = {
@@ -38,6 +43,8 @@ export const TRANG_THAI_CK: Record<string, { label: string; tone: Tone }> = {
   "Da nhan": { label: t("Đã nhận"), tone: "success" },
   "Bi tu choi": { label: t("Bị từ chối nhận"), tone: "danger" },
   "Da giao": { label: t("Đã giao"), tone: "success" },
+  "Da huy": { label: t("Đã hủy"), tone: "neutral" },
+  "Da dieu chinh": { label: t("Đã điều chỉnh"), tone: "success" },
 };
 
 export const LOAI_XU_LY: Record<string, string> = {
@@ -69,7 +76,7 @@ export const isAdmin = (u: AppUser) => u.vai_tro === "Admin";
 export const isKeToan = (u: AppUser) => u.vai_tro === "Admin" || u.vai_tro === "Ke toan";
 export const isHcns = (u: AppUser) => u.vai_tro === "Admin" || u.vai_tro === "HCNS";
 // Co kho nao de xuat hang di (khong tinh kho mua hang - nguon ao chi dung nhap mua).
-export const coKhoThaoTac = (u: AppUser) => u.kho_phu_trach.some((k) => k.loai !== "Mua hang");
+export const coKhoThaoTac = (u: AppUser) => u.kho_phu_trach.some(laKhoTon);
 
 const LOI: Record<string, string> = {
   VUOT_TON: t("Số lượng xuất vượt tồn kho nguồn."),
@@ -116,6 +123,11 @@ const LOI: Record<string, string> = {
   MA_CONG_TY_TRUNG: t("Mã công ty đã tồn tại."),
   KHONG_TAT_CONG_TY_MAC_DINH: t("Không thể ngừng công ty mặc định."),
   KHONG_TAT_KHO_HE_THONG: t("Không thể ngừng kho mua hàng / kho HCNS cuối cùng của công ty."),
+  KHO_TIEU_HAO_KHONG_XUAT: t("Kho tiêu hao là điểm tiêu dùng - không xuất đi được."),
+  KHO_TIEU_HAO_CHI_XUAT_DUNG: t("Vào kho tiêu hao văn phòng dùng phiếu cấp phát (xuất tiêu dùng), không dùng chuyển kho."),
+  DA_DUYET_KHONG_SUA: t("Phiếu đã được Kế toán duyệt hoặc đã hủy - không sửa được nữa."),
+  KHONG_CO_CHENH_LECH: t("Tồn thực tế khớp sổ sách - không có gì để điều chỉnh."),
+  TRUNG_VAT_TU: t("Một vật tư chỉ nhập 1 dòng."),
   VT_NOT_FOUND: t("Có mặt hàng không thuộc danh mục công ty của kho nguồn."),
 };
 

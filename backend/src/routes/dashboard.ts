@@ -6,6 +6,7 @@ import { nowVN } from "../lib/vnTime";
 import { requireRole } from "../middleware/requireRole";
 import { dkCotKho, dkPhieuKho, dkTaiSan, layPhamVi, locTheoKho, type PhamVi } from "../lib/phamVi";
 import { chupNeuChuaCo, soLieuDaChup, tinhChiSo } from "../lib/thongKe";
+import { khoPhuTrach } from "../lib/quyen";
 
 // Du lieu that cho giao dien 3T Asset Management (ke hoach Giai doan 1.6 muc 3.2): tong quan, viec can
 // lam (+ so do tren menu/chuong), canh bao, tim kiem. MOI truy van loc theo pham vi (lib/phamVi.ts).
@@ -250,7 +251,7 @@ export interface ViecRow {
   so_luong?: number;
 }
 
-const TOM_TAT_CK = `(SELECT group_concat(v.ten_vt || ' x' || printf('%g', ct.so_luong), ', ') FROM phieu_chuyen_kho_ct ct JOIN vt_tieu_hao v ON v.id = ct.vt_id WHERE ct.phieu_id = p.id)`;
+const TOM_TAT_CK = `(SELECT group_concat(v.ten_vt || CASE WHEN ct.dau IS NULL THEN ' x' || printf('%g', ct.so_luong) ELSE ' ' || printf('%+g', ct.so_luong * ct.dau) END, ', ') FROM phieu_chuyen_kho_ct ct JOIN vt_tieu_hao v ON v.id = ct.vt_id WHERE ct.phieu_id = p.id)`;
 const TOM_TAT_XL = `(SELECT group_concat(c.ten_ccdc, ', ') FROM phieu_xu_ly_ts_ct ct JOIN ccdc c ON c.id = ct.ccdc_id WHERE ct.phieu_id = x.id)`;
 const TOM_TAT_GN = `(SELECT group_concat(c.ten_ccdc, ', ') FROM phieu_giao_nhan_ct ct JOIN ccdc c ON c.id = ct.ccdc_id WHERE ct.phieu_id = g.id)`;
 const TEN_NGUOI = (cot: string) => `COALESCE((SELECT u.ten FROM users u WHERE u.email = ${cot}), ${cot})`;
@@ -367,10 +368,13 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
     kind: "bi_tu_choi_ck",
     stmt: db
       .prepare(
-        `SELECT p.id, p.ma_phieu, p.trang_thai, p.updated_at AS t, ${TOM_TAT_CK} AS tom_tat FROM phieu_chuyen_kho p
-         WHERE p.nguoi_lap = ? AND p.trang_thai IN ('Ke toan tu choi', 'Bi tu choi') AND p.updated_at >= ?`,
+        `SELECT p.id, p.ma_phieu, p.trang_thai, p.updated_at AS t, ${TOM_TAT_CK} AS tom_tat, kd.ten_kho AS den,
+                (SELECT l.ghi_chu FROM phieu_chuyen_kho_log l WHERE l.phieu_id = p.id ORDER BY l.id DESC LIMIT 1) AS ly_do
+         FROM phieu_chuyen_kho p LEFT JOIN kho kd ON kd.id = p.den_kho_id
+         WHERE p.trang_thai IN ('Ke toan tu choi', 'Bi tu choi') AND p.da_xu_ly_tu_choi = 0
+           AND (p.nguoi_lap = ? OR p.tu_kho_id IN (SELECT value FROM json_each(?)))`,
       )
-      .bind(user.email, tuanTruoc),
+      .bind(user.email, JSON.stringify((await khoPhuTrach(db, user)).map((k) => k.id))),
   });
   stmts.push({
     kind: "bi_tu_choi_xl",
@@ -392,7 +396,7 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
       const base = { id: s(r.id), ma_phieu: (r.ma_phieu as string) ?? null, thoi_gian: s(r.t) };
       switch (kind) {
         case "kt_ck":
-          rows.push({ ...base, key: `kt_ck:${r.id}`, tab: "cho-duyet", loai: r.loai === "Chuyen kho" ? "Chuyển công ty" : "Nhập mua tiêu hao", loai_phieu: "chuyen_kho", noi_dung: s(r.tom_tat), don_vi_nguoi_tao: r.loai === "Chuyen kho" ? `${s(r.tu)} → ${s(r.den)} · ${s(r.nguoi)}` : `${s(r.den)} · ${s(r.nguoi)}`, trang_thai: "Chờ kế toán duyệt", qua_han: quaHan(r.t), hanh_dong: "ke_toan_duyet_ck" });
+          rows.push({ ...base, key: `kt_ck:${r.id}`, tab: "cho-duyet", loai: r.loai === "Chuyen kho" ? "Chuyển công ty" : r.loai === "Dieu chinh" ? "Điều chỉnh tồn" : "Nhập mua tiêu hao", loai_phieu: "chuyen_kho", noi_dung: s(r.tom_tat), don_vi_nguoi_tao: r.loai === "Chuyen kho" ? `${s(r.tu)} → ${s(r.den)} · ${s(r.nguoi)}` : r.loai === "Dieu chinh" ? `${s(r.tu)} · ${s(r.nguoi)}` : `${s(r.den)} · ${s(r.nguoi)}`, trang_thai: "Chờ kế toán duyệt", qua_han: quaHan(r.t), hanh_dong: "ke_toan_duyet_ck" });
           break;
         case "kt_gn":
           rows.push({ ...base, key: `kt_gn:${r.id}`, tab: "cho-duyet", loai: "Chuyển công ty TSCĐ", loai_phieu: "giao_nhan", noi_dung: s(r.tom_tat), don_vi_nguoi_tao: `${s(r.tu)} → ${s(r.den)} · ${s(r.nguoi)}`, trang_thai: "Chờ kế toán duyệt", qua_han: quaHan(r.t), hanh_dong: "ke_toan_duyet_gn" });
@@ -423,7 +427,7 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
           rows.push({ ...base, key: `kiem_ke:${r.id}`, tab: "khac", loai: "Kiểm kê đang thực hiện", loai_phieu: "kiem_ke", noi_dung: `${s(r.ten_dot)} - đã kiểm ${r.da_kiem} tài sản`, don_vi_nguoi_tao: "HCNS", trang_thai: "Đang thực hiện", qua_han: false, hanh_dong: "mo_kiem_ke" });
           break;
         case "bi_tu_choi_ck":
-          rows.push({ ...base, key: `tc_ck:${r.id}`, tab: "khac", loai: r.trang_thai === "Ke toan tu choi" ? "Phiếu bị KT từ chối" : "Phiếu bị từ chối nhận", loai_phieu: "chuyen_kho", noi_dung: s(r.tom_tat), don_vi_nguoi_tao: "Tôi lập", trang_thai: "Bị từ chối", qua_han: false, hanh_dong: "xem_ck" });
+          rows.push({ ...base, key: `tc_ck:${r.id}`, tab: "khac", loai: r.trang_thai === "Ke toan tu choi" ? "Phiếu bị KT từ chối" : "Phiếu bị từ chối nhận", loai_phieu: "chuyen_kho", noi_dung: s(r.tom_tat), don_vi_nguoi_tao: r.ly_do ? `${s(r.den)} · ${s(r.ly_do)}` : s(r.den), trang_thai: "Bị từ chối", qua_han: true, hanh_dong: "xem_ck" });
           break;
         case "bi_tu_choi_xl":
           rows.push({ ...base, key: `tc_xl:${r.id}`, tab: "khac", loai: `${LOAI_XL[s(r.loai)] ?? r.loai} bị từ chối`, loai_phieu: "xu_ly", noi_dung: s(r.tom_tat), don_vi_nguoi_tao: "Tôi đề xuất", trang_thai: "Bị từ chối", qua_han: false, hanh_dong: "xem_xl" });

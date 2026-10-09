@@ -10,15 +10,19 @@ import { useNav } from "../lib/navigation";
 import { laQuanTri } from "../lib/menu";
 import { useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTri, fmtGiaTriDong, fmtSo, homNayVN } from "../lib/format";
-import { LOAI_KHO, thongBaoLoi } from "../lib/nhan";
+import { LOAI_KHO, laKhoTon, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
+import { TonTheoKho } from "../components/TonTheoKho";
+import { DieuChinhTonModal, TheKhoModal } from "../components/TheKho";
+import { isHcns } from "../lib/nhan";
 
 interface KhoRow {
   id: number;
   ten_kho: string;
   loai: LoaiKho;
   bat_tat: number;
+  cong_ty_id?: number;
 }
 interface TonRow {
   id: string;
@@ -39,7 +43,7 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
   const { params, navigate } = useNav();
   const user = auth.status === "authenticated" ? auth.user : null;
   const toanBo = !!user && laQuanTri(user);
-  const myKho = useMemo(() => (user?.kho_phu_trach ?? []).filter((k) => k.loai !== "Mua hang"), [user]);
+  const myKho = useMemo(() => (user?.kho_phu_trach ?? []).filter(laKhoTon), [user]);
   const [khos, setKhos] = useState<KhoRow[]>([]);
   const [khoId, setKhoId] = useState<string>(params.kho_id ?? (!toanBo && myKho.length === 1 ? String(myKho[0].id) : ""));
   const [rows, setRows] = useState<TonRow[] | null>(null);
@@ -49,12 +53,16 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
   const [dangTai, setDangTai] = useState(false);
   const [capNhatLuc, setCapNhatLuc] = useState<string | null>(null);
   const [loi, setLoi] = useState<string | null>(null);
+  // "vt" = danh sach theo vat tu (1 kho / cong don); "kho" = ma tran vat tu x kho.
+  const [cheDo, setCheDo] = useState<"vt" | "kho">(params.che_do === "kho" ? "kho" : "vt");
+  const [theKho, setTheKho] = useState<TonRow | null>(null);
+  const [dieuChinh, setDieuChinh] = useState<string[] | null>(null);
 
   useEffect(() => {
     if (toanBo)
       api
         .get<{ rows: KhoRow[] }>("/kho")
-        .then((r) => setKhos(r.rows.filter((k) => k.bat_tat && k.loai !== "Mua hang")))
+        .then((r) => setKhos(r.rows.filter((k) => k.bat_tat && laKhoTon(k))))
         .catch(() => setKhos([]));
     else setKhos(myKho.map((k) => ({ ...k, bat_tat: 1 })));
   }, [toanBo, myKho]);
@@ -97,7 +105,10 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       tongDangDen: all.reduce((s, r) => s + (r.dang_chuyen_den ?? 0), 0),
     };
   }, [rows]);
-  const tenKho = khos.find((k) => String(k.id) === khoId)?.ten_kho ?? (toanBo ? t("Toàn hệ thống") : t("Các kho của tôi"));
+  const khoChon = khos.find((k) => String(k.id) === khoId);
+  const tenKho = khoChon?.ten_kho ?? (toanBo ? t("Toàn hệ thống") : t("Các kho của tôi"));
+  // Dieu chinh ton: HCNS (moi kho cong ty minh) hoac thu kho cua kho dang chon - server kiem lai.
+  const duocDieuChinh = !!khoChon && !!user && (isHcns(user) || myKho.some((k) => k.id === khoChon.id));
 
   async function exportExcel() {
     await exportRowsToExcel(
@@ -123,9 +134,18 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
         title={t("Tồn kho tiêu hao")}
         filters={tabs}
         actions={
-          <button className="btn btn-outline" onClick={exportExcel} disabled={!hienThi.length}>
-            <Download size={14} /> {t("Xuất Excel")}
-          </button>
+          <>
+            {cheDo === "vt" && duocDieuChinh && (
+              <button className="btn btn-outline" onClick={() => setDieuChinh([])} title={t("Nhập tồn đếm thực tế, lập phiếu điều chỉnh chờ Kế toán duyệt")}>
+                <Layers size={14} /> {t("Điều chỉnh tồn")}
+              </button>
+            )}
+            {cheDo === "vt" && (
+              <button className="btn btn-outline" onClick={exportExcel} disabled={!hienThi.length}>
+                <Download size={14} /> {t("Xuất Excel")}
+              </button>
+            )}
+          </>
         }
         capNhatLuc={capNhatLuc}
         onRefresh={load}
@@ -185,10 +205,20 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
 
       <div className="content-card task-card-full">
         <div className="filter-bar">
+          <div className="task-filter-tabs" style={{ marginBottom: 0 }}>
+            <button type="button" className={`task-tab-btn${cheDo === "vt" ? " active" : ""}`} onClick={() => setCheDo("vt")}>
+              {t("Theo vật tư")}
+            </button>
+            <button type="button" className={`task-tab-btn${cheDo === "kho" ? " active" : ""}`} onClick={() => setCheDo("kho")}>
+              {t("Tồn theo từng kho")}
+            </button>
+          </div>
           <div className="topbar-search filter-search">
             <Search size={15} className="search-icon" />
             <input className="search-input" placeholder={t("Tìm mã, tên vật tư...")} value={tim} onChange={(e) => setTim(e.target.value)} />
           </div>
+          {cheDo === "vt" && (
+          <>
           <label className="header-dropdown select-dropdown">
             <select value={khoId} onChange={(e) => setKhoId(e.target.value)} aria-label={t("Kho")}>
               <option value="">{toanBo ? t("Toàn hệ thống (cộng mọi kho)") : t("Tất cả kho của tôi")}</option>
@@ -208,7 +238,13 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
             <input type="checkbox" checked={chiAm} onChange={(e) => setChiAm(e.target.checked)} />
             {t("Chỉ tồn âm")}
           </label>
+          </>
+          )}
         </div>
+        {cheDo === "kho" ? (
+          <TonTheoKho tim={tim} />
+        ) : (
+        <>
         <p className="muted small" style={{ marginBottom: 8 }}>
           {t("Tồn = hàng đã nhận vào kho − hàng đã xuất (kể cả đang chuyển). Hàng nhập mua chỉ vào tồn sau khi Kế toán duyệt.")}
         </p>
@@ -262,12 +298,22 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
                     {khoId ? (r.dang_chuyen_den ? fmtSo(r.dang_chuyen_den, 2) : "-") : fmtSo(r.so_kho_con_hang ?? 0)}
                   </td>
                   <td data-label={t("Phiếu")} style={{ textAlign: "right" }}>
-                    <button
-                      className="btn btn-outline btn-sm"
-                      onClick={() => navigate("cap-phat", { tab: "phieu", vt_id: r.id, thang: "", ...(khoId ? { kho_id: khoId } : {}) })}
-                    >
-                      {t("Lịch sử")}
-                    </button>
+                    <div className="row-actions">
+                      {khoChon ? (
+                        <button className="btn btn-outline btn-sm" onClick={() => setTheKho(r)} title={t("Thẻ kho: nhập / xuất từng phiếu, tồn lũy kế")}>
+                          {t("Thẻ kho")}
+                        </button>
+                      ) : (
+                        <button className="btn btn-outline btn-sm" onClick={() => setCheDo("kho")} title={t("Xem tồn từng kho")}>
+                          {t("Theo kho")}
+                        </button>
+                      )}
+                      {r.ton < 0 && duocDieuChinh && (
+                        <button className="btn btn-outline btn-sm" onClick={() => setDieuChinh([r.id])}>
+                          {t("Điều chỉnh")}
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -275,7 +321,20 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
           </table>
         </div>
         <PhanTrang trang={tTon.trang} tong={tTon.tong} onDoi={tTon.setTrang} donVi={t("vật tư")} />
+        </>
+        )}
       </div>
+      {theKho && khoChon && <TheKhoModal khoId={khoChon.id} tenKho={khoChon.ten_kho} vt={theKho} onClose={() => setTheKho(null)} />}
+      {dieuChinh && khoChon && (
+        <DieuChinhTonModal
+          khoId={khoChon.id}
+          congTyId={khoChon.cong_ty_id ?? null}
+          tenKho={khoChon.ten_kho}
+          ds={(rows ?? []).map((r) => ({ id: r.id, ten_vt: r.ten_vt, don_vi_tinh: r.don_vi_tinh, ton: r.ton }))}
+          chonSan={dieuChinh}
+          onClose={() => setDieuChinh(null)}
+        />
+      )}
     </div>
   );
 }

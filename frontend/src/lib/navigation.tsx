@@ -26,12 +26,19 @@ interface NavValue {
   tab: TabKey;
   params: NavParams;
   navigate: (tab: TabKey, params?: NavParams) => void;
+  /** Co buoc truoc trong app (lich su trinh duyet) -> quay lai; undefined o man dau tien. */
+  quayLai?: () => void;
 }
 
 const NavContext = createContext<NavValue | null>(null);
 
 export function NavProvider({ value, children }: { value: NavValue; children: ReactNode }) {
   return <NavContext.Provider value={value}>{children}</NavContext.Provider>;
+}
+
+/** Nhu useNav nhung khong bat buoc trong NavProvider (component dung chung, vd PageHeader). */
+export function useNavTuyChon() {
+  return useContext(NavContext);
 }
 
 export function useNav() {

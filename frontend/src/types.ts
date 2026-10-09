@@ -15,4 +15,4 @@ export interface AppUser {
   anh_dai_dien: string | null;
 }
 
-export type LoaiKho = "Mua hang" | "HCNS" | "Mien" | "Quan ly";
+export type LoaiKho = "Mua hang" | "HCNS" | "Mien" | "Quan ly" | "Tieu hao";

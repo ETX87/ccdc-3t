@@ -65,6 +65,91 @@ baoCao.get("/ton-kho", async (c) => {
   return c.json({ rows: results });
 });
 
+// GET /ton-theo-kho - ma tran ton tieu hao: moi kho TINH TON trong pham vi (cac cong ty dang xem) x vat tu co phat
+// sinh. Frontend chon cot kho (luu tren may). { kho, vt, ton: [{kho_id, vt_id, ton}] }.
+baoCao.get("/ton-theo-kho", async (c) => {
+  const pv = await layPhamVi(c.env.DB, c.get("user"));
+  const dk = dkCotKho(pv, "k.id");
+  const ct = JSON.stringify(c.get("user").cong_ty_xem);
+  const [kho, vt, ton] = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `SELECT k.id, k.ten_kho, k.loai, k.cong_ty_id FROM kho k
+       WHERE k.bat_tat = 1 AND k.loai NOT IN ('Mua hang', 'Tieu hao') AND k.cong_ty_id IN (SELECT value FROM json_each(?)) AND ${dk.sql}
+       ORDER BY CASE k.loai WHEN 'HCNS' THEN 1 WHEN 'Mien' THEN 2 ELSE 3 END, k.ten_kho`,
+    ).bind(ct, ...dk.binds),
+    c.env.DB.prepare(
+      `SELECT v.id, v.ten_vt, v.don_vi_tinh, n.ten_nhom, v.don_gia_tham_khao FROM vt_tieu_hao v LEFT JOIN nhom_ccdc n ON n.id = v.nhom_id
+       WHERE v.vo_hieu_hoa = 0 AND v.cong_ty_id IN (SELECT value FROM json_each(?)) ORDER BY v.ten_vt`,
+    ).bind(ct),
+    c.env.DB.prepare(
+      `SELECT t.kho_id, t.vt_id, t.ton FROM v_ton_kho t JOIN kho k ON k.id = t.kho_id
+       WHERE t.ton != 0 AND k.bat_tat = 1 AND k.cong_ty_id IN (SELECT value FROM json_each(?)) AND ${dk.sql}`,
+    ).bind(ct, ...dk.binds),
+  ]);
+  return c.json({ kho: kho.results, vt: vt.results, ton: ton.results, cap_nhat_luc: nowVN() });
+});
+
+// GET /the-kho?kho_id=&vt_id= - the kho 1 vat tu tai 1 kho: tung phieu lam doi ton (nhap / xuat / dieu chinh) theo
+// thoi gian + ton luy ke (cung cong thuc v_ton_kho), kem phieu dang chuyen den (chua tinh ton).
+baoCao.get("/the-kho", async (c) => {
+  const pv = await layPhamVi(c.env.DB, c.get("user"));
+  const khoId = Number(c.req.query("kho_id"));
+  const vtId = c.req.query("vt_id") ?? "";
+  if (!khoId || !vtId) return c.json({ error: "MISSING_FIELDS" }, 400);
+  if (!pv.toanBo && !pv.khoIds.includes(khoId)) return c.json({ error: "FORBIDDEN" }, 403);
+  const DOI_TAC_DEN = `COALESCE(kd.ten_kho, nv.ten_nv, p.nguoi_nhan_ten_tu_do)`;
+  const { results } = await c.env.DB.prepare(
+    `SELECT * FROM (
+       SELECT p.id, p.ma_phieu, p.loai, p.trang_thai, p.created_at AS ngay, kt.ten_kho AS doi_tac, ct.so_luong AS nhap, 0 AS xuat
+       FROM phieu_chuyen_kho p JOIN phieu_chuyen_kho_ct ct ON ct.phieu_id = p.id JOIN kho kt ON kt.id = p.tu_kho_id
+       WHERE p.den_kho_id = ?1 AND p.trang_thai IN ('Da nhan', 'Dang chuyen') AND COALESCE(ct.vt_id_den, ct.vt_id) = ?2
+       UNION ALL
+       SELECT p.id, p.ma_phieu, p.loai, p.trang_thai, p.created_at, ${DOI_TAC_DEN}, 0, ct.so_luong
+       FROM phieu_chuyen_kho p JOIN phieu_chuyen_kho_ct ct ON ct.phieu_id = p.id
+       LEFT JOIN kho kd ON kd.id = p.den_kho_id LEFT JOIN nhan_vien nv ON nv.ma_nv = p.den_nhan_vien_id
+       WHERE p.tu_kho_id = ?1 AND p.trang_thai IN ('Dang chuyen', 'Da nhan', 'Da giao') AND ct.vt_id = ?2
+       UNION ALL
+       SELECT p.id, p.ma_phieu, p.loai, p.trang_thai, p.created_at, NULL,
+              CASE WHEN ct.dau > 0 THEN ct.so_luong ELSE 0 END, CASE WHEN ct.dau < 0 THEN ct.so_luong ELSE 0 END
+       FROM phieu_chuyen_kho p JOIN phieu_chuyen_kho_ct ct ON ct.phieu_id = p.id
+       WHERE p.tu_kho_id = ?1 AND p.loai = 'Dieu chinh' AND p.trang_thai = 'Da dieu chinh' AND ct.vt_id = ?2
+     ) ORDER BY ngay, ma_phieu`,
+  )
+    .bind(khoId, vtId)
+    .all<{ trang_thai: string; loai: string; nhap: number; xuat: number; ton_luy_ke?: number | null }>();
+  // Phieu chuyen den dang tren duong: hien nhung chua cong ton (giong v_ton_kho).
+  let ton = 0;
+  for (const r of results) {
+    const dangDen = r.trang_thai === "Dang chuyen" && r.nhap > 0;
+    if (!dangDen) ton = Math.round((ton + Number(r.nhap) - Number(r.xuat)) * 1000) / 1000;
+    r.ton_luy_ke = dangDen ? null : ton;
+  }
+  return c.json({ rows: results, ton });
+});
+
+// GET /tieu-dung?tu=YYYY-MM-DD&den=YYYY-MM-DD - vat tu da xuat vao KHO TIEU HAO van phong trong ky: theo kho tieu hao x
+// vat tu (so luong, gia tri = thanh tien neu co, khong thi don gia tham khao).
+baoCao.get("/tieu-dung", async (c) => {
+  const pv = await layPhamVi(c.env.DB, c.get("user"));
+  const pk = dkPhieuKho(pv);
+  const ngay = (k: string) => (/^\d{4}-\d{2}-\d{2}$/.test(c.req.query(k) ?? "") ? c.req.query(k)! : null);
+  const tu = ngay("tu") ?? `${nowVN().slice(0, 7)}-01`;
+  const den = ngay("den") ?? nowVN().slice(0, 10);
+  const { results } = await c.env.DB.prepare(
+    `SELECT kd.id AS kho_id, kd.ten_kho, v.id AS vt_id, v.ten_vt, v.don_vi_tinh, n.ten_nhom,
+            SUM(ct.so_luong) AS so_luong, COUNT(DISTINCT p.id) AS so_phieu,
+            SUM(COALESCE(ct.thanh_tien, ct.so_luong * COALESCE(v.don_gia_tham_khao, 0))) AS gia_tri
+     FROM phieu_chuyen_kho p JOIN kho kd ON kd.id = p.den_kho_id AND kd.loai = 'Tieu hao'
+     JOIN phieu_chuyen_kho_ct ct ON ct.phieu_id = p.id JOIN vt_tieu_hao v ON v.id = ct.vt_id LEFT JOIN nhom_ccdc n ON n.id = v.nhom_id
+     WHERE p.loai = 'Cap phat NV' AND p.trang_thai = 'Da giao' AND substr(p.created_at, 1, 10) BETWEEN ? AND ?
+       AND kd.cong_ty_id IN (SELECT value FROM json_each(?)) AND ${pk.sql}
+     GROUP BY kd.id, v.id ORDER BY kd.ten_kho, gia_tri DESC`,
+  )
+    .bind(tu, den, JSON.stringify(c.get("user").cong_ty_xem), ...pk.binds)
+    .all();
+  return c.json({ tu, den, rows: results, cap_nhat_luc: nowVN() });
+});
+
 // GET /ts-theo-kho?kho_id= - so tai san co dinh dang nam trong tung kho (trong pham vi).
 baoCao.get("/ts-theo-kho", async (c) => {
   const pv = await phamViBaoCao(c);
@@ -74,7 +159,7 @@ baoCao.get("/ts-theo-kho", async (c) => {
     `SELECT k.id, k.ten_kho, k.loai, COUNT(c.id) AS so_luong, COALESCE(SUM(c.nguyen_gia), 0) AS gia_tri,
             COUNT(CASE WHEN c.trang_thai_hien_tai = 'Hong' THEN 1 END) AS so_hong
      FROM kho k LEFT JOIN ccdc c ON c.kho_id = k.id AND ${CON_QUAN_LY}
-     WHERE k.bat_tat = 1 AND k.loai != 'Mua hang' AND ${dk.sql}
+     WHERE k.bat_tat = 1 AND k.loai NOT IN ('Mua hang', 'Tieu hao') AND ${dk.sql}
      GROUP BY k.id HAVING COUNT(c.id) > 0 ORDER BY so_luong DESC`,
   )
     .bind(...dk.binds)
@@ -102,7 +187,7 @@ baoCao.get("/tong-quan", async (c) => {
               COALESCE(SUM(CASE WHEN t.ton > 0 THEN t.ton * COALESCE(v.don_gia_tham_khao, 0) END), 0) AS gia_tri,
               COUNT(CASE WHEN t.ton < 0 THEN 1 END) AS so_ton_am
        FROM v_ton_kho t JOIN vt_tieu_hao v ON v.id = t.vt_id JOIN kho k ON k.id = t.kho_id
-       WHERE k.loai != 'Mua hang' AND ${tk.sql}`,
+       WHERE k.loai NOT IN ('Mua hang', 'Tieu hao') AND ${tk.sql}`,
     )
       .bind(...tk.binds)
       .first<{ so_mat_hang: number; gia_tri: number; so_ton_am: number }>(),
@@ -263,7 +348,7 @@ baoCao.get("/theo-cong-ty", async (c) => {
             (SELECT COALESCE(SUM(t.ton * COALESCE(v.don_gia_tham_khao, 0)), 0) FROM v_ton_kho t JOIN kho k ON k.id = t.kho_id
                JOIN vt_tieu_hao v ON v.id = t.vt_id WHERE k.cong_ty_id = ct.id AND t.ton > 0) AS gt_tieu_hao,
             (SELECT COUNT(*) FROM v_ton_kho t JOIN kho k ON k.id = t.kho_id WHERE k.cong_ty_id = ct.id AND t.ton < 0) AS ton_am,
-            (SELECT COUNT(*) FROM kho k WHERE k.cong_ty_id = ct.id AND k.bat_tat = 1 AND k.loai != 'Mua hang') AS so_kho,
+            (SELECT COUNT(*) FROM kho k WHERE k.cong_ty_id = ct.id AND k.bat_tat = 1 AND k.loai NOT IN ('Mua hang', 'Tieu hao')) AS so_kho,
             (SELECT COUNT(*) FROM nhan_vien nv WHERE nv.cong_ty_id = ct.id AND nv.dang_lam_viec = 1) AS so_nv,
             (SELECT COUNT(*) FROM phieu_chuyen_kho p JOIN kho k ON k.id = p.tu_kho_id WHERE k.cong_ty_id = ct.id AND p.trang_thai = 'Cho ke toan duyet')
               + (SELECT COUNT(*) FROM phieu_giao_nhan g JOIN kho k ON k.id = g.tu_kho_id WHERE k.cong_ty_id = ct.id AND g.trang_thai_duyet = 'Cho ke toan duyet') AS cho_kt

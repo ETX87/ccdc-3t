@@ -1,5 +1,5 @@
 import { t } from "./lib/i18n";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "./auth/AuthContext";
 import { LoginScreen } from "./login/LoginScreen";
 import { Layout } from "./layout/Layout";
@@ -43,18 +43,43 @@ const SCREENS: Record<TabKey, () => JSX.Element | null> = {
   "nhan-vien": NhanVienScreen,
 };
 
+// Moi lan chuyen man ghi 1 buoc vao lich su trinh duyet (history.pushState, URL giu nguyen) -> nut Back cua
+// trinh duyet / dien thoai quay ve man truoc thay vi thoat app; `i` = so buoc da di (0 = man dau, an nut Quay lai).
+type NavState = { tab: TabKey; params: NavParams; i: number };
+
 function AuthenticatedApp({ user }: { user: AppUser }) {
-  const [nav, setNav] = useState<{ tab: TabKey; params: NavParams }>(() => ({ tab: tabMacDinh(user), params: {} }));
+  const [nav, setNav] = useState<NavState>(() => {
+    const s = (window.history.state as { ccdc?: NavState } | null)?.ccdc;
+    return s && duocMoTab(user, s.tab) ? s : { tab: tabMacDinh(user), params: {}, i: 0 };
+  });
+  const navRef = useRef(nav);
+  navRef.current = nav;
+
+  useEffect(() => {
+    window.history.replaceState({ ...(window.history.state ?? {}), ccdc: navRef.current }, "");
+    const onPop = (e: PopStateEvent) => {
+      const s = (e.state as { ccdc?: NavState } | null)?.ccdc;
+      if (s) setNav(s);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   const navigate = useCallback(
     (tab: TabKey, params: NavParams = {}) => {
       // Link/tham so khong duoc mo man ngoai quyen (menu da an) - quay ve man mac dinh.
-      setNav(duocMoTab(user, tab) ? { tab, params } : { tab: tabMacDinh(user), params: {} });
+      const dich = duocMoTab(user, tab) ? { tab, params } : { tab: tabMacDinh(user), params: {} };
+      const cur = navRef.current;
+      if (cur.tab === dich.tab && JSON.stringify(cur.params) === JSON.stringify(dich.params)) return;
+      const next: NavState = { ...dich, i: cur.i + 1 };
+      window.history.pushState({ ccdc: next }, "");
+      setNav(next);
     },
     [user],
   );
+  const quayLai = useCallback(() => window.history.back(), []);
 
-  const value = useMemo(() => ({ ...nav, navigate }), [nav, navigate]);
+  const value = useMemo(() => ({ tab: nav.tab, params: nav.params, navigate, quayLai: nav.i > 0 ? quayLai : undefined }), [nav, navigate, quayLai]);
   const Screen = SCREENS[nav.tab];
 
   return (

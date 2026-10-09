@@ -12,7 +12,7 @@ import { layPhamVi } from "../lib/phamVi";
 const kho = new Hono<{ Bindings: Env }>();
 kho.use("*", verifySessionMiddleware, loadUser);
 
-const LOAI_HOP_LE: LoaiKho[] = ["Mua hang", "HCNS", "Mien", "Quan ly"];
+const LOAI_HOP_LE: LoaiKho[] = ["Mua hang", "HCNS", "Mien", "Quan ly", "Tieu hao"];
 
 // Danh sach kho cac cong ty dang xem (bo loc cong ty tren topbar).
 kho.get("/", async (c) => {
@@ -21,7 +21,7 @@ kho.get("/", async (c) => {
             (SELECT group_concat(t.email, ',') FROM kho_thu_kho t WHERE t.kho_id = k.id) AS thu_kho
      FROM kho k LEFT JOIN nhan_vien nv ON nv.ma_nv = k.nhan_vien_id JOIN cong_ty ct ON ct.id = k.cong_ty_id
      WHERE k.cong_ty_id IN (SELECT value FROM json_each(?))
-     ORDER BY k.cong_ty_id, CASE k.loai WHEN 'Mua hang' THEN 0 WHEN 'HCNS' THEN 1 WHEN 'Mien' THEN 2 ELSE 3 END, k.ten_kho`,
+     ORDER BY k.cong_ty_id, CASE k.loai WHEN 'Mua hang' THEN 0 WHEN 'HCNS' THEN 1 WHEN 'Mien' THEN 2 WHEN 'Quan ly' THEN 3 ELSE 4 END, k.ten_kho`,
   )
     .bind(JSON.stringify(c.get("user").cong_ty_xem))
     .all<{ thu_kho: string | null }>();
@@ -35,7 +35,7 @@ kho.get("/dich", async (c) => {
   const { results } = await c.env.DB.prepare(
     `SELECT k.id, k.ten_kho, k.loai, k.nhan_vien_id, k.bat_tat, k.cong_ty_id, ct.ma AS cong_ty_ma
      FROM kho k JOIN cong_ty ct ON ct.id = k.cong_ty_id
-     WHERE k.bat_tat = 1 AND ct.bat_tat = 1 AND k.loai != 'Mua hang'
+     WHERE k.bat_tat = 1 AND ct.bat_tat = 1 AND k.loai NOT IN ('Mua hang', 'Tieu hao')
      ORDER BY k.cong_ty_id, CASE k.loai WHEN 'HCNS' THEN 1 WHEN 'Mien' THEN 2 ELSE 3 END, k.ten_kho`,
   ).all();
   return c.json({ rows: results });
@@ -77,7 +77,7 @@ kho.get("/tong-hop", async (c) => {
        FROM kho k
        LEFT JOIN nhan_vien nv ON nv.ma_nv = k.nhan_vien_id
        LEFT JOIN ton ON ton.kho_id = k.id LEFT JOIN ts ON ts.kho_id = k.id LEFT JOIN cn ON cn.kho_id = k.id
-       WHERE k.loai != 'Mua hang' AND ${loc}
+       WHERE k.loai NOT IN ('Mua hang', 'Tieu hao') AND ${loc}
        ORDER BY CASE k.loai WHEN 'HCNS' THEN 1 WHEN 'Mien' THEN 2 ELSE 3 END, k.ten_kho`,
     )
     .bind(moc, ...(pv.toanBo ? [] : [JSON.stringify(pv.khoIds)]))

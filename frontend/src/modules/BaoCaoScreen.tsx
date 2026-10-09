@@ -18,10 +18,11 @@ import { useAuth } from "../auth/AuthContext";
 import { laQuanTri } from "../lib/menu";
 import { setCongTy } from "../lib/congTy";
 
-type SubTab = "tong-quan" | "theo-cong-ty" | "theo-nhan-vien" | "theo-bo-phan" | "sap-het-bao-hanh" | "kiem-ke-chenh-lech" | "da-thanh-ly";
+type SubTab = "tong-quan" | "theo-cong-ty" | "tieu-dung" | "theo-nhan-vien" | "theo-bo-phan" | "sap-het-bao-hanh" | "kiem-ke-chenh-lech" | "da-thanh-ly";
 const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: "tong-quan", label: t("Tổng hợp") },
   { key: "theo-cong-ty", label: t("Theo công ty") },
+  { key: "tieu-dung", label: t("Tiêu dùng văn phòng") },
   { key: "theo-nhan-vien", label: t("Theo nhân viên") },
   { key: "theo-bo-phan", label: t("Theo bộ phận") },
   { key: "sap-het-bao-hanh", label: t("Sắp hết bảo hành") },
@@ -70,6 +71,17 @@ interface TheoCongTyRow {
   so_kho: number;
   so_nv: number;
   cho_kt: number;
+}
+interface TieuDungRow {
+  kho_id: number;
+  ten_kho: string;
+  vt_id: string;
+  ten_vt: string;
+  don_vi_tinh: string | null;
+  ten_nhom: string | null;
+  so_luong: number;
+  so_phieu: number;
+  gia_tri: number;
 }
 interface TheoBoPhanRow {
   bo_phan: string;
@@ -130,6 +142,7 @@ interface DotOpt {
 type DuLieu =
   | { tab: "tong-quan"; tq: TongQuan; kho: TheoKhoRow[] }
   | { tab: "theo-cong-ty"; rows: TheoCongTyRow[] }
+  | { tab: "tieu-dung"; rows: TieuDungRow[] }
   | { tab: "theo-nhan-vien"; rows: TheoNhanVienRow[] }
   | { tab: "theo-bo-phan"; rows: TheoBoPhanRow[] }
   | { tab: "sap-het-bao-hanh"; res: BaoHanhRes }
@@ -179,6 +192,7 @@ export function BaoCaoScreen() {
   const [soNgay, setSoNgay] = useState("30");
   const [nam, setNam] = useState("");
   const [dotId, setDotId] = useState("");
+  const [thangTd, setThangTd] = useState(homNayVN().slice(0, 7)); // tieu-dung: thang xem
   const [chiNghi, setChiNghi] = useState(false); // theo-nhan-vien: chi NV da nghi con giu TS
   const [dots, setDots] = useState<DotOpt[]>([]);
   const [data, setData] = useState<DuLieu | null>(null);
@@ -202,6 +216,11 @@ export function BaoCaoScreen() {
       } else {
         if (tab === "kiem-ke-chenh-lech" && dotId) p.set("dot_id", dotId);
         if (tab === "da-thanh-ly" && nam) p.set("nam", nam);
+        if (tab === "tieu-dung") {
+          const [y, m] = thangTd.split("-").map(Number);
+          p.set("tu", `${thangTd}-01`);
+          p.set("den", `${thangTd}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0")}`);
+        }
         const r = await api.get<{ rows: never[] }>(`/bao-cao/${tab}?${p}`);
         d = { tab, rows: r.rows } as DuLieu;
       }
@@ -213,7 +232,7 @@ export function BaoCaoScreen() {
     } finally {
       setDangTai(false);
     }
-  }, [tab, khoId, soNgay, nam, dotId]);
+  }, [tab, khoId, soNgay, nam, dotId, thangTd]);
 
   useEffect(() => {
     load();
@@ -252,6 +271,13 @@ export function BaoCaoScreen() {
         `Bao_cao_tong_hop_${ngay}.xlsx`,
         "Tong hop",
         { nhom: t("Nhóm"), ten: t("Chỉ tiêu"), so_luong: t("Số lượng"), gia_tri: t("Giá trị (đ)") },
+      );
+    } else if (d.tab === "tieu-dung") {
+      await exportRowsToExcel(
+        dsTd.map((r) => ({ kho: r.ten_kho, ma: r.vt_id, ten: r.ten_vt, nhom: r.ten_nhom ?? "", dvt: r.don_vi_tinh ?? "", so_luong: r.so_luong, gia_tri: r.gia_tri, so_phieu: r.so_phieu })),
+        `Bao_cao_tieu_dung_VP_${thangTd}.xlsx`,
+        "Tieu dung VP",
+        { kho: t("Kho tiêu hao"), ma: t("Mã vật tư"), ten: t("Tên vật tư"), nhom: t("Nhóm"), dvt: t("ĐVT"), so_luong: t("Số lượng"), gia_tri: t("Giá trị (đ)"), so_phieu: t("Số phiếu") },
       );
     } else if (d.tab === "theo-cong-ty") {
       await exportRowsToExcel(
@@ -345,6 +371,8 @@ export function BaoCaoScreen() {
 
   // ---------------------------------------------------------------- Danh sach da loc (tim kiem)
   const dsNv = useMemo(() => (d?.tab === "theo-nhan-vien" ? d.rows.filter((r) => (!chiNghi || !r.dang_lam_viec) && coChua(tim, r.ma_nv, r.ten_nv, r.bo_phan)) : []), [d, tim, chiNghi]);
+  const dsTd = useMemo(() => (d?.tab === "tieu-dung" ? d.rows.filter((r) => coChua(tim, r.ten_kho, r.vt_id, r.ten_vt, r.ten_nhom)) : []), [d, tim]);
+  const tTd = useTrangKhach(dsTd, [tim]);
   const dsBp = useMemo(() => (d?.tab === "theo-bo-phan" ? d.rows.filter((r) => coChua(tim, r.bo_phan)) : []), [d, tim]);
   const dsBh = useMemo(() => (d?.tab === "sap-het-bao-hanh" ? d.res.rows.filter((r) => coChua(tim, r.id, r.ten_ccdc, r.nha_cung_cap)) : []), [d, tim]);
   const dsCl = useMemo(() => (d?.tab === "kiem-ke-chenh-lech" ? d.rows.filter((r) => coChua(tim, r.ccdc_id, r.ten_ccdc)) : []), [d, tim]);
@@ -380,6 +408,21 @@ export function BaoCaoScreen() {
         </select>
         <ChevronDown size={13} className="dropdown-arrow" />
       </label>
+    ) : tab === "tieu-dung" ? (
+      <label className="header-dropdown select-dropdown">
+        <select value={thangTd} onChange={(e) => setThangTd(e.target.value)} aria-label={t("Tháng")}>
+          {Array.from({ length: 12 }, (_, i) => {
+            const [y, m] = homNayVN().slice(0, 7).split("-").map(Number);
+            const v = new Date(Date.UTC(y, m - 1 - i, 1)).toISOString().slice(0, 7);
+            return (
+              <option key={v} value={v}>
+                {t("Tháng {x}", { x: `${v.slice(5)}/${v.slice(0, 4)}` })}
+              </option>
+            );
+          })}
+        </select>
+        <ChevronDown size={13} className="dropdown-arrow" />
+      </label>
     ) : tab === "kiem-ke-chenh-lech" ? (
       <label className="header-dropdown select-dropdown">
         <select value={dotId} onChange={(e) => setDotId(e.target.value)} aria-label={t("Đợt kiểm kê")}>
@@ -401,7 +444,7 @@ export function BaoCaoScreen() {
         title={t("Báo cáo")}
         filters={
           <>
-            {tab !== "theo-cong-ty" && <KhoFilter value={khoId} onChange={setKhoId} />}
+            {tab !== "theo-cong-ty" && tab !== "tieu-dung" && <KhoFilter value={khoId} onChange={setKhoId} />}
             {locRieng}
           </>
         }
@@ -671,6 +714,81 @@ export function BaoCaoScreen() {
                   </table>
                 </div>
                 <PhanTrang trang={tNv.trang} tong={tNv.tong} onDoi={tNv.setTrang} donVi={t("nhân viên")} />
+              </div>
+            </>
+          );
+        })()}
+
+      {/* ================================================================ TIEU DUNG VAN PHONG */}
+      {d?.tab === "tieu-dung" &&
+        (() => {
+          const tongGt = d.rows.reduce((s, r) => s + Number(r.gia_tri), 0);
+          const theoKho = new Map<string, number>();
+          for (const r of d.rows) theoKho.set(r.ten_kho, (theoKho.get(r.ten_kho) ?? 0) + Number(r.gia_tri));
+          const top = [...theoKho.entries()].sort((a, b) => b[1] - a[1])[0];
+          return (
+            <>
+              <div className="kpi-grid kpi-grid-4">
+                <KpiCard tone="cyan" icon={<Building2 size={20} className="text-white" />} watermark={<Building2 size={52} />} label={t("Văn phòng có tiêu dùng")} value={fmtSo(theoKho.size)} />
+                <KpiCard tone="blue-light" icon={<Package size={20} className="text-white" />} watermark={<Package size={52} />} label={t("Mặt hàng đã dùng")} value={fmtSo(new Set(d.rows.map((r) => r.vt_id)).size)} />
+                <KpiCard tone="purple" icon={<Archive size={20} className="text-white" />} watermark={<Archive size={52} />} label={t("Giá trị tiêu dùng")} value={fmtGiaTri(tongGt)} />
+                <KpiCard
+                  tone="yellow"
+                  icon={<BarChart2 size={20} className="text-white" />}
+                  watermark={<BarChart2 size={52} />}
+                  label={t("Văn phòng dùng nhiều nhất")}
+                  value={top ? fmtGiaTri(top[1]) : "0"}
+                  trend={<div className="kpi-trend"><span className="trend-sub">{top?.[0] ?? "-"}</span></div>}
+                />
+              </div>
+              <div className="content-card task-card-full">
+                <div className="card-header">
+                  <div className="card-title-wrap">
+                    <Building2 size={17} className="card-title-icon text-teal" />
+                    <h2 className="card-title">{t("Vật tư đã xuất vào kho tiêu hao văn phòng")}</h2>
+                  </div>
+                  <TimKiem value={tim} onChange={setTim} placeholder={t("Tìm văn phòng, vật tư...")} />
+                </div>
+                <div className="task-table-wrapper">
+                  <table className="task-table">
+                    <thead>
+                      <tr>
+                        <th>{t("Kho tiêu hao")}</th>
+                        <th>{t("Vật tư")}</th>
+                        <th>{t("Nhóm")}</th>
+                        <th style={{ textAlign: "right" }}>{t("Số lượng")}</th>
+                        <th style={{ textAlign: "right" }}>{t("Giá trị")}</th>
+                        <th style={{ textAlign: "right" }}>{t("Số phiếu")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dsTd.length === 0 && <Rong cot={6}>{t("Chưa có xuất tiêu dùng trong tháng.")}</Rong>}
+                      {tTd.dongTrang.map((r) => (
+                        <tr key={`${r.kho_id}-${r.vt_id}`}>
+                          <td data-label={t("Kho tiêu hao")} className="strong">
+                            {r.ten_kho}
+                          </td>
+                          <td data-label={t("Vật tư")}>
+                            {r.ten_vt} <span className="muted small">({r.vt_id})</span>
+                          </td>
+                          <td data-label={t("Nhóm")} className="text-secondary">
+                            {r.ten_nhom ?? "-"}
+                          </td>
+                          <td data-label={t("Số lượng")} style={{ textAlign: "right" }}>
+                            {fmtSo(Number(r.so_luong), 2)} {r.don_vi_tinh ?? ""}
+                          </td>
+                          <td data-label={t("Giá trị")} style={{ textAlign: "right" }}>
+                            {fmtGiaTri(Number(r.gia_tri))}
+                          </td>
+                          <td data-label={t("Số phiếu")} style={{ textAlign: "right" }}>
+                            {fmtSo(r.so_phieu)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <PhanTrang trang={tTd.trang} tong={tTd.tong} onDoi={tTd.setTrang} donVi={t("dòng")} />
               </div>
             </>
           );

@@ -64,7 +64,7 @@ export async function tinhChiSo(db: D1Database, pv: PhamVi): Promise<BoChiSo> {
 /** Chup chi so toan he thong + tung cong ty + tung kho (UPSERT theo ngay - chay lai trong ngay chi ghi de). */
 export async function chupSoLieu(db: D1Database, ngay: string): Promise<void> {
   const { results: khos } = await db
-    .prepare("SELECT id, loai, nhan_vien_id, cong_ty_id FROM kho WHERE bat_tat = 1 AND loai != 'Mua hang'")
+    .prepare("SELECT id, loai, nhan_vien_id, cong_ty_id FROM kho WHERE bat_tat = 1 AND loai NOT IN ('Mua hang', 'Tieu hao')")
     .all<{ id: number; loai: string; nhan_vien_id: string | null; cong_ty_id: number }>();
   const { results: congTys } = await db.prepare("SELECT id FROM cong_ty").all<{ id: number }>();
   const { results: capDuoi } = await db

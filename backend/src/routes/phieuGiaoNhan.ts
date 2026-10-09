@@ -3,7 +3,7 @@ import type { Env } from "../types";
 import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { nowVN } from "../lib/vnTime";
-import { coCongTy, getKho, khoPhuTrach, laHcns, laKeToan, laThuKho, trongNhom } from "../lib/quyen";
+import { laKhoTon, coCongTy, getKho, khoPhuTrach, laHcns, laKeToan, laThuKho, trongNhom } from "../lib/quyen";
 import { sinhMaPhieu } from "../lib/maPhieu";
 import { layPhamVi } from "../lib/phamVi";
 
@@ -164,7 +164,7 @@ phieuGiaoNhan.post("/", async (c) => {
 
   if (loai === "Cap phat" || loai === "Chuyen kho") {
     const tu = await getKho(db, Number(body.tu_kho_id));
-    if (!tu || !tu.bat_tat || tu.loai === "Mua hang") return c.json({ error: "TU_KHO_NOT_FOUND" }, 400);
+    if (!tu || !tu.bat_tat || !laKhoTon(tu.loai)) return c.json({ error: "TU_KHO_NOT_FOUND" }, 400);
     if (!(await laThuKho(db, user, tu.id))) return c.json({ error: "KHONG_PHU_TRACH_KHO_NGUON" }, 403);
     tuKhoId = tu.id;
     congTyId = tu.cong_ty_id;
@@ -177,14 +177,14 @@ phieuGiaoNhan.post("/", async (c) => {
       nvId = body.nhan_vien_id!;
     } else {
       const den = await getKho(db, Number(body.den_kho_id));
-      if (!den || !den.bat_tat || den.loai === "Mua hang") return c.json({ error: "DEN_KHO_NOT_FOUND" }, 400);
+      if (!den || !den.bat_tat || !laKhoTon(den.loai)) return c.json({ error: "DEN_KHO_NOT_FOUND" }, 400);
       if (den.id === tu.id) return c.json({ error: "TRUNG_KHO" }, 400);
       denKhoId = den.id;
       lienCongTy = den.cong_ty_id !== tu.cong_ty_id;
     }
   } else if (loai === "Thu hoi") {
     const den = await getKho(db, Number(body.den_kho_id));
-    if (!den || !den.bat_tat || den.loai === "Mua hang") return c.json({ error: "DEN_KHO_NOT_FOUND" }, 400);
+    if (!den || !den.bat_tat || !laKhoTon(den.loai)) return c.json({ error: "DEN_KHO_NOT_FOUND" }, 400);
     if (!(await laThuKho(db, user, den.id))) return c.json({ error: "KHONG_PHU_TRACH_KHO_DICH" }, 403);
     if (!body.nhan_vien_id) return c.json({ error: "MISSING_FIELDS" }, 400);
     congTyId = den.cong_ty_id;

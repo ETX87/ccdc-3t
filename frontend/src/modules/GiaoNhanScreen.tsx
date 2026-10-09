@@ -16,7 +16,7 @@ import { useDuLieuChung } from "../lib/duLieuChung";
 import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
-import { LOAI_GIAO_NHAN, LOAI_KHO, isHcns, thongBaoLoi } from "../lib/nhan";
+import { LOAI_GIAO_NHAN, LOAI_KHO, isHcns, laKhoTon, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
@@ -84,7 +84,7 @@ export function GiaoNhanScreen() {
   const { moPhieu } = useChiTiet();
   const { viec, reload: reloadViec } = useDuLieuChung();
   const user = auth.status === "authenticated" ? auth.user : null;
-  const myKho = useMemo(() => (user?.kho_phu_trach ?? []).filter((k) => k.loai !== "Mua hang"), [user]);
+  const myKho = useMemo(() => (user?.kho_phu_trach ?? []).filter(laKhoTon), [user]);
   const toanQuyen = !!user && (isHcns(user) || myKho.some((k) => k.loai === "HCNS" || k.loai === "Mien"));
 
   const [phieus, setPhieus] = useState<PhieuRow[] | null>(null);
@@ -339,7 +339,7 @@ function LapPhieuModal({
 }) {
   const auth = useAuth();
   const user = auth.status === "authenticated" ? auth.user : null;
-  const myKho = useMemo(() => (user?.kho_phu_trach ?? []).filter((k) => k.loai !== "Mua hang"), [user]);
+  const myKho = useMemo(() => (user?.kho_phu_trach ?? []).filter(laKhoTon), [user]);
   const [nhanViens, setNhanViens] = useState<NhanVienRow[]>([]);
   const [khoAll, setKhoAll] = useState<KhoRow[]>([]);
   const [ccdcs, setCcdcs] = useState<CcdcRow[] | null>(null);
@@ -370,7 +370,7 @@ function LapPhieuModal({
           setNhanViens([...(self ? [self] : []), ...cd.rows]);
         } else setNhanViens(nv.rows);
         setCcdcs(cc.rows);
-        setKhoAll(k.rows.filter((x) => x.bat_tat && x.loai !== "Mua hang"));
+        setKhoAll(k.rows.filter((x) => x.bat_tat && laKhoTon(x)));
       })
       .catch((e) => setError(thongBaoLoi(e, t("Không tải được dữ liệu."))));
   }, [toanQuyen, user]);

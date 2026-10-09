@@ -1,6 +1,6 @@
 import { t } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowLeftRight, ChevronDown, Clock, Download, PackagePlus, Plus, ShoppingCart, Tag, Truck } from "lucide-react";
+import { ArrowLeftRight, Building2, ChevronDown, Clock, Download, PackagePlus, Plus, ShoppingCart, Tag, Truck } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { Modal } from "../components/Modal";
@@ -17,7 +17,7 @@ import { exportRowsToExcel } from "../lib/exportExcel";
 import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTriDong, fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
-import { LOAI_KHO, LOAI_PHIEU_CK, TRANG_THAI_CK, isHcns, thongBaoLoi } from "../lib/nhan";
+import { LOAI_KHO, LOAI_PHIEU_CK, TRANG_THAI_CK, isHcns, laKhoTon, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
 
 interface KhoRow {
@@ -127,7 +127,10 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
   const [denKho, setDenKho] = useState<number | "">("");
   const [denNv, setDenNv] = useState("");
   const [tuDo, setTuDo] = useState("");
-  const [dungTuDo, setDungTuDo] = useState(false);
+  // Nguoi nhan phieu cap phat: nhan vien / ten ngoai danh ba / kho tieu hao van phong (tieu dung het, khong tinh ton).
+  const [kieuNhan, setKieuNhan] = useState<"nv" | "tu-do" | "kho-th">("nv");
+  const dungTuDo = kieuNhan === "tu-do";
+  const [khoTh, setKhoTh] = useState<number | "">("");
   const [ncc, setNcc] = useState("");
   const [ghiChu, setGhiChu] = useState("");
   const [tep, setTep] = useState<TepCho[]>([]);
@@ -209,7 +212,8 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
 
   const tuKhoRow = khoAll.find((k) => k.id === tuKho) ?? khoDichAll.find((k) => k.id === tuKho);
   const congTyNguon = tuKhoRow?.cong_ty_id ?? (myKho.find((k) => k.id === tuKho)?.cong_ty_id ?? null);
-  const khoNguonHopLe = myKho.filter((k) => (loai === "Nhap mua" ? k.loai === "Mua hang" : k.loai !== "Mua hang"));
+  const khoNguonHopLe = myKho.filter((k) => (loai === "Nhap mua" ? k.loai === "Mua hang" : laKhoTon(k)));
+  const khoThHopLe = khoAll.filter((k) => k.loai === "Tieu hao" && k.cong_ty_id === congTyNguon);
   // Da phap nhan: kho dich cung cong ty theo quy tac cu; kho cong ty KHAC (chi phieu Chuyen kho) = chuyen cong ty,
   // cho KT cong ty nguon duyet.
   const khoDichHopLe = (loai === "Nhap mua" ? khoAll : khoDichAll).filter((k) => {
@@ -239,15 +243,16 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
       .catch(() => setTonNguon({}));
   }, [tuKho, loai]);
 
-  function moForm(l: Loai) {
+  function moForm(l: Loai, kieu: "nv" | "kho-th" = "nv") {
     setLoai(l);
-    const nguon = myKho.filter((k) => (l === "Nhap mua" ? k.loai === "Mua hang" : k.loai !== "Mua hang"));
+    setKieuNhan(kieu);
+    setKhoTh("");
+    const nguon = myKho.filter((k) => (l === "Nhap mua" ? k.loai === "Mua hang" : laKhoTon(k)));
     setTuKho(nguon[0]?.id ?? "");
     const ctNguon = nguon[0]?.cong_ty_id ?? null;
     setDenKho(l === "Nhap mua" ? (khoAll.find((k) => k.loai === "HCNS" && k.cong_ty_id === ctNguon)?.id ?? "") : "");
     setDenNv("");
     setTuDo("");
-    setDungTuDo(false);
     setNcc("");
     setGhiChu("");
     setTep([]);
@@ -271,15 +276,15 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
     if (!tuKho) return setFormErr(t("Chọn kho nguồn."));
     if (items.length === 0 || items.some((i) => !(i.so_luong > 0))) return setFormErr(t("Nhập vật tư và số lượng > 0 cho từng dòng."));
     if (loai !== "Cap phat NV" && !denKho) return setFormErr(t("Chọn kho đích."));
-    if (loai === "Cap phat NV" && !(dungTuDo ? tuDo.trim() : denNv)) return setFormErr(t("Chọn người nhận."));
+    if (loai === "Cap phat NV" && !(kieuNhan === "kho-th" ? khoTh : dungTuDo ? tuDo.trim() : denNv)) return setFormErr(t("Chọn người nhận."));
     setSaving(true);
     setFormErr(null);
     try {
       const r = await api.post<{ id: string }>("/phieu-chuyen-kho", {
         loai,
         tu_kho_id: tuKho,
-        den_kho_id: loai === "Cap phat NV" ? null : denKho,
-        den_nhan_vien_id: loai === "Cap phat NV" && !dungTuDo ? denNv : null,
+        den_kho_id: loai === "Cap phat NV" ? (kieuNhan === "kho-th" ? khoTh : null) : denKho,
+        den_nhan_vien_id: loai === "Cap phat NV" && kieuNhan === "nv" ? denNv : null,
         nguoi_nhan_ten_tu_do: loai === "Cap phat NV" && dungTuDo ? tuDo.trim() : null,
         nha_cung_cap: ncc || null,
         ghi_chu: ghiChu || null,
@@ -293,7 +298,9 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
           ? t("Đã lập phiếu nhập mua - chờ Kế toán duyệt.")
           : loai === "Chuyen kho"
             ? t("Đã lập phiếu chuyển kho - hàng trừ kho nguồn, chờ kho đích xác nhận nhận.")
-            : t("Đã lập phiếu cấp phát.")),
+            : kieuNhan === "kho-th"
+              ? t("Đã xuất tiêu dùng vào kho tiêu hao - đã trừ tồn kho xuất.")
+              : t("Đã lập phiếu cấp phát.")),
       );
       baoThayDoi();
       await reloadViec();
@@ -348,7 +355,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
   }
 
   if (!user) return null;
-  const coKhoXuat = myKho.some((k) => k.loai !== "Mua hang");
+  const coKhoXuat = myKho.some(laKhoTon);
   const tk = (thang: string | undefined, l: string) => thongKe?.theo_loai.find((r) => r.thang === thang && r.loai === l);
   const cpNay = tk(thongKe?.thang, "Cap phat NV");
   const cpTruoc = tk(thongKe?.thang_truoc, "Cap phat NV");
@@ -376,6 +383,9 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
               <>
                 <button className="btn btn-outline" onClick={() => moForm("Chuyen kho")}>
                   <ArrowLeftRight size={14} /> {t("Chuyển kho")}
+                </button>
+                <button className="btn btn-outline" onClick={() => moForm("Cap phat NV", "kho-th")} title={t("Xuất VPP / vệ sinh / đóng hàng vào kho tiêu hao văn phòng - tiêu hao hết, không tính tồn")}>
+                  <Building2 size={14} /> {t("Xuất tiêu dùng VP")}
                 </button>
                 <button className="btn btn-primary" onClick={() => moForm("Cap phat NV")}>
                   <Plus size={15} /> {t("Cấp phát NV")}
@@ -648,7 +658,38 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             {loai === "Cap phat NV" && (
               <div className="field-group">
                 <label className="field-label">{t("Người nhận")}</label>
-                {!dungTuDo && (
+                <div className="row-actions" style={{ justifyContent: "flex-start", marginBottom: 6, flexWrap: "wrap" }}>
+                  {(
+                    [
+                      ["nv", t("Nhân viên")],
+                      ["kho-th", t("Kho tiêu hao văn phòng")],
+                      ...(tuKhoRow?.loai !== "Quan ly" ? [["tu-do", t("Ngoài danh bạ (KTV/CTV)")]] : []),
+                    ] as [typeof kieuNhan, string][]
+                  ).map(([k, nhan]) => (
+                    <label key={k} className="check-label">
+                      <input type="radio" name="kieu-nhan" checked={kieuNhan === k} onChange={() => setKieuNhan(k)} />
+                      {nhan}
+                    </label>
+                  ))}
+                </div>
+                {kieuNhan === "kho-th" && (
+                  <>
+                    <select value={khoTh} onChange={(e) => setKhoTh(e.target.value ? Number(e.target.value) : "")}>
+                      <option value="">{t("-- Chọn kho tiêu hao --")}</option>
+                      {khoThHopLe.map((k) => (
+                        <option key={k.id} value={k.id}>
+                          {k.ten_kho}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="field-hint">
+                      {khoThHopLe.length
+                        ? t("Xuất vào kho tiêu hao = tiêu dùng hết: trừ tồn kho xuất ngay, không cần xác nhận nhận.")
+                        : t("Chưa có kho tiêu hao - HCNS tạo ở Cấu hình kho (loại \"Kho tiêu hao\").")}
+                    </div>
+                  </>
+                )}
+                {kieuNhan === "nv" && (
                   <SearchSelect
                     options={nvHopLe.map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` }))}
                     value={denNv}
@@ -657,13 +698,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                   />
                 )}
                 {dungTuDo && <input type="text" value={tuDo} onChange={(e) => setTuDo(e.target.value)} placeholder={t("Tên KTV/CTV ngoài danh bạ...")} />}
-                {tuKhoRow?.loai !== "Quan ly" && (
-                  <label className="check-label" style={{ marginTop: 4 }}>
-                    <input type="checkbox" checked={dungTuDo} onChange={(e) => setDungTuDo(e.target.checked)} />
-                    {t("Người nhận không có trong danh bạ (KTV/CTV)")}
-                  </label>
-                )}
-                {tuKhoRow?.loai === "Quan ly" && <div className="field-hint">{t("Kho quản lý chỉ cấp cho bản thân và nhân viên cấp dưới trực tiếp.")}</div>}
+                {tuKhoRow?.loai === "Quan ly" && kieuNhan === "nv" && <div className="field-hint">{t("Kho quản lý chỉ cấp cho bản thân và nhân viên cấp dưới trực tiếp.")}</div>}
               </div>
             )}
             {loai === "Nhap mua" && (

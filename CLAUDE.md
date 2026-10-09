@@ -101,6 +101,22 @@ state đang dùng.
   duyệt thì không xác nhận được (`CHUA_KE_TOAN_DUYET`). Danh sách kho đích cho cả 2: `GET /kho/dich`.
 - Báo cáo so sánh: `GET /bao-cao/theo-cong-ty` (tab "Theo công ty", Admin/KT/HCNS xem ≥2 công ty).
 
+## Kho tiêu hao, sửa / gửi lại / điều chỉnh phiếu tiêu hao (2026-10-09, migration 0015)
+
+- Loại kho `Tieu hao` = **điểm tiêu dùng văn phòng** (VPP, vệ sinh, đóng hàng): KHÔNG tính tồn (`v_ton_kho` bỏ
+  `Mua hang` + `Tieu hao`; dùng `laKhoTon()` / `KHO_TON_SQL` ở backend, `laKhoTon()` ở `lib/nhan.ts`). Xuất vào = phiếu
+  `Cap phat NV` có `den_kho_id` = kho tiêu hao → `Da giao` + `da_xac_nhan = 1` ngay. Không chuyển kho / TSCĐ vào, không
+  xuất ra. Báo cáo `GET /bao-cao/tieu-dung` (tab "Tiêu dùng văn phòng").
+- Phiếu `Dieu chinh` (mã `DC`): `POST /phieu-chuyen-kho/dieu-chinh` nhập tồn THỰC TẾ → server tính chênh lệch lúc lập
+  (`ct.dau` +1/−1, `so_luong` > 0) → KT duyệt → `Da dieu chinh` (vế thứ 3 của `v_ton_kho`). Đây là cách chuẩn sửa tồn âm.
+- Phiếu chờ KT (`Cho ke toan duyet` / `Ke toan tu choi`): người lập / HCNS sửa (`PUT /:id`, nhật ký ghi diff, bị từ chối
+  → sửa xong tự gửi duyệt lại) hoặc hủy (`/:id/huy` → `Da huy`). Phiếu `Bi tu choi` nhận: `/:id/gui-lai` (phiếu mới,
+  `gui_lai_tu`) hoặc `/:id/da-xu-ly` (`da_xu_ly_tu_choi`); việc cần làm hiện cho người lập + thủ kho nguồn tới khi xử lý.
+- Tồn theo kho: `GET /bao-cao/ton-theo-kho` (ma trận, cột kho người xem chọn - localStorage `ccdc_cot_kho_ton`) +
+  thẻ kho `GET /bao-cao/the-kho?kho_id&vt_id` (`components/TonTheoKho.tsx`, `TheKho.tsx`).
+- Nút Back: mỗi `navigate()` = 1 `history.pushState` (App.tsx), popup chi tiết cũng chiếm 1 bước (Back đóng popup);
+  `PageHeader` tự hiện "Quay lại" khi có bước trước.
+
 ## Giao diện chạy dữ liệu thật (Giai đoạn 1.6, 2026-09-24)
 
 - **Không phần tử trang trí/demo**: mọi số KPI, badge, biểu đồ, nút, link phải lấy từ API thật và bấm

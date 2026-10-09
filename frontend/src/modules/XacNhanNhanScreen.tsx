@@ -13,7 +13,7 @@ import { QrScanButton } from "../components/QrScanner";
 import { useDuLieuChung } from "../lib/duLieuChung";
 import { fmtGiaTri, fmtGiaTriDong, fmtNgay, fmtNgayGio, fmtSo } from "../lib/format";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
-import { LOAI_KHO, TRANG_THAI_TS, isHcns, tenVaiTro, thongBaoLoi } from "../lib/nhan";
+import { LOAI_KHO, TRANG_THAI_TS, isHcns, laKhoTon, tenVaiTro, thongBaoLoi } from "../lib/nhan";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
 interface CcdcRow {
@@ -143,7 +143,7 @@ export function XacNhanNhanScreen() {
   if (!user) return null;
   // Admin/HCNS/KT "phu trach" moi kho (~70) - liet ke het thanh 1 khoi chu dai: >3 kho chi hien so luong,
   // ten day du o tooltip.
-  const khoInfo = user.kho_phu_trach.filter((k) => k.loai !== "Mua hang");
+  const khoInfo = user.kho_phu_trach.filter(laKhoTon);
   const tenKho = khoInfo.map((k) => `${k.ten_kho} (${LOAI_KHO[k.loai]})`).join(", ");
   const moTa = `${tenVaiTro(user.vai_tro)}${khoInfo.length ? t(" · Thủ kho: {x}", { x: khoInfo.length <= 3 ? tenKho : `${fmtSo(khoInfo.length)} kho` }) : ""}`;
   const phuDe = <span className="muted small" title={khoInfo.length > 3 ? tenKho : undefined}>{moTa}</span>;

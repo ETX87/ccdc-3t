@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { laQuanTri } from "../lib/menu";
+import { laKhoTon } from "../lib/nhan";
 
 interface KhoOpt {
   id: number;
@@ -23,10 +24,10 @@ export function KhoFilter({ value, onChange }: { value: string; onChange: (khoId
     if (laQuanTri(user)) {
       api
         .get<{ rows: (KhoOpt & { bat_tat: number })[] }>("/kho")
-        .then((r) => setKhos(r.rows.filter((k) => k.bat_tat && k.loai !== "Mua hang")))
+        .then((r) => setKhos(r.rows.filter((k) => k.bat_tat && laKhoTon(k))))
         .catch(() => setKhos([]));
     } else {
-      setKhos(user.kho_phu_trach.filter((k) => k.loai !== "Mua hang"));
+      setKhos(user.kho_phu_trach.filter(laKhoTon));
     }
   }, [user]);
 

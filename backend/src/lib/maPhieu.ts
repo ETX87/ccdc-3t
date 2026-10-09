@@ -5,7 +5,7 @@
 
 export type BangPhieu = "phieu_chuyen_kho" | "phieu_giao_nhan" | "phieu_xu_ly_ts" | "dot_kiem_ke";
 
-export const TIEN_TO_CHUYEN_KHO: Record<string, string> = { "Nhap mua": "NM", "Chuyen kho": "CK", "Cap phat NV": "CP" };
+export const TIEN_TO_CHUYEN_KHO: Record<string, string> = { "Nhap mua": "NM", "Chuyen kho": "CK", "Cap phat NV": "CP", "Dieu chinh": "DC" };
 export const TIEN_TO_XU_LY: Record<string, string> = { "Nhap mua": "NT", "Bao hong": "BH", "Thanh ly": "TL", "Tieu huy": "TH" };
 
 /** `ngay` dang 'YYYY-MM-DD HH:MM:SS' (nowVN()). */

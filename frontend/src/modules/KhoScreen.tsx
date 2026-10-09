@@ -421,6 +421,7 @@ function CauHinhKho() {
                     {k.loai === "Mien" && k.nhan_vien_ten && <div className="muted small">{t("Người phụ trách:")} {k.nhan_vien_ten}</div>}
                     {k.loai === "HCNS" && <div className="muted small">{t("Mọi tài khoản HCNS / Admin")}</div>}
                     {k.loai === "Mua hang" && <div className="muted small">{t("Kho nguồn ảo - chỉ dùng cho phiếu nhập mua")}</div>}
+                    {k.loai === "Tieu hao" && <div className="muted small">{t("Điểm tiêu dùng văn phòng - xuất vào là tiêu hao hết, không tính tồn")}</div>}
                     {k.thu_kho.length > 0 && (
                       <div className="chip-list">
                         {k.thu_kho.map((e) => (
@@ -500,10 +501,15 @@ function CauHinhKho() {
             <label className="field-label">{t("Loại kho")}</label>
             <select value={loaiMoi} onChange={(e) => setLoaiMoi(e.target.value as LoaiKho)}>
               <option value="Mien">{t("Kho miền")}</option>
+              <option value="Tieu hao">{t("Kho tiêu hao (điểm tiêu dùng văn phòng)")}</option>
               <option value="HCNS">{t("Kho HCNS")}</option>
               <option value="Mua hang">{t("Kho mua hàng (nguồn nhập)")}</option>
             </select>
-            <div className="field-hint">{t("Kho quản lý được tạo tự động khi gán quản lý trực tiếp cho nhân viên.")}</div>
+            <div className="field-hint">
+              {loaiMoi === "Tieu hao"
+                ? t("Kho tiêu hao: VPP, vệ sinh, đóng hàng… xuất vào là tiêu hao hết (trừ tồn kho xuất), không tính tồn, không chuyển đi được.")
+                : t("Kho quản lý được tạo tự động khi gán quản lý trực tiếp cho nhân viên.")}
+            </div>
           </div>
           <div className="modal-actions">
             <button className="btn" onClick={() => setShowAdd(false)}>

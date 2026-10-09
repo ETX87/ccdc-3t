@@ -19,7 +19,7 @@ import { inTemQr } from "../lib/inTem";
 import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTriDong, fmtNgay, fmtSo, homNayVN } from "../lib/format";
-import { isHcns, thongBaoLoi, TINH_TRANG_TS, TRANG_THAI_TS } from "../lib/nhan";
+import { isHcns, laKhoTon, thongBaoLoi, TINH_TRANG_TS, TRANG_THAI_TS } from "../lib/nhan";
 
 // Danh muc tai san co dinh: KPI + dem theo trang thai lay tu /ccdc/thong-ke (cung bo loc, khong phu thuoc
 // so dong dang hien), bam ma -> popup chi tiet (lich su, QR, bao hong), in tem QR hang loat.
@@ -154,7 +154,7 @@ export function DanhMucCcdcScreen() {
     loadNhoms();
     api
       .get<{ rows: KhoRow[] }>("/kho")
-      .then((r) => setKhos(r.rows.filter((k) => k.bat_tat && k.loai !== "Mua hang")))
+      .then((r) => setKhos(r.rows.filter((k) => k.bat_tat && laKhoTon(k))))
       .catch(() => setKhos([]));
   }, [loadNhoms]);
 

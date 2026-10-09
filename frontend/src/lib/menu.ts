@@ -14,13 +14,14 @@ import {
   Settings,
 } from "lucide-react";
 import type { AppUser } from "../types";
+import { laKhoTon } from "./nhan";
 import type { NavParams, TabKey } from "./navigation";
 
 // Menu theo vai tro (1 nguon duy nhat cho sidebar, menu truot tren dien thoai va man mac dinh).
 // Quyen that van kiem o server - day chi an cac muc nguoi dung khong dung duoc.
 export const laQuanTri = (u: AppUser) => u.vai_tro === "Admin" || u.vai_tro === "Ke toan" || u.vai_tro === "HCNS";
 export const laHcnsHoacAdmin = (u: AppUser) => u.vai_tro === "Admin" || u.vai_tro === "HCNS";
-export const coKho = (u: AppUser) => u.kho_phu_trach.some((k) => k.loai !== "Mua hang");
+export const coKho = (u: AppUser) => u.kho_phu_trach.some(laKhoTon);
 export const coNhom = (u: AppUser) => u.co_cap_duoi;
 /** Duoc xem so lieu tong hop (tong quan, canh bao, bao cao): quan tri, thu kho, quan ly co nhom. */
 export const xemTongHop = (u: AppUser) => laQuanTri(u) || coKho(u) || coNhom(u);
@@ -96,6 +97,7 @@ export const MENU: MenuItem[] = [
     show: xemTongHop,
     children: [
       { label: t("Tổng hợp"), tab: "bao-cao", params: { tab: "tong-quan" }, show: moiNguoi },
+      { label: t("Tiêu dùng văn phòng"), tab: "bao-cao", params: { tab: "tieu-dung" }, show: moiNguoi },
       { label: t("Theo công ty"), tab: "bao-cao", params: { tab: "theo-cong-ty" }, show: (u) => laQuanTri(u) && u.cong_ty.length > 1 },
       { label: t("Theo nhân viên"), tab: "bao-cao", params: { tab: "theo-nhan-vien" }, show: moiNguoi },
       { label: t("Theo bộ phận"), tab: "bao-cao", params: { tab: "theo-bo-phan" }, show: moiNguoi },

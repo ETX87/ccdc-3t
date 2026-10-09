@@ -4,7 +4,10 @@ import type { AppUser } from "../types";
 // PHAI kiem tra lai o server qua cac ham nay - KHONG tin kho_id/ma_nv client gui len (vd 1 QL gui
 // tu_kho_id cua kho HCNS, hoac xuat cho nguoi ngoai nhom = IDOR).
 
-export type LoaiKho = "Mua hang" | "HCNS" | "Mien" | "Quan ly";
+export type LoaiKho = "Mua hang" | "HCNS" | "Mien" | "Quan ly" | "Tieu hao";
+/** Kho TINH TON (khong phai kho mua hang - nguon ao, hay kho tieu hao - diem tieu dung cua van phong). */
+export const KHO_TON_SQL = "NOT IN ('Mua hang', 'Tieu hao')";
+export const laKhoTon = (loai: LoaiKho) => loai !== "Mua hang" && loai !== "Tieu hao";
 
 export interface KhoRow {
   id: number;

@@ -9,6 +9,8 @@ export interface AppUser {
   bi_khoa: boolean;
   ma_nv: string | null;
   kho_phu_trach: { id: number; ten_kho: string; loai: LoaiKho; nhan_vien_id?: string | null; cong_ty_id?: number }[];
+  /** Kho user la BEN NHAN (xac nhan / tu choi nhan hang) - hep hon kho_phu_trach (Admin khong mac nhien nhan thay). */
+  kho_nhan: number[];
   co_cap_duoi: boolean;
   /** Cong ty tai khoan duoc xem / thao tac (da phap nhan) - o chon cong ty tren topbar khi >= 2. */
   cong_ty: { id: number; ma: string; ten: string }[];

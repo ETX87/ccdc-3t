@@ -3,7 +3,7 @@ import type { AppUser, Env } from "../types";
 import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { nowVN } from "../lib/vnTime";
-import { coCongTy, getKho, guardTonKhongAm, khoPhuTrach, laCapDuoi, laHcns, laKeToan, laKhoTon, laThuKho, tonKho } from "../lib/quyen";
+import { coCongTy, getKho, guardTonKhongAm, khoNhanHang, khoPhuTrach, laBenNhan, laCapDuoi, laNguoiLap, laHcns, laKeToan, laKhoTon, laThuKho, tonKho } from "../lib/quyen";
 import { ghepVatTu } from "../lib/ghepVatTu";
 import { sinhMaPhieu, TIEN_TO_CHUYEN_KHO } from "../lib/maPhieu";
 import { dkPhieuKho, layPhamVi, type PhamVi } from "../lib/phamVi";
@@ -81,7 +81,7 @@ phieuChuyenKho.get("/", async (c) => {
   }
   // cho_toi_nhan=1: phieu Chuyen kho dang tren duong toi kho minh phu trach.
   if (q("cho_toi_nhan") === "1") {
-    const ids = (await khoPhuTrach(c.env.DB, user)).map((k) => k.id);
+    const ids = (await khoNhanHang(c.env.DB, user)).map((k) => k.id);
     if (ids.length === 0) return c.json({ rows: [] });
     conditions.push(`p.trang_thai = 'Dang chuyen' AND p.den_kho_id IN (${ids.map(() => "?").join(",")})`);
     binds.push(...ids);
@@ -654,6 +654,7 @@ phieuChuyenKho.post("/:id/ke-toan-duyet", async (c) => {
   const p = await layPhieu(c);
   if (!p) return c.json({ error: "NOT_FOUND" }, 404);
   if (!laKeToan(user, await congTyKhoNguon(db, p))) return c.json({ error: "CHI_KE_TOAN" }, 403);
+  if (await laNguoiLap(db, "phieu_chuyen_kho", p.id, user.email)) return c.json({ error: "KHONG_TU_DUYET" }, 403);
   if (p.trang_thai !== "Cho ke toan duyet" || !["Nhap mua", "Chuyen kho", "Dieu chinh"].includes(p.loai)) return c.json({ error: "SAI_TRANG_THAI" }, 409);
   const ghiChu = await docGhiChu(c);
   if (p.loai === "Nhap mua") return doiTrangThai(c, p, "Cho ke toan duyet", "Da nhan", ghiChu);
@@ -725,20 +726,17 @@ phieuChuyenKho.post("/:id/ke-toan-tu-choi", async (c) => {
   return doiTrangThai(c, p, "Cho ke toan duyet", "Ke toan tu choi", ghiChu);
 });
 
-// Thu kho dich xac nhan da nhan du hang. Thu kho NGUON duoc "xac nhan ho" (vd kho QL chua co tai
-// khoan) nhung BAT BUOC ghi chu - log luu dung nguoi bam.
+// CHI ben nhan that su (thu kho / nguoi phu trach kho dich - laBenNhan) xac nhan da nhan du hang. Da bo "xac nhan
+// ho" cua thu kho kho nguon (2026-10-12): ben xuat khong duoc tu xac nhan thay ben nhan. Kho dich chua co nguoi
+// nhan -> HCNS gan thu kho cho kho do.
 phieuChuyenKho.post("/:id/nhan", async (c) => {
   const user = c.get("user");
   const ghiChu = await docGhiChu(c);
   const p = await layPhieu(c);
   if (!p) return c.json({ error: "NOT_FOUND" }, 404);
   if (p.loai !== "Chuyen kho" || p.trang_thai !== "Dang chuyen") return c.json({ error: "SAI_TRANG_THAI" }, 409);
-  const laDich = await laThuKho(c.env.DB, user, p.den_kho_id!);
-  if (!laDich) {
-    if (!(await laThuKho(c.env.DB, user, p.tu_kho_id))) return c.json({ error: "KHONG_PHU_TRACH_KHO_DICH" }, 403);
-    if (!ghiChu) return c.json({ error: "XAC_NHAN_HO_CAN_GHI_CHU" }, 400);
-  }
-  return doiTrangThai(c, p, "Dang chuyen", "Da nhan", laDich ? ghiChu : `[Xác nhận hộ] ${ghiChu}`);
+  if (!(await laBenNhan(c.env.DB, user, p.den_kho_id!))) return c.json({ error: "KHONG_PHU_TRACH_KHO_DICH" }, 403);
+  return doiTrangThai(c, p, "Dang chuyen", "Da nhan", ghiChu);
 });
 
 phieuChuyenKho.post("/:id/tu-choi-nhan", async (c) => {
@@ -748,7 +746,7 @@ phieuChuyenKho.post("/:id/tu-choi-nhan", async (c) => {
   const p = await layPhieu(c);
   if (!p) return c.json({ error: "NOT_FOUND" }, 404);
   if (p.loai !== "Chuyen kho" || p.trang_thai !== "Dang chuyen") return c.json({ error: "SAI_TRANG_THAI" }, 409);
-  if (!(await laThuKho(c.env.DB, user, p.den_kho_id!))) return c.json({ error: "KHONG_PHU_TRACH_KHO_DICH" }, 403);
+  if (!(await laBenNhan(c.env.DB, user, p.den_kho_id!))) return c.json({ error: "KHONG_PHU_TRACH_KHO_DICH" }, 403);
   return doiTrangThai(c, p, "Dang chuyen", "Bi tu choi", ghiChu);
 });
 

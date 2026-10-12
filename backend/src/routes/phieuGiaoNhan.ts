@@ -3,7 +3,7 @@ import type { Env } from "../types";
 import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { nowVN } from "../lib/vnTime";
-import { laKhoTon, coCongTy, getKho, khoPhuTrach, laHcns, laKeToan, laThuKho, trongNhom } from "../lib/quyen";
+import { laKhoTon, coCongTy, getKho, khoPhuTrach, laBenNhan, laHcns, laNguoiLap, laKeToan, laThuKho, trongNhom } from "../lib/quyen";
 import { sinhMaPhieu } from "../lib/maPhieu";
 import { layPhamVi } from "../lib/phamVi";
 
@@ -306,6 +306,7 @@ phieuGiaoNhan.post("/:id/ke-toan-duyet", async (c) => {
   const p = await phieuChoDuyet(db, c.req.param("id") ?? "");
   if (!p) return c.json({ error: "NOT_FOUND" }, 404);
   if (!laKeToan(user, p.tu_cong_ty_id)) return c.json({ error: "CHI_KE_TOAN" }, 403);
+  if (await laNguoiLap(db, "phieu_giao_nhan", p.id, user.email)) return c.json({ error: "KHONG_TU_DUYET" }, 403);
   if (p.trang_thai_duyet !== "Cho ke toan duyet") return c.json({ error: "SAI_TRANG_THAI" }, 409);
   const ghiChu = await docGhiChu(c);
   const { results: ts } = await db
@@ -391,7 +392,7 @@ phieuGiaoNhan.post("/:id/xac-nhan", async (c) => {
     const target = phieu.loai_phieu === "Dieu chuyen" ? phieu.nhan_vien_nhan_moi_id : phieu.nhan_vien_id;
     ok = !!user.ma_nv && user.ma_nv === target;
   } else if (phieu.den_kho_id) {
-    ok = await laThuKho(c.env.DB, user, phieu.den_kho_id);
+    ok = await laBenNhan(c.env.DB, user, phieu.den_kho_id);
   }
   if (!ok) return c.json({ error: "FORBIDDEN" }, 403);
 

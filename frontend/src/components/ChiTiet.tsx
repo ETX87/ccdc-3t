@@ -141,23 +141,23 @@ const coQuyenSuaCk = (row: Row, user: AppUser) => CK_SUA_DUOC.includes(s(row.tra
 
 function tinhHanhDong(loai: LoaiPhieu, row: Row, user: AppUser): HanhDong[] {
   const khoCuaToi = new Set(user.kho_phu_trach.map((k) => k.id));
+  // Ben nhan that su (server: laBenNhan) - khong dung kho_phu_trach (Admin / thu kho nguon khong nhan thay).
+  const khoNhan = new Set(user.kho_nhan ?? []);
+  // Nguoi lap khong tu duyet phieu cua minh (server: KHONG_TU_DUYET).
+  const tuLap = row.nguoi_lap === user.email || row.nguoi_de_xuat === user.email;
   const id = encodeURIComponent(s(row.id));
   const ds: HanhDong[] = [];
   // Da phap nhan: KT chi duyet phieu cua cong ty minh (chuyen cong ty: KT cong ty NGUON) - server kiem lai.
-  const ktCongTy = (ct: unknown) => isKeToan(user) && (ct == null || user.cong_ty.some((c) => c.id === n(ct)));
+  const ktCongTy = (ct: unknown) => isKeToan(user) && !tuLap && (ct == null || user.cong_ty.some((c) => c.id === n(ct)));
   if (loai === "chuyen_kho") {
     const base = `/phieu-chuyen-kho/${id}`;
     if (row.trang_thai === "Cho ke toan duyet" && ktCongTy(row.tu_cong_ty_id)) {
       ds.push({ key: "duyet", nhan: t("Duyệt"), kieu: "primary", path: `${base}/ke-toan-duyet` });
       ds.push({ key: "tu-choi", nhan: t("Từ chối"), kieu: "danger", canLyDo: t("Lý do từ chối"), path: `${base}/ke-toan-tu-choi` });
     }
-    if (row.trang_thai === "Dang chuyen") {
-      if (khoCuaToi.has(n(row.den_kho_id))) {
-        ds.push({ key: "nhan", nhan: t("Xác nhận đã nhận"), kieu: "primary", path: `${base}/nhan` });
-        ds.push({ key: "tu-choi-nhan", nhan: t("Từ chối nhận"), kieu: "danger", canLyDo: t("Lý do từ chối nhận"), path: `${base}/tu-choi-nhan` });
-      } else if (khoCuaToi.has(n(row.tu_kho_id))) {
-        ds.push({ key: "nhan-ho", nhan: t("Xác nhận hộ kho nhận"), kieu: "outline", canLyDo: t("Ghi chú lý do xác nhận hộ"), path: `${base}/nhan` });
-      }
+    if (row.trang_thai === "Dang chuyen" && khoNhan.has(n(row.den_kho_id))) {
+      ds.push({ key: "nhan", nhan: t("Xác nhận đã nhận"), kieu: "primary", path: `${base}/nhan` });
+      ds.push({ key: "tu-choi-nhan", nhan: t("Từ chối nhận"), kieu: "danger", canLyDo: t("Lý do từ chối nhận"), path: `${base}/tu-choi-nhan` });
     }
     if (row.loai === "Cap phat NV" && row.trang_thai === "Da giao" && !n(row.da_xac_nhan) && user.ma_nv && row.den_nhan_vien_id === user.ma_nv) {
       ds.push({ key: "xac-nhan", nhan: t("Xác nhận đã nhận"), kieu: "primary", path: `${base}/xac-nhan` });
@@ -179,13 +179,13 @@ function tinhHanhDong(loai: LoaiPhieu, row: Row, user: AppUser): HanhDong[] {
     if (!n(row.da_xac_nhan) && (!row.trang_thai_duyet || row.trang_thai_duyet === "Da duyet")) {
       const nhanNV =
         (row.loai_phieu === "Cap phat" && row.nhan_vien_id === user.ma_nv) || (row.loai_phieu === "Dieu chuyen" && row.nhan_vien_nhan_moi_id === user.ma_nv);
-      const nhanKho = (row.loai_phieu === "Thu hoi" || row.loai_phieu === "Chuyen kho") && khoCuaToi.has(n(row.den_kho_id));
+      const nhanKho = (row.loai_phieu === "Thu hoi" || row.loai_phieu === "Chuyen kho") && khoNhan.has(n(row.den_kho_id));
       if ((nhanNV && user.ma_nv) || nhanKho)
         ds.push({ key: "xac-nhan", nhan: t("Xác nhận đã nhận"), kieu: "primary", path: `/phieu-giao-nhan/${id}/xac-nhan` });
     }
   } else {
     const base = `/phieu-xu-ly-ts/${id}`;
-    if (row.trang_thai === "Cho ke toan duyet" && isKeToan(user)) {
+    if (row.trang_thai === "Cho ke toan duyet" && isKeToan(user) && !tuLap) {
       ds.push({ key: "duyet", nhan: t("Duyệt"), kieu: "primary", path: `${base}/ke-toan-duyet` });
       ds.push({ key: "tu-choi", nhan: t("Từ chối"), kieu: "danger", canLyDo: t("Lý do từ chối"), path: `${base}/ke-toan-tu-choi` });
     }

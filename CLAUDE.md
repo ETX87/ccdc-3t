@@ -61,6 +61,12 @@ state đang dùng.
   kho; giữ để ETX/gán quản lý không tự tạo lại "Kho QL - …" nhờ `ON CONFLICT(nhan_vien_id)`). Kho miền cấp phát
   cho mọi nhân viên, chuyển được sang kho QL; thủ kho kho miền xem mọi tài sản + điều chuyển TSCĐ toàn hệ thống.
 - Mọi kiểm quyền theo kho/nhóm ở server (`backend/src/lib/quyen.ts`) — không tin `kho_id` client gửi.
+- **Xuất ≠ nhận** (2026-10-12, user báo vượt quyền): `khoPhuTrach` = kho được LẬP PHIẾU XUẤT (Admin mọi kho, HCNS
+  kho HCNS + Mua hàng); `khoNhanHang` / `laBenNhan` = kho được XÁC NHẬN / TỪ CHỐI NHẬN (thủ kho gán, người phụ trách
+  kho, HCNS/Admin chỉ Kho tổng HCNS) — frontend `user.kho_nhan`. Đã BỎ "xác nhận hộ kho nhận" của thủ kho kho nguồn;
+  Việc cần làm (nhận hàng) lọc theo `khoNhanHang`, KHÔNG theo phạm vi xem `pv.khoIds`. Kho chưa có người nhận → gán
+  thủ kho. **Không tự duyệt**: người lập / đề xuất không KT-duyệt phiếu của mình (`laNguoiLap`, lỗi `KHONG_TU_DUYET`,
+  kể cả Admin) — Việc cần làm của KT bỏ phiếu do chính mình lập.
 - Chống xuất vượt tồn khi 2 phiếu đồng thời: bảng `batch_guard` (`CHECK (x = 1)`) — chèn
   `CASE WHEN tồn < 0 THEN 0 ELSE 1 END` cuối `db.batch()` để ép rollback cả batch.
 - Danh bạ nhân sự đồng bộ 1 chiều từ ETX (`lib/etxNhanSuSync.ts`, port từ `linh-kien-app`): cron **hằng

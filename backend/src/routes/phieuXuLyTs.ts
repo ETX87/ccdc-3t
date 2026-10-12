@@ -3,7 +3,7 @@ import type { Env } from "../types";
 import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { nowVN } from "../lib/vnTime";
-import { coCongTy, laHcns, laKeToan, laThuKho, trongNhom } from "../lib/quyen";
+import { coCongTy, laHcns, laKeToan, laNguoiLap, laThuKho, trongNhom } from "../lib/quyen";
 import { sinhMaPhieu, TIEN_TO_XU_LY } from "../lib/maPhieu";
 import { dkTaiSan, layPhamVi } from "../lib/phamVi";
 
@@ -232,6 +232,7 @@ phieuXuLyTs.post("/:id/ke-toan-duyet", async (c) => {
   const p = await c.env.DB.prepare("SELECT loai FROM phieu_xu_ly_ts WHERE id = ?").bind(c.req.param("id")).first<{ loai: Loai }>();
   if (!p) return c.json({ error: "NOT_FOUND" }, 404);
   const db = c.env.DB;
+  if (await laNguoiLap(db, "phieu_xu_ly_ts", c.req.param("id") ?? "", c.get("user").email)) return c.json({ error: "KHONG_TU_DUYET" }, 403);
   if (p.loai === "Nhap mua") {
     return chuyenTrangThai(c, "Cho ke toan duyet", "Da hoan tat", ghiChu, (_p, ct, ngay) =>
       db

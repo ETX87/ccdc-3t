@@ -98,7 +98,7 @@ const LOI: Record<string, string> = {
   CCDC_KHONG_TRONG_KHO: t("Chỉ xử lý được tài sản đang nằm trong kho (đã thu hồi)."),
   KHONG_CO_QUYEN_BAO_HONG: t("Bạn không có quyền báo hỏng tài sản này."),
   SAI_TRANG_THAI_TS: t("Tài sản đang ở trạng thái không cho phép thao tác này."),
-  XAC_NHAN_HO_CAN_GHI_CHU: t("Xác nhận hộ kho nhận bắt buộc ghi chú lý do."),
+  KHONG_TU_DUYET: t("Người lập phiếu không được tự duyệt phiếu của mình - Kế toán khác duyệt."),
   TRUNG_KHO: t("Kho nguồn và kho đích trùng nhau."),
   QL_KHONG_CHUYEN_SANG_KHO_QL_KHAC: t("Kho quản lý chỉ trả về kho HCNS/miền."),
   CHI_DOI_KHO_QL_MIEN: t("Chỉ đổi qua lại được giữa kho quản lý và kho miền."),

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppUser, Env } from "../types";
 import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
-import { khoPhuTrach } from "../lib/quyen";
+import { coCongTy, khoPhuTrach, laHcns } from "../lib/quyen";
 import { LoiDrive, uploadPublicFile } from "../lib/googleDrive";
 import { nowVN } from "../lib/vnTime";
 
@@ -26,25 +26,26 @@ const laQuanTri = (u: AppUser) => u.vai_tro === "Admin" || u.vai_tro === "Ke toa
 async function docDoiTuong(db: D1Database, dt: DoiTuong, id: string) {
   if (dt === "chuyen_kho")
     return db
-      .prepare("SELECT ma_phieu AS ma, nguoi_lap, den_nhan_vien_id AS nv1, NULL AS nv2, tu_kho_id, den_kho_id FROM phieu_chuyen_kho WHERE id = ?")
+      .prepare("SELECT ma_phieu AS ma, nguoi_lap, den_nhan_vien_id AS nv1, NULL AS nv2, tu_kho_id, den_kho_id, (SELECT cong_ty_id FROM kho WHERE id = tu_kho_id) AS cong_ty_id FROM phieu_chuyen_kho WHERE id = ?")
       .bind(id)
       .first<DongDt>();
   if (dt === "giao_nhan")
     return db
-      .prepare("SELECT ma_phieu AS ma, nguoi_lap, nhan_vien_id AS nv1, nhan_vien_nhan_moi_id AS nv2, tu_kho_id, den_kho_id FROM phieu_giao_nhan WHERE id = ?")
+      .prepare("SELECT ma_phieu AS ma, nguoi_lap, nhan_vien_id AS nv1, nhan_vien_nhan_moi_id AS nv2, tu_kho_id, den_kho_id, (SELECT c.cong_ty_id FROM phieu_giao_nhan_ct ct JOIN ccdc c ON c.id = ct.ccdc_id WHERE ct.phieu_id = phieu_giao_nhan.id LIMIT 1) AS cong_ty_id FROM phieu_giao_nhan WHERE id = ?")
       .bind(id)
       .first<DongDt>();
   if (dt === "xu_ly")
     return db
       .prepare(
         `SELECT ma_phieu AS ma, nguoi_de_xuat AS nguoi_lap, NULL AS nv1, NULL AS nv2, NULL AS tu_kho_id, NULL AS den_kho_id,
-                (SELECT group_concat(nguoi_giu_truoc) FROM phieu_xu_ly_ts_ct WHERE phieu_id = p.id) AS ds_nv
+                (SELECT group_concat(nguoi_giu_truoc) FROM phieu_xu_ly_ts_ct WHERE phieu_id = p.id) AS ds_nv,
+                (SELECT c.cong_ty_id FROM phieu_xu_ly_ts_ct ct JOIN ccdc c ON c.id = ct.ccdc_id WHERE ct.phieu_id = p.id LIMIT 1) AS cong_ty_id
          FROM phieu_xu_ly_ts p WHERE id = ?`,
       )
       .bind(id)
       .first<DongDt>();
   return db
-    .prepare("SELECT id AS ma, nguoi_tao AS nguoi_lap, nguoi_dang_giu AS nv1, NULL AS nv2, kho_id AS tu_kho_id, NULL AS den_kho_id FROM ccdc WHERE id = ?")
+    .prepare("SELECT id AS ma, nguoi_tao AS nguoi_lap, nguoi_dang_giu AS nv1, NULL AS nv2, kho_id AS tu_kho_id, NULL AS den_kho_id, cong_ty_id FROM ccdc WHERE id = ?")
     .bind(id)
     .first<DongDt>();
 }
@@ -56,10 +57,12 @@ interface DongDt {
   tu_kho_id: number | null;
   den_kho_id: number | null;
   ds_nv?: string | null;
+  cong_ty_id: number | null;
 }
 
 async function duocTaiLen(db: D1Database, user: AppUser, d: DongDt): Promise<boolean> {
-  if (laQuanTri(user) || d.nguoi_lap === user.email) return true;
+  // Admin/KT/HCNS: chi doi tuong thuoc cong ty tai khoan duoc phep (da phap nhan).
+  if ((laQuanTri(user) && coCongTy(user, d.cong_ty_id)) || d.nguoi_lap === user.email) return true;
   if (user.ma_nv && [d.nv1, d.nv2, ...(d.ds_nv ?? "").split(",")].includes(user.ma_nv)) return true;
   const khos = (await khoPhuTrach(db, user)).map((k) => k.id);
   return [d.tu_kho_id, d.den_kho_id].some((k) => k != null && khos.includes(k));
@@ -105,7 +108,7 @@ dinhKem.get("/", async (c) => {
     .bind(ts.id, ts.dt)
     .all<{ nguoi_tai: string }>();
   const ketNoi = await db.prepare("SELECT 1 AS ok FROM google_drive_oauth WHERE id = 1").first();
-  const xoaDuoc = user.vai_tro === "Admin" || user.vai_tro === "HCNS";
+  const xoaDuoc = laHcns(user, d.cong_ty_id);
   return c.json({
     rows: results.map((r) => ({ ...r, co_the_xoa: xoaDuoc || r.nguoi_tai === user.email })),
     co_the_tai: await duocTaiLen(db, user, d),
@@ -159,9 +162,14 @@ dinhKem.post("/", async (c) => {
 // DELETE /:id - xoa mem (nguoi tai len hoac Admin/HCNS).
 dinhKem.delete("/:id", async (c) => {
   const user = c.get("user");
-  const row = await c.env.DB.prepare("SELECT nguoi_tai FROM dinh_kem WHERE id = ? AND da_xoa = 0").bind(c.req.param("id")).first<{ nguoi_tai: string }>();
+  const row = await c.env.DB.prepare("SELECT nguoi_tai, doi_tuong, doi_tuong_id FROM dinh_kem WHERE id = ? AND da_xoa = 0")
+    .bind(c.req.param("id"))
+    .first<{ nguoi_tai: string; doi_tuong: DoiTuong; doi_tuong_id: string }>();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
-  if (row.nguoi_tai !== user.email && user.vai_tro !== "Admin" && user.vai_tro !== "HCNS") return c.json({ error: "FORBIDDEN" }, 403);
+  if (row.nguoi_tai !== user.email) {
+    const d = await docDoiTuong(c.env.DB, row.doi_tuong, row.doi_tuong_id);
+    if (!laHcns(user, d?.cong_ty_id ?? null)) return c.json({ error: "FORBIDDEN" }, 403);
+  }
   await c.env.DB.prepare("UPDATE dinh_kem SET da_xoa = 1, nguoi_xoa = ?, xoa_luc = ? WHERE id = ?").bind(user.email, nowVN(), c.req.param("id")).run();
   return c.json({ ok: true });
 });

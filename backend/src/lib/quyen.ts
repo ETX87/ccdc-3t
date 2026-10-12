@@ -86,6 +86,37 @@ export async function laThuKho(db: D1Database, user: AppUser, khoId: number): Pr
   return ds.some((k) => k.id === khoId);
 }
 
+// Kho user duoc XAC NHAN NHAN HANG / tu choi nhan (chi BEN NHAN that su - 2026-10-12, user yeu cau chan vuot quyen):
+//   - Thu kho duoc gan (kho_thu_kho), nguoi phu trach kho (kho QL / kho mien cua chinh ho).
+//   - HCNS (va Admin - laHcns) : chi kho loai 'HCNS' (Kho tong) cua cong ty duoc phep.
+// KHONG nhu khoPhuTrach: Admin KHONG mac nhien la ben nhan cua moi kho; HCNS / thu kho kho NGUON KHONG con
+// "xac nhan ho" kho nhan. Kho chua co ai nhan -> HCNS gan thu kho (Cau hinh kho), khong xac nhan thay.
+export async function khoNhanHang(db: D1Database, user: AppUser): Promise<KhoRow[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT id, ten_kho, loai, nhan_vien_id, bat_tat, cong_ty_id FROM kho
+       WHERE bat_tat = 1 AND cong_ty_id IN (SELECT value FROM json_each(?)) AND (
+         id IN (SELECT kho_id FROM kho_thu_kho WHERE email = ?)
+         OR (nhan_vien_id IS NOT NULL AND nhan_vien_id = ?)
+         OR (? = 1 AND loai = 'HCNS')
+       )
+       ORDER BY id`,
+    )
+    .bind(JSON.stringify(user.cong_ty_ids), user.email, user.ma_nv ?? "", user.vai_tro === "HCNS" || user.vai_tro === "Admin" ? 1 : 0)
+    .all<KhoRow>();
+  return results;
+}
+
+/** Nguoi lap phieu KHONG tu duyet phieu cua chinh minh (tach biet lap / duyet - ke ca Admin). */
+export async function laNguoiLap(db: D1Database, bang: "phieu_chuyen_kho" | "phieu_giao_nhan" | "phieu_xu_ly_ts", id: string, email: string) {
+  const cot = bang === "phieu_xu_ly_ts" ? "nguoi_de_xuat" : "nguoi_lap";
+  return !!(await db.prepare(`SELECT 1 AS ok FROM ${bang} WHERE id = ? AND ${cot} = ?`).bind(id, email).first());
+}
+
+export async function laBenNhan(db: D1Database, user: AppUser, khoId: number): Promise<boolean> {
+  return (await khoNhanHang(db, user)).some((k) => k.id === khoId);
+}
+
 // maNv co phai cap duoi TRUC TIEP cua qlMaNv khong (khong de quy nhieu cap - dung pham vi user
 // mo ta "nhan vien cap duoi do minh phu trach").
 export async function laCapDuoi(db: D1Database, qlMaNv: string, maNv: string): Promise<boolean> {

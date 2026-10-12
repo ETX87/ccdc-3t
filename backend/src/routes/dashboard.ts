@@ -6,7 +6,7 @@ import { nowVN } from "../lib/vnTime";
 import { requireRole } from "../middleware/requireRole";
 import { dkCotKho, dkPhieuKho, dkTaiSan, layPhamVi, locTheoKho, type PhamVi } from "../lib/phamVi";
 import { chupNeuChuaCo, soLieuDaChup, tinhChiSo } from "../lib/thongKe";
-import { khoPhuTrach } from "../lib/quyen";
+import { khoNhanHang, khoPhuTrach } from "../lib/quyen";
 
 // Du lieu that cho giao dien 3T Asset Management (ke hoach Giai doan 1.6 muc 3.2): tong quan, viec can
 // lam (+ so do tren menu/chuong), canh bao, tim kiem. MOI truy van loc theo pham vi (lib/phamVi.ts).
@@ -261,7 +261,9 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
   const laHC = user.vai_tro === "Admin" || user.vai_tro === "HCNS";
   const moc = truGio(nowVN(), QUA_HAN_GIO);
   const tuanTruoc = truGio(nowVN(), 7 * 24);
-  const khoJson = JSON.stringify(pv.khoIds);
+  // Kho user la BEN NHAN that su (khong phai pham vi xem): nut Nhan / Xac nhan chi hien cho dung nguoi nhan.
+  const khoNhanIds = (await khoNhanHang(db, user)).filter((k) => user.cong_ty_xem.includes(k.cong_ty_id)).map((k) => k.id);
+  const khoJson = JSON.stringify(khoNhanIds);
   // KT / HCNS: chi phieu / tai san / dot kiem ke cua cac cong ty dang xem (pv da gioi han cong ty).
   const pkV = dkPhieuKho(pv);
   const tsV = dkTaiSan(pv);
@@ -275,8 +277,8 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
       kind: "kt_ck",
       stmt: db.prepare(
         `SELECT p.id, p.ma_phieu, p.loai, p.created_at AS t, ${TEN_NGUOI("p.nguoi_lap")} AS nguoi, kt.ten_kho AS tu, kd.ten_kho AS den, ${TOM_TAT_CK} AS tom_tat
-         FROM phieu_chuyen_kho p JOIN kho kt ON kt.id = p.tu_kho_id LEFT JOIN kho kd ON kd.id = p.den_kho_id WHERE p.trang_thai = 'Cho ke toan duyet' AND ${pkV.sql} ORDER BY p.created_at`,
-      ).bind(...pkV.binds),
+         FROM phieu_chuyen_kho p JOIN kho kt ON kt.id = p.tu_kho_id LEFT JOIN kho kd ON kd.id = p.den_kho_id WHERE p.trang_thai = 'Cho ke toan duyet' AND p.nguoi_lap != ? AND ${pkV.sql} ORDER BY p.created_at`,
+      ).bind(user.email, ...pkV.binds),
     });
     stmts.push({
       kind: "kt_gn",
@@ -284,20 +286,20 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
         .prepare(
           `SELECT g.id, g.ma_phieu, g.ngay_lap AS t, ${TEN_NGUOI("g.nguoi_lap")} AS nguoi, kt.ten_kho AS tu, kd.ten_kho AS den, ${TOM_TAT_GN} AS tom_tat
            FROM phieu_giao_nhan g JOIN kho kt ON kt.id = g.tu_kho_id JOIN kho kd ON kd.id = g.den_kho_id
-           WHERE g.trang_thai_duyet = 'Cho ke toan duyet' AND kt.cong_ty_id IN (SELECT value FROM json_each(?)) ORDER BY g.ngay_lap`,
+           WHERE g.trang_thai_duyet = 'Cho ke toan duyet' AND g.nguoi_lap != ? AND kt.cong_ty_id IN (SELECT value FROM json_each(?)) ORDER BY g.ngay_lap`,
         )
-        .bind(JSON.stringify(user.cong_ty_xem)),
+        .bind(user.email, JSON.stringify(user.cong_ty_xem)),
     });
     stmts.push({
       kind: "kt_xl",
       stmt: db.prepare(
         `SELECT x.id, x.ma_phieu, x.loai, x.ly_do, x.created_at AS t, ${TEN_NGUOI("x.nguoi_de_xuat")} AS nguoi, ${TOM_TAT_XL} AS tom_tat,
                 (SELECT COUNT(*) FROM phieu_xu_ly_ts_ct ct WHERE ct.phieu_id = x.id) AS so_ts
-         FROM phieu_xu_ly_ts x WHERE x.trang_thai = 'Cho ke toan duyet' AND ${coTsV} ORDER BY x.created_at`,
-      ).bind(...tsV.binds),
+         FROM phieu_xu_ly_ts x WHERE x.trang_thai = 'Cho ke toan duyet' AND x.nguoi_de_xuat != ? AND ${coTsV} ORDER BY x.created_at`,
+      ).bind(user.email, ...tsV.binds),
     });
   }
-  if (pv.khoIds.length) {
+  if (khoNhanIds.length) {
     stmts.push({
       kind: "nhan_kho",
       stmt: db

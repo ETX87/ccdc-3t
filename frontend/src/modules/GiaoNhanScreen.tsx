@@ -19,6 +19,7 @@ import { fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { LOAI_GIAO_NHAN, LOAI_KHO, isHcns, laKhoPhatChung, laKhoTon, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
+import { LoaiChip, NgayCho } from "../components/NoiBat";
 import { ChonLoc } from "../components/ChonLoc";
 
 interface NhanVienRow {
@@ -274,7 +275,9 @@ export function GiaoNhanScreen() {
                         {p.ma_phieu ?? p.id.slice(0, 8)}
                       </span>
                     </td>
-                    <td data-label={t("Loại")}>{p.trang_thai_duyet ? t("Chuyển công ty") : (LOAI_GIAO_NHAN[p.loai_phieu] ?? p.loai_phieu)}</td>
+                    <td data-label={t("Loại")}>
+                      <LoaiChip loai={p.trang_thai_duyet ? "Chuyen cong ty" : p.loai_phieu} nhan={p.trang_thai_duyet ? t("Chuyển công ty") : (LOAI_GIAO_NHAN[p.loai_phieu] ?? p.loai_phieu)} />
+                    </td>
                     <td data-label={t("Từ")} className="text-secondary">
                       {tu ?? "-"}
                     </td>
@@ -283,8 +286,8 @@ export function GiaoNhanScreen() {
                       <span className="strong">{t("{x} TS", { x: p.so_luong_ccdc })}</span>
                       {p.tom_tat && <span className="muted small"> · {p.tom_tat}</span>}
                     </td>
-                    <td data-label={t("Ngày lập")} className="text-secondary">
-                      {fmtNgayGio(p.ngay_lap)}
+                    <td data-label={t("Ngày lập")}>
+                      <NgayCho ngay={p.ngay_lap} dangCho={!p.da_xac_nhan && p.trang_thai_duyet !== "Ke toan tu choi"} />
                     </td>
                     <td data-label={t("Xác nhận")} style={{ textAlign: "center" }}>
                       {p.trang_thai_duyet === "Cho ke toan duyet" ? (

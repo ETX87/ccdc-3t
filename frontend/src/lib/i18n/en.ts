@@ -1347,4 +1347,9 @@ export const EN: Record<string, string> = {
   "Bấm để xem chi tiết": "Click to view details",
   "Xem tài sản trong kho": "View assets in this warehouse",
   "Xem tồn tiêu hao của kho": "View this warehouse's consumable stock",
+  "Quá hạn {x}": "Overdue {x}",
+  "Chờ {x}": "Waiting {x}",
+  "{x} phút": "{x} min",
+  "{x} giờ": "{x} h",
+  "{x} ngày": "{x} days",
 };

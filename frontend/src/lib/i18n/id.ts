@@ -1347,4 +1347,9 @@ export const ID: Record<string, string> = {
   "Bấm để xem chi tiết": "Klik untuk melihat detail",
   "Xem tài sản trong kho": "Lihat aset di gudang ini",
   "Xem tồn tiêu hao của kho": "Lihat stok habis pakai gudang ini",
+  "Quá hạn {x}": "Terlambat {x}",
+  "Chờ {x}": "Menunggu {x}",
+  "{x} phút": "{x} mnt",
+  "{x} giờ": "{x} jam",
+  "{x} ngày": "{x} hari",
 };

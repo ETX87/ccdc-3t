@@ -1,3 +1,4 @@
+import { NgayCho } from "./NoiBat";
 import { t, tS } from "../lib/i18n";
 import { useState } from "react";
 import { AlertTriangle, ArrowLeftRight, Box, Check, ClipboardList, GitBranch, Tag, Trash2, X } from "lucide-react";
@@ -155,8 +156,8 @@ export function ViecTable({ rows, coThaoTac = false, trong }: { rows: ViecRow[];
                   <td data-label={t("Đơn vị / Người tạo")} className="text-secondary">
                     {tS(r.don_vi_nguoi_tao)}
                   </td>
-                  <td data-label={t("Thời gian")} className="text-secondary">
-                    {fmtNgayGio(r.thoi_gian)}
+                  <td data-label={t("Thời gian")}>
+                    <NgayCho ngay={r.thoi_gian} dangCho />
                   </td>
                   <td data-label={t("Trạng thái")} style={{ textAlign: coThaoTac ? "center" : "right" }}>
                     <TrangThaiViec r={r} />

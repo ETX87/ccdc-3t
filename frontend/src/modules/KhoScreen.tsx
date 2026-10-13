@@ -18,6 +18,7 @@ import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 import { TruongCongTy } from "../components/ChonCongTy";
 import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
 import { SearchSelect } from "../components/SearchSelect";
+import { KhoTag } from "../components/NoiBat";
 import { ChonLoc } from "../components/ChonLoc";
 
 const LOAI_DOI: LoaiKho[] = ["Mien", "Trung chuyen", "Quan ly"];
@@ -261,19 +262,16 @@ export function KhoScreen() {
                   </tr>
                 )}
                 {tKho.dongTrang.map((k) => (
-                  <tr key={k.id}>
+                  <tr key={k.id} className={k.ton_am || k.cho_nhan_qua_han ? "row-canh-bao" : undefined}>
                     <td data-label={t("Kho")}>
-                      <span className="icon-text strong">
-                        <span className="type-icon-dot bg-blue-circle">
-                          <Store size={11} className="text-blue-icon" />
-                        </span>
-                        {k.ten_kho}
+                      <span className="strong">
+                        <KhoTag ten={k.ten_kho} loai={k.loai} />
                       </span>
                       {hienCongTy(user) && <span className="muted small"> · {maCongTy(user, k.cong_ty_id)}</span>}
                       {!k.bat_tat && <span className="muted small"> {t("(đã ngừng)")}</span>}
                     </td>
-                    <td data-label={t("Loại")} className="text-secondary">
-                      {LOAI_KHO[k.loai]}
+                    <td data-label={t("Loại")}>
+                      <span className="nb-chip nb-slate">{LOAI_KHO[k.loai]}</span>
                     </td>
                     <td data-label={t("TSCĐ trong kho")} style={{ textAlign: "right" }}>
                       {coTab("tai-san") && k.ts_trong_kho > 0 ? (

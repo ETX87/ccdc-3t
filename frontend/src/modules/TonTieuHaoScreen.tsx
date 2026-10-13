@@ -16,6 +16,7 @@ import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 import { TonTheoKho } from "../components/TonTheoKho";
 import { DieuChinhTonModal, TheKhoModal } from "../components/TheKho";
 import { isHcns } from "../lib/nhan";
+import { SoTon, TienTe } from "../components/NoiBat";
 import { ChonLoc } from "../components/ChonLoc";
 
 interface KhoRow {
@@ -279,7 +280,7 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
                 </tr>
               )}
               {tTon.dongTrang.map((r) => (
-                <tr key={r.id}>
+                <tr key={r.id} className={r.ton < 0 || (!khoId && (r.so_kho_am ?? 0) > 0) ? "row-canh-bao" : undefined}>
                   <td data-label={t("Mã")}>{r.id}</td>
                   <td data-label={t("Tên vật tư")} className="strong">
                     {r.ten_vt}
@@ -288,12 +289,16 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
                     {r.ten_nhom ?? "-"}
                   </td>
                   <td data-label={t("ĐVT")}>{r.don_vi_tinh ?? "-"}</td>
-                  <td data-label={t("Tồn")} style={{ textAlign: "right" }} className={r.ton < 0 ? "text-red strong" : "strong"}>
-                    {fmtSo(r.ton, 2)}
-                    {!khoId && (r.so_kho_am ?? 0) > 0 && <div className="small text-red">{r.so_kho_am} {t("kho âm")}</div>}
+                  <td data-label={t("Tồn")} style={{ textAlign: "right" }}>
+                    <SoTon so={r.ton} />
+                    {!khoId && (r.so_kho_am ?? 0) > 0 && (
+                      <div>
+                        <span className="nb-tuoi nb-red">{r.so_kho_am} {t("kho âm")}</span>
+                      </div>
+                    )}
                   </td>
                   <td data-label={t("Giá trị tồn")} style={{ textAlign: "right" }}>
-                    {r.ton > 0 && r.don_gia_tham_khao ? fmtSo(r.ton * r.don_gia_tham_khao) : "-"}
+                    <TienTe so={r.ton > 0 && r.don_gia_tham_khao ? r.ton * r.don_gia_tham_khao : null} />
                   </td>
                   <td data-label={khoId ? t("Đang chuyển đến") : t("Số kho còn hàng")} style={{ textAlign: "right" }}>
                     {khoId ? (r.dang_chuyen_den ? fmtSo(r.dang_chuyen_den, 2) : "-") : fmtSo(r.so_kho_con_hang ?? 0)}

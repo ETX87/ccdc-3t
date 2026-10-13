@@ -17,6 +17,7 @@ import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTri, fmtGiaTriDong, fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { LOAI_XU_LY, TRANG_THAI_TS, TRANG_THAI_XU_LY, isHcns, thongBaoLoi } from "../lib/nhan";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
+import { LoaiChip, NgayCho, soGioTu, TienTe } from "../components/NoiBat";
 import { ChonLoc } from "../components/ChonLoc";
 
 interface PhieuRow {
@@ -351,28 +352,30 @@ export function XuLyTaiSanScreen() {
                 </tr>
               )}
               {tXl.dongTrang.map((p) => (
-                <tr key={p.id}>
+                <tr key={p.id} className={p.trang_thai === "Cho ke toan duyet" ? ((soGioTu(p.ngay_de_xuat) ?? 0) > 48 ? "row-canh-bao" : "row-chu-y") : undefined}>
                   <td data-label={t("Mã phiếu")}>
                     <span className="code-link" role="button" tabIndex={0} onClick={() => moPhieu("xu_ly", p.id)}>
                       {p.ma_phieu ?? p.id.slice(0, 8)}
                     </span>
                   </td>
-                  <td data-label={t("Loại")}>{LOAI_XU_LY[p.loai] ?? p.loai}</td>
+                  <td data-label={t("Loại")}>
+                    <LoaiChip loai={p.loai} nhan={LOAI_XU_LY[p.loai] ?? p.loai} />
+                  </td>
                   <td data-label={t("Tài sản")}>
                     <span className="strong">{p.so_luong_ccdc} TS</span>
                     {p.tom_tat && <span className="muted small"> · {p.tom_tat}</span>}
                   </td>
                   <td data-label={t("Lý do")}>{p.ly_do ?? "-"}</td>
                   <td data-label={t("Nguyên giá")} style={{ textAlign: "right" }}>
-                    {p.nguyen_gia ? fmtSo(p.nguyen_gia) : "-"}
+                    <TienTe so={p.nguyen_gia || null} />
                     {p.gia_tri_thu_hoi != null && <div className="muted small">{t("Thu hồi")} {fmtSo(p.gia_tri_thu_hoi)}</div>}
                   </td>
                   <td data-label={t("Trạng thái")} style={{ textAlign: "center" }}>
                     <StatusBadge label={TRANG_THAI_XU_LY[p.trang_thai]?.label ?? p.trang_thai} tone={TRANG_THAI_XU_LY[p.trang_thai]?.tone} />
                   </td>
-                  <td data-label={t("Đề xuất")} className="text-secondary">
-                    <div>{fmtNgayGio(p.ngay_de_xuat)}</div>
-                    <div className="small">{p.nguoi_de_xuat}</div>
+                  <td data-label={t("Đề xuất")}>
+                    <NgayCho ngay={p.ngay_de_xuat} dangCho={p.trang_thai === "Cho ke toan duyet"} />
+                    <div className="small text-secondary">{p.nguoi_de_xuat}</div>
                   </td>
                 </tr>
               ))}

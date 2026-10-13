@@ -186,6 +186,18 @@ khoản Google THẬT do Admin kết nối (thẻ "Lưu trữ hóa đơn…" ở
   phiếu: chọn trước, tải lên SAU khi phiếu tạo xong qua `taiLenTepCho`). Phiếu Nhập mua chưa có Hóa đơn → nhắc.
 - Không test upload thật ở local được (cần OAuth + redirect URI đúng origin) — local chỉ test nhánh "chưa kết nối".
 
+## Quy ước UI dữ liệu (2026-10-13, user yêu cầu)
+
+- **Bấm được phải nhìn ra được**: số liệu bấm được trong bảng dùng `.so-link` (nút/span: xanh link, gạch chân chấm),
+  mã phiếu `.code-link`, dòng bấm được `.row-clickable` (tự có mũi tên › cuối dòng), `KpiCard` có `onClick` tự hiện
+  mũi tên ↗ góc phải. KHÔNG làm số/ô bấm được mà trông như chữ thường.
+- **Ô chọn**: dùng `ChonLoc` (`components/ChonLoc.tsx`) thay `<select>` — viết y như select (`<option>` con,
+  `onChange={(e) => set(e.target.value)}`); > 5 lựa chọn tự thành ô có tìm kiếm (bỏ dấu), ≤ 5 vẫn là select gốc.
+  Danh sách lớn cần lọc server (nhân viên, vật tư) vẫn dùng `SearchSelect`.
+- **Làm nổi bật dữ liệu bảng** (`components/NoiBat.tsx`): `LoaiChip` (loại phiếu: icon + màu), `KhoTag` (icon màu theo
+  loại kho), `NguoiTag`, `NgayCho` (ngày + tuổi chờ, >24h vàng, >48h đỏ), `SoTon` (âm đỏ, 0 xám), `TienTe`. Dòng cần xử
+  lý: `row-canh-bao` (viền đỏ) / `row-chu-y` (viền vàng). Màu theo Ý NGHĨA: đỏ = phải xử lý, vàng = sắp tới hạn.
+
 ## Đa ngôn ngữ VI / EN / ID (2026-10-07)
 
 `frontend/src/lib/i18n.ts`, kiểu gettext: **khoá = chính chuỗi tiếng Việt gốc** — `t("Tổng quan")`,

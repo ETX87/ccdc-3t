@@ -19,6 +19,7 @@ import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTriDong, fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { LOAI_KHO, LOAI_PHIEU_CK, TRANG_THAI_CK, isHcns, laKhoPhatChung, laKhoTon, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
+import { KhoTag, LoaiChip, NgayCho, NguoiTag, soGioTu, TienTe } from "../components/NoiBat";
 import { ChonLoc } from "../components/ChonLoc";
 
 interface KhoRow {
@@ -48,6 +49,8 @@ interface PhieuRow {
   loai: string;
   tu_kho_id: number;
   tu_kho_ten: string;
+  tu_kho_loai?: string;
+  den_kho_loai?: string | null;
   den_kho_id: number | null;
   den_kho_ten: string | null;
   den_nhan_vien_id: string | null;
@@ -80,11 +83,13 @@ interface Dong {
 }
 
 function denLabel(p: PhieuRow) {
-  if (p.den_kho_ten) return p.den_kho_ten;
-  if (p.den_nhan_vien_ten) return `NV: ${p.den_nhan_vien_ten}`;
-  if (p.nguoi_nhan_ten_tu_do) return t("{nguoi_nhan_ten_tu_do} (ngoài danh bạ)", { nguoi_nhan_ten_tu_do: p.nguoi_nhan_ten_tu_do });
+  if (p.den_kho_ten) return <KhoTag ten={p.den_kho_ten} loai={p.den_kho_loai} />;
+  if (p.den_nhan_vien_ten) return <NguoiTag ten={p.den_nhan_vien_ten} />;
+  if (p.nguoi_nhan_ten_tu_do) return <NguoiTag ten={t("{nguoi_nhan_ten_tu_do} (ngoài danh bạ)", { nguoi_nhan_ten_tu_do: p.nguoi_nhan_ten_tu_do })} />;
   return "-";
 }
+// Phieu con cho nguoi khac xu ly (tinh tuoi cho, quá 48h -> do).
+const CK_DANG_CHO = new Set(["Cho ke toan duyet", "Dang chuyen", "Ke toan tu choi", "Bi tu choi"]);
 
 function xuHuong(nay: number, truoc: number): XuHuong {
   return { pct: truoc > 0 ? Math.round(((nay - truoc) / truoc) * 1000) / 10 : null, truoc };
@@ -537,20 +542,31 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                 </tr>
               )}
               {rows?.map((p) => (
-                <tr key={p.id}>
+                <tr
+                  key={p.id}
+                  className={
+                    p.trang_thai === "Bi tu choi" || p.trang_thai === "Ke toan tu choi" || (CK_DANG_CHO.has(p.trang_thai) && (soGioTu(p.created_at) ?? 0) > 48)
+                      ? "row-canh-bao"
+                      : CK_DANG_CHO.has(p.trang_thai)
+                        ? "row-chu-y"
+                        : undefined
+                  }
+                >
                   <td data-label={t("Mã phiếu")}>
                     <span className="code-link" role="button" tabIndex={0} onClick={() => moPhieu("chuyen_kho", p.id)}>
                       {p.ma_phieu ?? p.id.slice(0, 8)}
                     </span>
                   </td>
-                  <td data-label={t("Loại")}>{LOAI_PHIEU_CK[p.loai] ?? p.loai}</td>
-                  <td data-label={t("Từ")} className="text-secondary">
-                    {p.tu_kho_ten}
+                  <td data-label={t("Loại")}>
+                    <LoaiChip loai={p.loai} nhan={LOAI_PHIEU_CK[p.loai] ?? p.loai} />
+                  </td>
+                  <td data-label={t("Từ")}>
+                    <KhoTag ten={p.tu_kho_ten} loai={p.tu_kho_loai} />
                   </td>
                   <td data-label={t("Đến")}>{denLabel(p)}</td>
                   <td data-label={t("Hàng")}>{p.tom_tat}</td>
                   <td data-label={t("Giá trị")} style={{ textAlign: "right" }}>
-                    {p.tong_tien != null ? fmtSo(p.tong_tien) : "-"}
+                    <TienTe so={p.tong_tien} />
                   </td>
                   <td data-label={t("Trạng thái")} style={{ textAlign: "center" }}>
                     <StatusBadge label={TRANG_THAI_CK[p.trang_thai]?.label ?? p.trang_thai} tone={TRANG_THAI_CK[p.trang_thai]?.tone} />
@@ -558,8 +574,8 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                       <div className="muted small">{p.da_xac_nhan ? t("NV đã xác nhận") : t("NV chưa xác nhận")}</div>
                     )}
                   </td>
-                  <td data-label={t("Ngày")} className="text-secondary">
-                    {fmtNgayGio(p.created_at)}
+                  <td data-label={t("Ngày")}>
+                    <NgayCho ngay={p.created_at} dangCho={CK_DANG_CHO.has(p.trang_thai)} />
                   </td>
                 </tr>
               ))}
@@ -597,11 +613,15 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                         {p.ma_phieu ?? p.id.slice(0, 8)}
                       </span>
                     </td>
-                    <td data-label={t("Từ kho")}>{p.tu_kho_ten}</td>
-                    <td data-label={t("Đến kho")}>{p.den_kho_ten}</td>
+                    <td data-label={t("Từ kho")}>
+                      <KhoTag ten={p.tu_kho_ten} loai={p.tu_kho_loai} />
+                    </td>
+                    <td data-label={t("Đến kho")}>
+                      <KhoTag ten={p.den_kho_ten} loai={p.den_kho_loai} />
+                    </td>
                     <td data-label={t("Hàng")}>{p.tom_tat}</td>
-                    <td data-label={t("Ngày lập")} className="text-secondary">
-                      {fmtNgayGio(p.created_at)}
+                    <td data-label={t("Ngày lập")}>
+                      <NgayCho ngay={p.created_at} dangCho />
                     </td>
                     <td data-label={t("Thao tác")} style={{ textAlign: "right" }}>
                       <div className="row-actions">

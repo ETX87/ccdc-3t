@@ -20,6 +20,7 @@ import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTriDong, fmtNgay, fmtSo, homNayVN } from "../lib/format";
 import { isHcns, laKhoTon, thongBaoLoi, TINH_TRANG_TS, TRANG_THAI_TS } from "../lib/nhan";
+import { TienTe } from "../components/NoiBat";
 import { ChonLoc } from "../components/ChonLoc";
 
 // Danh muc tai san co dinh: KPI + dem theo trang thai lay tu /ccdc/thong-ke (cung bo loc, khong phu thuoc
@@ -585,7 +586,7 @@ export function DanhMucCcdcScreen() {
                         )}
                       </td>
                       <td data-label={t("Nguyên giá")} style={{ textAlign: "right" }}>
-                        {r.nguyen_gia != null ? fmtSo(r.nguyen_gia) : "-"}
+                        <TienTe so={r.nguyen_gia} />
                       </td>
                       <td data-label={t("Trạng thái")} style={{ textAlign: "center" }}>
                         <StatusBadge label={st.label} tone={st.tone} />

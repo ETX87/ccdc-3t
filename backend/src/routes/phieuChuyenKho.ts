@@ -90,7 +90,7 @@ phieuChuyenKho.get("/", async (c) => {
   const sql = `SELECT p.id, p.ma_phieu, p.loai, p.tu_kho_id, kt.ten_kho AS tu_kho_ten, p.den_kho_id, kd.ten_kho AS den_kho_ten,
             kt.cong_ty_id AS tu_cong_ty_id, kd.cong_ty_id AS den_cong_ty_id,
             p.den_nhan_vien_id, nv.ten_nv AS den_nhan_vien_ten, p.nguoi_nhan_ten_tu_do, p.nha_cung_cap,
-            p.nguoi_lap, p.trang_thai, p.da_xac_nhan, p.ghi_chu, p.created_at, kd.loai AS den_kho_loai, p.da_xu_ly_tu_choi,
+            p.nguoi_lap, p.trang_thai, p.da_xac_nhan, p.ghi_chu, p.created_at, kt.loai AS tu_kho_loai, kd.loai AS den_kho_loai, p.da_xu_ly_tu_choi,
             (SELECT COUNT(*) FROM phieu_chuyen_kho_ct ct WHERE ct.phieu_id = p.id) AS so_dong,
             (SELECT group_concat(v.ten_vt || CASE WHEN ct.dau IS NULL THEN ' x' || printf('%g', ct.so_luong) ELSE ' ' || printf('%+g', ct.so_luong * ct.dau) END, '; ') FROM phieu_chuyen_kho_ct ct
                JOIN vt_tieu_hao v ON v.id = ct.vt_id WHERE ct.phieu_id = p.id) AS tom_tat,

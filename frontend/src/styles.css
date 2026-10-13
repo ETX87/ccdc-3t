@@ -1815,3 +1815,7 @@ td.o-link:hover { background: #f0f9ff; }
 .task-table tr.row-canh-bao td:first-child { box-shadow: inset 3px 0 0 #ef4444; }
 .task-table tr.row-canh-bao td { background: #fffafa; }
 .task-table tr.row-chu-y td:first-child { box-shadow: inset 3px 0 0 #f59e0b; }
+.nb-thanh { display: flex; flex-direction: column; gap: 3px; min-width: 110px; }
+.nb-thanh-nen { display: block; height: 5px; border-radius: 3px; background: #f1f5f9; overflow: hidden; }
+.nb-thanh-nen > span { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #22b8c7 0%, #0e7490 100%); }
+.nb-thanh-nen > span.nb-thanh-canh-bao { background: linear-gradient(90deg, #fbbf24 0%, #ea580c 100%); }

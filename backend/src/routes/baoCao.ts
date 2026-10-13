@@ -127,6 +127,43 @@ baoCao.get("/the-kho", async (c) => {
   return c.json({ rows: results, ton });
 });
 
+// GET /tieu-hao-nv?tu&den[&kho_id] - vat tu tieu hao CAP CHO NHAN VIEN (phieu Cap phat NV da giao, khong phai vao kho
+// tieu hao) trong ky: 1 dong / (nguoi nhan x vat tu). Nguoi ngoai danh ba (ten tu do) gom theo ten. Pham vi theo KHO XUAT.
+// Tan suat / trung binh tinh o client tu so_phieu, lan_dau, lan_cuoi va so thang cua ky.
+baoCao.get("/tieu-hao-nv", async (c) => {
+  const pv = await phamViBaoCao(c);
+  if (!pv) return c.json({ error: "FORBIDDEN" }, 403);
+  const dk = dkCotKho(pv, "p.tu_kho_id");
+  const ngay = (k: string) => (/^\d{4}-\d{2}-\d{2}$/.test(c.req.query(k) ?? "") ? c.req.query(k)! : null);
+  const tu = ngay("tu") ?? `${nowVN().slice(0, 7)}-01`;
+  const den = ngay("den") ?? nowVN().slice(0, 10);
+  const congTy = JSON.stringify(c.get("user").cong_ty_xem);
+  const nguoi = "COALESCE(p.den_nhan_vien_id, '~' || TRIM(p.nguoi_nhan_ten_tu_do))";
+  const loc = `p.loai = 'Cap phat NV' AND p.trang_thai = 'Da giao' AND p.den_kho_id IS NULL
+       AND substr(p.created_at, 1, 10) BETWEEN ? AND ? AND kt.cong_ty_id IN (SELECT value FROM json_each(?)) AND ${dk.sql}`;
+  const [dong, theoNguoi] = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `SELECT ${nguoi} AS nguoi_key, v.id AS vt_id, v.ten_vt, v.don_vi_tinh, n.ten_nhom,
+              SUM(ct.so_luong) AS so_luong, COUNT(DISTINCT p.id) AS so_phieu,
+              SUM(COALESCE(ct.thanh_tien, ct.so_luong * COALESCE(v.don_gia_tham_khao, 0))) AS gia_tri
+       FROM phieu_chuyen_kho p JOIN kho kt ON kt.id = p.tu_kho_id
+       JOIN phieu_chuyen_kho_ct ct ON ct.phieu_id = p.id JOIN vt_tieu_hao v ON v.id = ct.vt_id LEFT JOIN nhom_ccdc n ON n.id = v.nhom_id
+       WHERE ${loc}
+       GROUP BY nguoi_key, v.id`,
+    ).bind(tu, den, congTy, ...dk.binds),
+    c.env.DB.prepare(
+      `SELECT ${nguoi} AS nguoi_key, nv.ma_nv, COALESCE(nv.ten_nv, TRIM(p.nguoi_nhan_ten_tu_do)) AS ten_nv, nv.bo_phan, nv.chuc_vu,
+              COUNT(*) AS so_phieu, MIN(p.created_at) AS lan_dau, MAX(p.created_at) AS lan_cuoi,
+              SUM(CASE WHEN p.den_nhan_vien_id IS NOT NULL AND p.da_xac_nhan = 0 THEN 1 ELSE 0 END) AS chua_xac_nhan,
+              group_concat(DISTINCT kt.ten_kho) AS kho_xuat
+       FROM phieu_chuyen_kho p JOIN kho kt ON kt.id = p.tu_kho_id LEFT JOIN nhan_vien nv ON nv.ma_nv = p.den_nhan_vien_id
+       WHERE ${loc}
+       GROUP BY nguoi_key`,
+    ).bind(tu, den, congTy, ...dk.binds),
+  ]);
+  return c.json({ tu, den, dong: dong.results, nguoi: theoNguoi.results, cap_nhat_luc: nowVN() });
+});
+
 // GET /tieu-dung?tu=YYYY-MM-DD&den=YYYY-MM-DD - vat tu da xuat vao KHO TIEU HAO van phong trong ky: theo kho tieu hao x
 // vat tu (so luong, gia tri = thanh tien neu co, khong thi don gia tham khao).
 baoCao.get("/tieu-dung", async (c) => {

@@ -18,12 +18,14 @@ import { useAuth } from "../auth/AuthContext";
 import { laQuanTri } from "../lib/menu";
 import { setCongTy } from "../lib/congTy";
 import { ChonLoc } from "../components/ChonLoc";
+import { BaoCaoTieuHaoNv, khoangKy, luaChonKy, xuatExcelTieuHaoNv, type CheDoTh, type TieuHaoNvRes } from "../components/BaoCaoTieuHaoNv";
 
-type SubTab = "tong-quan" | "theo-cong-ty" | "tieu-dung" | "theo-nhan-vien" | "theo-bo-phan" | "sap-het-bao-hanh" | "kiem-ke-chenh-lech" | "da-thanh-ly";
+type SubTab = "tong-quan" | "theo-cong-ty" | "tieu-dung" | "tieu-hao-nv" | "theo-nhan-vien" | "theo-bo-phan" | "sap-het-bao-hanh" | "kiem-ke-chenh-lech" | "da-thanh-ly";
 const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: "tong-quan", label: t("Tổng hợp") },
   { key: "theo-cong-ty", label: t("Theo công ty") },
   { key: "tieu-dung", label: t("Tiêu dùng văn phòng") },
+  { key: "tieu-hao-nv", label: t("Tiêu hao cấp cho NV") },
   { key: "theo-nhan-vien", label: t("Theo nhân viên") },
   { key: "theo-bo-phan", label: t("Theo bộ phận") },
   { key: "sap-het-bao-hanh", label: t("Sắp hết bảo hành") },
@@ -144,6 +146,7 @@ type DuLieu =
   | { tab: "tong-quan"; tq: TongQuan; kho: TheoKhoRow[] }
   | { tab: "theo-cong-ty"; rows: TheoCongTyRow[] }
   | { tab: "tieu-dung"; rows: TieuDungRow[] }
+  | { tab: "tieu-hao-nv"; res: TieuHaoNvRes }
   | { tab: "theo-nhan-vien"; rows: TheoNhanVienRow[] }
   | { tab: "theo-bo-phan"; rows: TheoBoPhanRow[] }
   | { tab: "sap-het-bao-hanh"; res: BaoHanhRes }
@@ -194,6 +197,8 @@ export function BaoCaoScreen() {
   const [nam, setNam] = useState("");
   const [dotId, setDotId] = useState("");
   const [thangTd, setThangTd] = useState(homNayVN().slice(0, 7)); // tieu-dung: thang xem
+  const [kyTh, setKyTh] = useState(params.ky ?? "3"); // tieu-hao-nv: ky xem (khoangKy)
+  const [cheDoTh, setCheDoTh] = useState<CheDoTh>("bo-phan");
   const [chiNghi, setChiNghi] = useState(false); // theo-nhan-vien: chi NV da nghi con giu TS
   const [dots, setDots] = useState<DotOpt[]>([]);
   const [data, setData] = useState<DuLieu | null>(null);
@@ -211,6 +216,11 @@ export function BaoCaoScreen() {
       if (tab === "tong-quan") {
         const [tq, kho] = await Promise.all([api.get<TongQuan>(`/bao-cao/tong-quan?${p}`), api.get<{ rows: TheoKhoRow[] }>(`/bao-cao/ts-theo-kho?${p}`)]);
         d = { tab, tq, kho: kho.rows };
+      } else if (tab === "tieu-hao-nv") {
+        const k = khoangKy(kyTh);
+        p.set("tu", k.tu);
+        p.set("den", k.den);
+        d = { tab, res: await api.get<TieuHaoNvRes>(`/bao-cao/tieu-hao-nv?${p}`) };
       } else if (tab === "sap-het-bao-hanh") {
         p.set("ngay", soNgay);
         d = { tab, res: await api.get<BaoHanhRes>(`/bao-cao/sap-het-bao-hanh?${p}`) };
@@ -233,7 +243,7 @@ export function BaoCaoScreen() {
     } finally {
       setDangTai(false);
     }
-  }, [tab, khoId, soNgay, nam, dotId, thangTd]);
+  }, [tab, khoId, soNgay, nam, dotId, thangTd, kyTh]);
 
   useEffect(() => {
     load();
@@ -273,6 +283,8 @@ export function BaoCaoScreen() {
         "Tong hop",
         { nhom: t("Nhóm"), ten: t("Chỉ tiêu"), so_luong: t("Số lượng"), gia_tri: t("Giá trị (đ)") },
       );
+    } else if (d.tab === "tieu-hao-nv") {
+      await xuatExcelTieuHaoNv(d.res, cheDoTh, khoangKy(kyTh).soThang);
     } else if (d.tab === "tieu-dung") {
       await exportRowsToExcel(
         dsTd.map((r) => ({ kho: r.ten_kho, ma: r.vt_id, ten: r.ten_vt, nhom: r.ten_nhom ?? "", dvt: r.don_vi_tinh ?? "", so_luong: r.so_luong, gia_tri: r.gia_tri, so_phieu: r.so_phieu })),
@@ -404,6 +416,17 @@ export function BaoCaoScreen() {
           {[0, 1, 2, 3].map((i) => (
             <option key={i} value={String(namHienTai - i)}>
               {t("Năm")} {namHienTai - i}
+            </option>
+          ))}
+        </ChonLoc>
+        <ChevronDown size={13} className="dropdown-arrow" />
+      </label>
+    ) : tab === "tieu-hao-nv" ? (
+      <label className="header-dropdown select-dropdown">
+        <ChonLoc value={kyTh} onChange={(e) => setKyTh(e.target.value)} aria-label={t("Kỳ báo cáo")}>
+          {luaChonKy().map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
             </option>
           ))}
         </ChonLoc>
@@ -719,6 +742,9 @@ export function BaoCaoScreen() {
             </>
           );
         })()}
+
+      {/* ================================================================ TIEU HAO CAP CHO NHAN VIEN */}
+      {d?.tab === "tieu-hao-nv" && <BaoCaoTieuHaoNv res={d.res} soThang={khoangKy(kyTh).soThang} cheDo={cheDoTh} onCheDo={setCheDoTh} />}
 
       {/* ================================================================ TIEU DUNG VAN PHONG */}
       {d?.tab === "tieu-dung" &&

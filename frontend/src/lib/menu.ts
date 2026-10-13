@@ -98,6 +98,7 @@ export const MENU: MenuItem[] = [
     children: [
       { label: t("Tổng hợp"), tab: "bao-cao", params: { tab: "tong-quan" }, show: moiNguoi },
       { label: t("Tiêu dùng văn phòng"), tab: "bao-cao", params: { tab: "tieu-dung" }, show: moiNguoi },
+      { label: t("Tiêu hao cấp cho NV"), tab: "bao-cao", params: { tab: "tieu-hao-nv" }, show: moiNguoi },
       { label: t("Theo công ty"), tab: "bao-cao", params: { tab: "theo-cong-ty" }, show: (u) => laQuanTri(u) && u.cong_ty.length > 1 },
       { label: t("Theo nhân viên"), tab: "bao-cao", params: { tab: "theo-nhan-vien" }, show: moiNguoi },
       { label: t("Theo bộ phận"), tab: "bao-cao", params: { tab: "theo-bo-phan" }, show: moiNguoi },

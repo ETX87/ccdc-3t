@@ -1411,4 +1411,9 @@ export const EN: Record<string, string> = {
   "{x} mặt hàng khác nhau": "{x} different items",
   "{x} phòng ban · {y} lần cấp": "{x} departments · {y} issues",
   "~{x} ngày/lần": "~{x} days/time",
+  "Báo cáo tiêu hao": "Consumables reports",
+  "Báo cáo tài sản cố định": "Fixed asset reports",
+  "Cấp phát & điều chuyển": "Issue & transfer",
+  "Danh mục tài sản": "Asset list",
+  "Kho & thủ kho": "Warehouses & storekeepers",
 };

@@ -1411,4 +1411,9 @@ export const ID: Record<string, string> = {
   "{x} mặt hàng khác nhau": "{x} barang berbeda",
   "{x} phòng ban · {y} lần cấp": "{x} departemen · {y} pengeluaran",
   "~{x} ngày/lần": "~{x} hari/kali",
+  "Báo cáo tiêu hao": "Laporan habis pakai",
+  "Báo cáo tài sản cố định": "Laporan aset tetap",
+  "Cấp phát & điều chuyển": "Pengeluaran & mutasi",
+  "Danh mục tài sản": "Daftar aset",
+  "Kho & thủ kho": "Gudang & penjaga gudang",
 };

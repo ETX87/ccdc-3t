@@ -1819,3 +1819,21 @@ td.o-link:hover { background: #f0f9ff; }
 .nb-thanh-nen { display: block; height: 5px; border-radius: 3px; background: #f1f5f9; overflow: hidden; }
 .nb-thanh-nen > span { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #22b8c7 0%, #0e7490 100%); }
 .nb-thanh-nen > span.nb-thanh-canh-bao { background: linear-gradient(90deg, #fbbf24 0%, #ea580c 100%); }
+
+/* ===== Sidebar chia nhom (lib/menu.ts NHOM_MENU, 2026-10-13): TSCD / tieu hao / kho / bao cao / cau hinh ===== */
+.sidebar-section {
+  display: flex; align-items: center; gap: 7px; margin: 12px 4px 4px; padding: 6px 10px 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.62);
+}
+.sidebar-section-dot { width: 7px; height: 7px; border-radius: 2px; flex: 0 0 auto; background: currentColor; }
+.sidebar-section-tscd { color: #9fe7ff; }
+.sidebar-section-tieu-hao { color: #ffd88a; }
+.sidebar-section-kho { color: #a7f3d0; }
+.sidebar-section-bao-cao { color: #d8c4ff; }
+.sidebar-section-cau-hinh { color: rgba(255, 255, 255, 0.6); }
+.sidebar-nhom-tscd .sidebar-nav-item.active { box-shadow: inset 3px 0 0 #9fe7ff; }
+.sidebar-nhom-tieu-hao .sidebar-nav-item.active { box-shadow: inset 3px 0 0 #ffd88a; }
+.sidebar-nhom-kho .sidebar-nav-item.active { box-shadow: inset 3px 0 0 #a7f3d0; }
+.sidebar-nhom-bao-cao .sidebar-nav-item.active { box-shadow: inset 3px 0 0 #d8c4ff; }
+.sidebar-nav > div + div { margin-top: 0; }

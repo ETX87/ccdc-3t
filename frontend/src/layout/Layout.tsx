@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, Menu as MenuIcon } from "lucide-react";
 import { useAuth, useRefreshUser } from "../auth/AuthContext";
 import { api } from "../api/client";
 import { useNav } from "../lib/navigation";
-import { menuCua, type MenuItem } from "../lib/menu";
+import { khopMuc, menuCua, NHOM_MENU, type MenuItem } from "../lib/menu";
 import { tenVaiTro } from "../lib/nhan";
 import { Avatar } from "../components/Avatar";
 import { useDuLieuChung } from "../lib/duLieuChung";
@@ -26,7 +26,7 @@ function SidebarItem({
   onPicked: () => void;
 }) {
   const { tab, params, navigate } = useNav();
-  const chuaTabHienTai = !!item.children?.some((c) => c.tab === tab);
+  const chuaTabHienTai = !!item.children?.some((c) => khopMuc(c, tab, params));
   const [open, setOpen] = useState(chuaTabHienTai);
   useEffect(() => {
     if (chuaTabHienTai) setOpen(true);
@@ -34,7 +34,7 @@ function SidebarItem({
 
   const Icon = item.icon;
   const badge = item.badgeKey ? badges[item.badgeKey] ?? 0 : 0;
-  const active = item.tab ? tab === item.tab : chuaTabHienTai && !open;
+  const active = item.tab ? khopMuc(item, tab, params) : chuaTabHienTai && !open;
 
   return (
     <>
@@ -44,7 +44,7 @@ function SidebarItem({
         onClick={() => {
           if (item.children) setOpen(!open);
           else if (item.tab) {
-            navigate(item.tab, item.params);
+            navigate(item.tab, badge > 0 && item.badgeParams ? { ...item.params, ...item.badgeParams } : item.params);
             onPicked();
           }
         }}
@@ -62,7 +62,7 @@ function SidebarItem({
       {item.children && open && (
         <div className="sidebar-subnav">
           {item.children.map((c) => {
-            const on = tab === c.tab && (!c.params?.tab || (params.tab ?? c.params.tab) === c.params.tab);
+            const on = khopMuc(c, tab, params);
             const soCon = c.badgeKey ? badges[c.badgeKey] ?? 0 : 0;
             return (
               <button
@@ -118,8 +118,16 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="sidebar-nav">
-          {menu.map((item) => (
-            <SidebarItem key={item.key} item={item} badges={badges} onPicked={() => setDrawer(false)} />
+          {menu.map((item, i) => (
+            <div key={item.key} className={`sidebar-nhom-${item.nhom}`}>
+              {item.nhom !== "chung" && item.nhom !== menu[i - 1]?.nhom && (
+                <div className={`sidebar-section sidebar-section-${item.nhom}`}>
+                  <span className="sidebar-section-dot" />
+                  {NHOM_MENU[item.nhom]}
+                </div>
+              )}
+              <SidebarItem item={item} badges={badges} onPicked={() => setDrawer(false)} />
+            </div>
           ))}
           <CaiDatAppButton onDone={() => setDrawer(false)} />
         </nav>

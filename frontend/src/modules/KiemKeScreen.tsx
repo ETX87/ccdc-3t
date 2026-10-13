@@ -20,6 +20,7 @@ import { isHcns, thongBaoLoi, TINH_TRANG_KIEM_KE, TRANG_THAI_TS } from "../lib/n
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 import { TruongCongTy } from "../components/ChonCongTy";
 import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
+import { ChonLoc } from "../components/ChonLoc";
 
 interface DotRow {
   id: string;
@@ -525,13 +526,13 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
             </div>
             <div className="field-group">
               <label className="field-label">{t("Tình trạng thực tế")}</label>
-              <select value={tinhTrang} onChange={(e) => setTinhTrang(e.target.value)}>
+              <ChonLoc value={tinhTrang} onChange={(e) => setTinhTrang(e.target.value)}>
                 {Object.entries(TINH_TRANG_KIEM_KE).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v.label}
                   </option>
                 ))}
-              </select>
+              </ChonLoc>
             </div>
             {tinhTrang === "Sai nguoi giu" && (
               <div className="field-group">

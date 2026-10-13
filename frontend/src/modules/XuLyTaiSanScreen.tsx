@@ -17,6 +17,7 @@ import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTri, fmtGiaTriDong, fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { LOAI_XU_LY, TRANG_THAI_TS, TRANG_THAI_XU_LY, isHcns, thongBaoLoi } from "../lib/nhan";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
+import { ChonLoc } from "../components/ChonLoc";
 
 interface PhieuRow {
   id: string;
@@ -122,23 +123,23 @@ export function XuLyTaiSanScreen() {
         filters={
           <>
             <label className="header-dropdown select-dropdown">
-              <select value={nam} onChange={(e) => setNam(e.target.value)} aria-label={t("Năm")}>
+              <ChonLoc value={nam} onChange={(e) => setNam(e.target.value)} aria-label={t("Năm")}>
                 <option value="">{t("Mọi năm")}</option>
                 {[0, 1, 2].map((i) => (
                   <option key={i} value={String(namHienTai - i)}>
                     {t("Năm")} {namHienTai - i}
                   </option>
                 ))}
-              </select>
+              </ChonLoc>
               <ChevronDown size={13} className="dropdown-arrow" />
             </label>
             {!laBaoHong && (
               <label className="header-dropdown select-dropdown">
-                <select value={loaiLoc} onChange={(e) => setLoaiLoc(e.target.value)} aria-label={t("Hình thức")}>
+                <ChonLoc value={loaiLoc} onChange={(e) => setLoaiLoc(e.target.value)} aria-label={t("Hình thức")}>
                   <option value="">{t("Thanh lý + tiêu hủy")}</option>
                   <option value="Thanh ly">{t("Chỉ thanh lý")}</option>
                   <option value="Tieu huy">{t("Chỉ tiêu hủy")}</option>
-                </select>
+                </ChonLoc>
                 <ChevronDown size={13} className="dropdown-arrow" />
               </label>
             )}

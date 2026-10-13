@@ -1342,4 +1342,9 @@ export const ID: Record<string, string> = {
   "{loai} được nhận hàng từ HCNS / kho miền khác, chuyển tiếp cho mọi kho và cấp phát / bàn giao cho TẤT CẢ nhân viên (không giới hạn nhóm). Tồn kho, lịch sử phiếu, thủ kho đã gán giữ nguyên.": "{loai} dapat menerima barang dari HCNS / gudang regional lain, meneruskan ke gudang mana pun dan mengeluarkan / menyerahkan ke SEMUA karyawan (tanpa batas tim). Stok, riwayat slip, dan penjaga gudang tetap dipertahankan.",
   "Đổi loại kho": "Ubah jenis gudang",
   "Đổi loại kho · {x}": "Ubah jenis gudang · {x}",
+  "Gõ để tìm nhanh…": "Ketik untuk mencari…",
+  "Tìm trong danh sách": "Cari dalam daftar",
+  "Bấm để xem chi tiết": "Klik untuk melihat detail",
+  "Xem tài sản trong kho": "Lihat aset di gudang ini",
+  "Xem tồn tiêu hao của kho": "Lihat stok habis pakai gudang ini",
 };

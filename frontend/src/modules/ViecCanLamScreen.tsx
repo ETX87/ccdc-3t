@@ -8,6 +8,7 @@ import { ViecTable } from "../components/ViecTable";
 import { useDuLieuChung } from "../lib/duLieuChung";
 import { useNav } from "../lib/navigation";
 import { fmtSo, homNayVN } from "../lib/format";
+import { ChonLoc } from "../components/ChonLoc";
 
 type TabViec = "tat-ca" | "cho-duyet" | "cap-phat" | "ban-giao" | "khac";
 const TABS: TabViec[] = ["tat-ca", "cho-duyet", "cap-phat", "ban-giao", "khac"];
@@ -52,22 +53,22 @@ export function ViecCanLamScreen() {
         filters={
           <>
             <label className="header-dropdown select-dropdown">
-              <select value={loai} onChange={(e) => setLoai(e.target.value)} aria-label={t("Loại việc")}>
+              <ChonLoc value={loai} onChange={(e) => setLoai(e.target.value)} aria-label={t("Loại việc")}>
                 <option value="">{t("Tất cả loại việc")}</option>
                 {dsLoai.map((l) => (
                   <option key={l} value={l}>
                     {l}
                   </option>
                 ))}
-              </select>
+              </ChonLoc>
               <ChevronDown size={13} className="dropdown-arrow" />
             </label>
             <label className="header-dropdown select-dropdown">
-              <select value={thoiHan} onChange={(e) => setThoiHan(e.target.value as typeof thoiHan)} aria-label={t("Thời hạn")}>
+              <ChonLoc value={thoiHan} onChange={(e) => setThoiHan(e.target.value as typeof thoiHan)} aria-label={t("Thời hạn")}>
                 <option value="">{t("Mọi thời hạn")}</option>
                 <option value="qua-han">{t("Quá hạn 48 giờ")}</option>
                 <option value="hom-nay">{t("Phát sinh hôm nay")}</option>
-              </select>
+              </ChonLoc>
               <ChevronDown size={13} className="dropdown-arrow" />
             </label>
           </>

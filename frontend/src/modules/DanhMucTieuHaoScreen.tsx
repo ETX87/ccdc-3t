@@ -13,6 +13,7 @@ import { isHcns, thongBaoLoi } from "../lib/nhan";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 import { TruongCongTy } from "../components/ChonCongTy";
 import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
+import { ChonLoc } from "../components/ChonLoc";
 
 interface NhomCcdc {
   id: number;
@@ -225,7 +226,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
             <input className="search-input" placeholder={t("Tìm mã, tên vật tư...")} value={tim} onChange={(e) => setTim(e.target.value)} />
           </div>
           <label className="header-dropdown select-dropdown">
-            <select value={nhomLoc} onChange={(e) => setNhomLoc(e.target.value)} aria-label={t("Nhóm")}>
+            <ChonLoc value={nhomLoc} onChange={(e) => setNhomLoc(e.target.value)} aria-label={t("Nhóm")}>
               <option value="">{t("Tất cả nhóm")}</option>
               <option value="none">{t("Chưa phân nhóm")}</option>
               {nhoms.map((n) => (
@@ -233,7 +234,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
                   {n.ten_nhom}
                 </option>
               ))}
-            </select>
+            </ChonLoc>
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
           <label className="check-label">
@@ -326,7 +327,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
             </div>
             <div className="field-group">
               <label className="field-label">{t("Nhóm")}</label>
-              <select value={form.nhom_id} onChange={(e) => setForm({ ...form, nhom_id: e.target.value })}>
+              <ChonLoc value={form.nhom_id} onChange={(e) => setForm({ ...form, nhom_id: e.target.value })}>
                 <option value="">{t("-- Không thuộc nhóm --")}</option>
                 {nhoms
                   .filter((n) => n.cong_ty_id === form.cong_ty_id)
@@ -335,7 +336,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
                     {n.ten_nhom}
                   </option>
                 ))}
-              </select>
+              </ChonLoc>
             </div>
             <div className="field-group">
               <label className="field-label">{t("Đơn vị tính")}</label>

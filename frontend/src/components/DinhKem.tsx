@@ -17,6 +17,7 @@ import {
   type LoaiDinhKem,
   type TepCho,
 } from "../lib/dinhKem";
+import { ChonLoc } from "./ChonLoc";
 
 // Khung "Hóa đơn, chứng từ & ảnh" trong popup chi tiet phieu / tai san: xem (anh nho, bam mo tren Drive),
 // tai them, xoa mem. Quyen tai len / xoa do server tinh (co_the_tai, co_the_xoa).
@@ -132,13 +133,13 @@ export function DinhKem({ doiTuong, id, nhacHoaDon }: { doiTuong: DoiTuongDinhKe
       {data?.co_the_tai &&
         (data.drive_ket_noi ? (
           <div className="dinh-kem-tai">
-            <select value={loai} onChange={(e) => setLoai(e.target.value as LoaiDinhKem)} aria-label={t("Loại tệp")}>
+            <ChonLoc value={loai} onChange={(e) => setLoai(e.target.value as LoaiDinhKem)} aria-label={t("Loại tệp")}>
               {Object.entries(LOAI_DINH_KEM).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
                 </option>
               ))}
-            </select>
+            </ChonLoc>
             <button type="button" className="btn btn-outline btn-sm" disabled={!!dangTai} onClick={() => chup.current?.click()}>
               <Camera size={13} /> {t("Chụp ảnh")}
             </button>
@@ -199,13 +200,13 @@ export function ChonTep({ tep, onDoi, loaiMacDinh = "Hoa don" }: { tep: TepCho[]
         </div>
       )}
       <div className="dinh-kem-tai">
-        <select value={loai} onChange={(e) => setLoai(e.target.value as LoaiDinhKem)} aria-label={t("Loại tệp")}>
+        <ChonLoc value={loai} onChange={(e) => setLoai(e.target.value as LoaiDinhKem)} aria-label={t("Loại tệp")}>
           {Object.entries(LOAI_DINH_KEM).map(([k, v]) => (
             <option key={k} value={k}>
               {v}
             </option>
           ))}
-        </select>
+        </ChonLoc>
         <button type="button" className="btn btn-outline btn-sm" onClick={() => chup.current?.click()}>
           <Camera size={13} /> {t("Chụp ảnh")}
         </button>

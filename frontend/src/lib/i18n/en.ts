@@ -1342,4 +1342,9 @@ export const EN: Record<string, string> = {
   "{loai} được nhận hàng từ HCNS / kho miền khác, chuyển tiếp cho mọi kho và cấp phát / bàn giao cho TẤT CẢ nhân viên (không giới hạn nhóm). Tồn kho, lịch sử phiếu, thủ kho đã gán giữ nguyên.": "{loai} can receive goods from HR-admin / other regional warehouses, forward to any warehouse and issue / hand over to ALL employees (no team limit). Stock, slip history and assigned storekeepers are kept.",
   "Đổi loại kho": "Change warehouse type",
   "Đổi loại kho · {x}": "Change warehouse type · {x}",
+  "Gõ để tìm nhanh…": "Type to search…",
+  "Tìm trong danh sách": "Search the list",
+  "Bấm để xem chi tiết": "Click to view details",
+  "Xem tài sản trong kho": "View assets in this warehouse",
+  "Xem tồn tiêu hao của kho": "View this warehouse's consumable stock",
 };

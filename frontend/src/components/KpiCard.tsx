@@ -1,5 +1,6 @@
 import { t } from "../lib/i18n";
 import type { ReactNode } from "react";
+import { ArrowUpRight } from "lucide-react";
 import { fmtSo } from "../lib/format";
 
 export type KpiTone = "cyan" | "blue-light" | "blue" | "purple" | "yellow" | "red";
@@ -77,9 +78,15 @@ export function KpiCard({
       onClick={onClick}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
+      title={onClick ? t("Bấm để xem chi tiết") : undefined}
       onKeyDown={onClick ? (e) => e.key === "Enter" && onClick() : undefined}
     >
       {watermark && <div className="kpi-watermark">{watermark}</div>}
+      {onClick && (
+        <span className="kpi-go" aria-hidden="true">
+          <ArrowUpRight size={14} />
+        </span>
+      )}
       <div className={`kpi-icon-wrap ${ICON_BG[tone]}`}>{icon}</div>
       <div className="kpi-body">
         <div className="kpi-label">{label}</div>

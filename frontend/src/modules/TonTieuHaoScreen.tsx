@@ -16,6 +16,7 @@ import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 import { TonTheoKho } from "../components/TonTheoKho";
 import { DieuChinhTonModal, TheKhoModal } from "../components/TheKho";
 import { isHcns } from "../lib/nhan";
+import { ChonLoc } from "../components/ChonLoc";
 
 interface KhoRow {
   id: number;
@@ -220,14 +221,14 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
           {cheDo === "vt" && (
           <>
           <label className="header-dropdown select-dropdown">
-            <select value={khoId} onChange={(e) => setKhoId(e.target.value)} aria-label={t("Kho")}>
+            <ChonLoc value={khoId} onChange={(e) => setKhoId(e.target.value)} aria-label={t("Kho")}>
               <option value="">{toanBo ? t("Toàn hệ thống (cộng mọi kho)") : t("Tất cả kho của tôi")}</option>
               {khos.map((k) => (
                 <option key={k.id} value={k.id}>
                   {k.ten_kho} ({LOAI_KHO[k.loai]})
                 </option>
               ))}
-            </select>
+            </ChonLoc>
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
           <label className="check-label">

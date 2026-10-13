@@ -2,6 +2,7 @@ import { Building2, ChevronDown } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { congTyDangChon, congTyXem, setCongTy } from "../lib/congTy";
 import { t } from "../lib/i18n";
+import { ChonLoc } from "./ChonLoc";
 
 /** O chon cong ty dang xem (da phap nhan) - chi hien khi tai khoan duoc xem tu 2 cong ty. Doi = tai lai trang. */
 export function ChonCongTy({ className = "" }: { className?: string }) {
@@ -13,14 +14,14 @@ export function ChonCongTy({ className = "" }: { className?: string }) {
   return (
     <label className={`header-dropdown select-dropdown chon-ngon-ngu ${className}`} title={t("Công ty đang xem")}>
       <Building2 size={14} className="dropdown-icon" />
-      <select value={dangChon} onChange={(e) => setCongTy(e.target.value)} aria-label={t("Công ty đang xem")}>
+      <ChonLoc value={dangChon} onChange={(e) => setCongTy(e.target.value)} aria-label={t("Công ty đang xem")}>
         <option value="">{t("Tất cả công ty")}</option>
         {ds.map((c) => (
           <option key={c.id} value={String(c.id)} title={c.ten}>
             {c.ma}
           </option>
         ))}
-      </select>
+      </ChonLoc>
       <ChevronDown size={13} className="dropdown-arrow" />
     </label>
   );
@@ -31,13 +32,13 @@ export function TruongCongTy({ value, onChange, ds }: { value: number | null; on
   return (
     <div className="field-group">
       <label className="field-label">{t("Công ty *")}</label>
-      <select value={value ?? ""} onChange={(e) => onChange(Number(e.target.value))}>
+      <ChonLoc value={value ?? ""} onChange={(e) => onChange(Number(e.target.value))}>
         {ds.map((c) => (
           <option key={c.id} value={c.id}>
             {c.ma} - {c.ten}
           </option>
         ))}
-      </select>
+      </ChonLoc>
     </div>
   );
 }

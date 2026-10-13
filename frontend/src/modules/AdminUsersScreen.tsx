@@ -14,6 +14,7 @@ import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { tenVaiTro, thongBaoLoi, VAI_TRO } from "../lib/nhan";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
+import { ChonLoc } from "../components/ChonLoc";
 
 interface UserRow {
   email: string;
@@ -155,7 +156,7 @@ export function AdminUsersScreen() {
         title={t("Tài khoản & phân quyền")}
         filters={
           <label className="header-dropdown select-dropdown">
-            <select value={vaiTroLoc} onChange={(e) => setVaiTroLoc(e.target.value)} aria-label={t("Vai trò")}>
+            <ChonLoc value={vaiTroLoc} onChange={(e) => setVaiTroLoc(e.target.value)} aria-label={t("Vai trò")}>
               <option value="tat-ca">{t("Mọi vai trò")}</option>
               <option value="">{t("Nhân viên")}</option>
               {Object.entries(VAI_TRO).map(([k, v]) => (
@@ -163,7 +164,7 @@ export function AdminUsersScreen() {
                   {v}
                 </option>
               ))}
-            </select>
+            </ChonLoc>
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
         }
@@ -313,7 +314,7 @@ export function AdminUsersScreen() {
                     </td>
                     <td data-label={t("Vai trò")}>
                       {daDuyet ? (
-                        <select
+                        <ChonLoc
                           value={u.vai_tro ?? ""}
                           aria-label={t("Vai trò")}
                           title={MO_TA_VAI_TRO[u.vai_tro ?? ""]}
@@ -328,7 +329,7 @@ export function AdminUsersScreen() {
                               {v}
                             </option>
                           ))}
-                        </select>
+                        </ChonLoc>
                       ) : (
                         tenVaiTro(u.vai_tro)
                       )}

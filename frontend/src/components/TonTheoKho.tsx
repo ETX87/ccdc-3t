@@ -178,15 +178,8 @@ export function TonTheoKho({ tim, onDangTai }: { tim: string; onDangTai?: (b: bo
                     const x = tonMap.get(`${k.id}|${v.id}`);
                     tong += x ?? 0;
                     return (
-                      <td
-                        key={k.id}
-                        data-label={k.ten_kho}
-                        style={{ textAlign: "right", cursor: "pointer" }}
-                        className={x != null && x < 0 ? "text-red strong" : x ? "strong" : "muted"}
-                        title={t("Xem thẻ kho")}
-                        onClick={() => setTheKho({ kho: k, vt: v })}
-                      >
-                        {x == null ? "-" : fmtSo(x, 2)}
+                      <td key={k.id} data-label={k.ten_kho} style={{ textAlign: "right" }} className="o-link" title={t("Xem thẻ kho")} onClick={() => setTheKho({ kho: k, vt: v })}>
+                        <span className={`so-link${x != null && x < 0 ? " so-am" : x ? "" : " so-nhat"}`}>{x == null ? "-" : fmtSo(x, 2)}</span>
                       </td>
                     );
                   })}

@@ -1698,3 +1698,82 @@ input.header-month { height: 33px; width: auto; font-size: 12.5px; border-radius
 .dinh-kem-xoa:hover { background: #dc2626; }
 .dinh-kem-tai { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .dinh-kem-tai select { width: auto; min-width: 150px; height: 30px; border: 1px solid #e2e8f0; border-radius: 7px; padding: 0 8px; font-size: 12px; background: #ffffff; }
+
+/* ===== Dau hieu "bam duoc" (2026-10-13): moi so lieu / dong / the bam de xem chi tiet phai NHIN RA duoc la link =====
+   - .so-link: so lieu bam duoc trong bang (mau xanh link, gach chan cham, hover nen xanh nhat).
+   - .code-link: ma phieu / ma TS - gach chan cham, hover dam.
+   - .kpi-clickable: mui ten goc phai tren (.kpi-go) + vien teal khi hover.
+   - .row-clickable / .alert-row-clickable / .legend-clickable: mui ten ">" cuoi dong, doi mau khi hover. */
+.code-link { text-decoration: underline dotted rgba(2, 132, 199, 0.55); text-underline-offset: 3px; border-radius: 4px; transition: background 0.12s ease; }
+.code-link:hover { text-decoration: underline solid; background: #e0f2fe; }
+.so-link {
+  display: inline-flex; align-items: center; gap: 3px; color: #0284c7; font-weight: 700; cursor: pointer;
+  background: none; border: none; font-family: inherit; font-size: inherit; padding: 1px 6px; margin: -1px -6px; border-radius: 6px;
+  text-decoration: underline dotted rgba(2, 132, 199, 0.55); text-underline-offset: 3px; transition: background 0.12s ease;
+}
+.so-link:hover, .so-link:focus-visible { background: #e0f2fe; text-decoration: underline solid; outline: none; }
+.so-link.so-am { color: #dc2626; text-decoration-color: rgba(220, 38, 38, 0.5); }
+.so-link.so-am:hover { background: #fee2e2; }
+.so-link.so-nhat { color: #94a3b8; font-weight: 500; text-decoration-color: rgba(148, 163, 184, 0.6); }
+td.o-link { cursor: pointer; }
+td.o-link:hover { background: #f0f9ff; }
+
+.kpi-go {
+  position: absolute; top: 10px; right: 10px; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.75); color: #0e7490; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06); transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease; z-index: 1;
+}
+.kpi-clickable { outline: 1px solid transparent; transition: box-shadow 0.15s ease, transform 0.15s ease, outline-color 0.15s ease; }
+.kpi-clickable:hover, .kpi-clickable:focus-visible { outline-color: rgba(14, 116, 144, 0.35); }
+.kpi-clickable:hover .kpi-go, .kpi-clickable:focus-visible .kpi-go { background: #0e7490; color: #ffffff; transform: translate(1px, -1px); }
+
+.row-clickable > td:last-child { position: relative; padding-right: 26px; }
+.row-clickable > td:last-child::after {
+  content: ""; position: absolute; right: 11px; top: 50%; width: 6px; height: 6px; border-right: 2px solid #cbd5e1; border-top: 2px solid #cbd5e1;
+  transform: translateY(-50%) rotate(45deg); transition: border-color 0.12s ease, right 0.12s ease;
+}
+.row-clickable:hover > td:last-child::after { border-color: #0e7490; right: 9px; }
+.row-clickable:hover td { background: #f0f9ff; }
+
+.alert-row-clickable::after, .legend-clickable::after {
+  content: ""; flex: 0 0 auto; width: 6px; height: 6px; margin: 0 4px 0 8px; border-right: 2px solid #cbd5e1; border-top: 2px solid #cbd5e1;
+  transform: rotate(45deg); transition: border-color 0.12s ease;
+}
+.alert-row-clickable:hover::after, .legend-clickable:hover::after { border-color: #0e7490; }
+.alert-row-clickable:hover { background: #f0f9ff; }
+.legend-clickable .legend-val, .alert-row-clickable .alert-badge { margin-left: auto; }
+.legend-clickable:hover .legend-val { color: #0284c7; }
+.flow-clickable .flow-node-count { transition: background 0.12s ease, color 0.12s ease; }
+.flow-clickable:hover .flow-node-count { background: #0e7490; color: #ffffff; }
+
+/* ===== ChonLoc (components/ChonLoc.tsx): o chon > 5 lua chon co tim kiem - nut mo phong <select> ===== */
+.chon-loc {
+  width: 100%; height: 36px; padding: 0 30px 0 10px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;
+  font-size: 12.5px; font-family: inherit; color: #0f172a; text-align: left; cursor: pointer; outline: none; display: inline-flex; align-items: center;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.chon-loc:focus-visible, .chon-loc.chon-loc-mo { border-color: #009688; box-shadow: 0 0 0 3px rgba(0, 150, 136, 0.15); }
+.chon-loc:disabled { background-color: #f8fafc; color: #64748b; cursor: default; }
+.chon-loc-nhan { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.filter-bar .chon-loc { width: auto; min-width: 150px; max-width: 280px; height: 34px; }
+.select-dropdown .chon-loc {
+  border: none; background-color: transparent; background-image: none; height: 100%; padding: 0 28px 0 11px; color: #334155; width: auto; max-width: 260px; box-shadow: none;
+}
+.chon-loc.chart-dropdown { height: 22px; width: auto; padding: 0 22px 0 4px; font-size: 11px; background-position: right 5px center; }
+.chon-loc-bang {
+  position: fixed; z-index: 1000; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16); overflow: hidden; display: flex; flex-direction: column; max-height: 340px;
+}
+.chon-loc-tim { position: relative; display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #f1f5f9; }
+.chon-loc-tim-icon { position: absolute; left: 18px; color: #94a3b8; pointer-events: none; }
+.chon-loc-tim input { height: 32px; padding-left: 30px; padding-right: 40px; font-size: 12.5px; }
+.chon-loc-dem { position: absolute; right: 16px; font-size: 10.5px; font-weight: 700; color: #64748b; background: #f1f5f9; border-radius: 8px; padding: 1px 6px; }
+.chon-loc-ds { overflow-y: auto; padding: 4px; }
+.chon-loc-muc {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; border-radius: 6px;
+  font-size: 12.5px; color: #1e293b; cursor: pointer;
+}
+.chon-loc-muc.dang-tro { background: #f0f9ff; }
+.chon-loc-muc.da-chon { color: #007482; font-weight: 700; }
+.chon-loc-muc.vo-hieu { color: #94a3b8; cursor: default; }
+.chon-loc-rong { padding: 10px; font-size: 12.5px; color: #94a3b8; text-align: center; }

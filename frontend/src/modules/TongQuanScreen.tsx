@@ -33,6 +33,7 @@ import { duocMoTab } from "../lib/menu";
 import { useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTri, fmtGiaTriDong, fmtSo, fmtThang } from "../lib/format";
 import { thongBaoLoi } from "../lib/nhan";
+import { ChonLoc } from "../components/ChonLoc";
 
 // Tong quan tai san - moi phan tu lay tu /api/dashboard/tong-quan + /viec-can-lam + /canh-bao (loc theo
 // quyen o server). Bo cuc/kieu dang giu nguyen mau giao dien.png.
@@ -402,10 +403,10 @@ export function TongQuanScreen() {
                 <span className="legend-bar-square"></span>
                 <span className="legend-label">{t("Chi phí mua sắm")}</span>
               </div>
-              <select className="chart-dropdown" value={soThang} onChange={(e) => setSoThang(Number(e.target.value))} aria-label={t("Số tháng")}>
+              <ChonLoc className="chart-dropdown" value={soThang} onChange={(e) => setSoThang(Number(e.target.value))} aria-label={t("Số tháng")}>
                 <option value={12}>{t("12 tháng")}</option>
                 <option value={6}>{t("6 tháng")}</option>
-              </select>
+              </ChonLoc>
             </div>
           </div>
           {data ? <BieuDoThang data={thang} /> : <div className="monthly-chart-wrap" />}

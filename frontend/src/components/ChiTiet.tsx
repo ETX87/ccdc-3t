@@ -26,6 +26,7 @@ import {
   type Tone,
 } from "../lib/nhan";
 import type { AppUser } from "../types";
+import { ChonLoc } from "./ChonLoc";
 
 // Popup chi tiet dung chung toan app: mo tu ma phieu / ma tai san o bat ky dau (tim kiem, chuong, bang
 // viec, canh bao, quet QR). Nut thao tac chi hien khi nguoi dung dung vai tro; server van kiem lai.
@@ -581,23 +582,23 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
               <div className="form-grid">
                 <div className="field-group">
                   <label className="field-label">{t("Đợt kiểm kê")}</label>
-                  <select value={kk.dot} onChange={(e) => setKk({ ...kk, dot: e.target.value })}>
+                  <ChonLoc value={kk.dot} onChange={(e) => setKk({ ...kk, dot: e.target.value })}>
                     {dotKiemKe.map((d) => (
                       <option key={s(d.id)} value={s(d.id)}>
                         {s(d.ten_dot)}
                       </option>
                     ))}
-                  </select>
+                  </ChonLoc>
                 </div>
                 <div className="field-group">
                   <label className="field-label">{t("Tình trạng thực tế")}</label>
-                  <select value={kk.tinh_trang} onChange={(e) => setKk({ ...kk, tinh_trang: e.target.value })}>
+                  <ChonLoc value={kk.tinh_trang} onChange={(e) => setKk({ ...kk, tinh_trang: e.target.value })}>
                     {Object.entries(TINH_TRANG_KIEM_KE).map(([k, v]) => (
                       <option key={k} value={k}>
                         {v.label}
                       </option>
                     ))}
-                  </select>
+                  </ChonLoc>
                 </div>
               </div>
               <div className="field-group">
@@ -635,10 +636,10 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
               <div className="form-grid">
                 <div className="field-group">
                   <label className="field-label">{t("Hình thức")}</label>
-                  <select value={loaiXuLy} onChange={(e) => setLoaiXuLy(e.target.value as "Thanh ly" | "Tieu huy")}>
+                  <ChonLoc value={loaiXuLy} onChange={(e) => setLoaiXuLy(e.target.value as "Thanh ly" | "Tieu huy")}>
                     <option value="Thanh ly">{t("Thanh lý (bán / thu hồi giá trị)")}</option>
                     <option value="Tieu huy">{t("Tiêu hủy")}</option>
-                  </select>
+                  </ChonLoc>
                 </div>
                 <div className="field-group">
                   <label className="field-label">{t("Lý do *")}</label>

@@ -17,6 +17,7 @@ import { thongBaoLoi } from "../lib/nhan";
 import { DoiMaNhanVienModal } from "./DoiMaNhanVienModal";
 import { TruongCongTy } from "../components/ChonCongTy";
 import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
+import { ChonLoc } from "../components/ChonLoc";
 
 interface NhanVienRow {
   ma_nv: string;
@@ -285,10 +286,10 @@ export function NhanVienScreen() {
         title={t("Nhân viên & sơ đồ quản lý")}
         filters={
           <label className="header-dropdown select-dropdown">
-            <select value={trangThai} onChange={(e) => setTrangThai(e.target.value as "dang-lam" | "nghi")} aria-label={t("Trạng thái")}>
+            <ChonLoc value={trangThai} onChange={(e) => setTrangThai(e.target.value as "dang-lam" | "nghi")} aria-label={t("Trạng thái")}>
               <option value="dang-lam">{t("Đang làm việc")}</option>
               <option value="nghi">{t("Đã nghỉ việc")}</option>
-            </select>
+            </ChonLoc>
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
         }
@@ -397,14 +398,14 @@ export function NhanVienScreen() {
               </span>
             )}
             <label className="header-dropdown select-dropdown">
-              <select value={boPhan} onChange={(e) => setBoPhan(e.target.value)} aria-label={t("Bộ phận")}>
+              <ChonLoc value={boPhan} onChange={(e) => setBoPhan(e.target.value)} aria-label={t("Bộ phận")}>
                 <option value="">{t("Tất cả bộ phận")}</option>
                 {dsBoPhan.map((b) => (
                   <option key={b} value={b}>
                     {b}
                   </option>
                 ))}
-              </select>
+              </ChonLoc>
               <ChevronDown size={13} className="dropdown-arrow" />
             </label>
             <div className="topbar-search filter-search">

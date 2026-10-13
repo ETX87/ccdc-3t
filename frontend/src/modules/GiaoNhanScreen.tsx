@@ -19,6 +19,7 @@ import { fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { LOAI_GIAO_NHAN, LOAI_KHO, isHcns, laKhoPhatChung, laKhoTon, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
+import { ChonLoc } from "../components/ChonLoc";
 
 interface NhanVienRow {
   ma_nv: string;
@@ -142,14 +143,14 @@ export function GiaoNhanScreen() {
           <>
             <input type="month" className="header-month" value={thang} onChange={(e) => setThang(e.target.value)} aria-label={t("Tháng")} />
             <label className="header-dropdown select-dropdown">
-              <select value={loaiLoc} onChange={(e) => setLoaiLoc(e.target.value)} aria-label={t("Loại phiếu")}>
+              <ChonLoc value={loaiLoc} onChange={(e) => setLoaiLoc(e.target.value)} aria-label={t("Loại phiếu")}>
                 <option value="">{t("Tất cả loại phiếu")}</option>
                 {Object.entries(LOAI_GIAO_NHAN).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
                   </option>
                 ))}
-              </select>
+              </ChonLoc>
               <ChevronDown size={13} className="dropdown-arrow" />
             </label>
           </>
@@ -445,18 +446,18 @@ function LapPhieuModal({
       <div className="form-grid">
         <div className="field-group">
           <label className="field-label">{t("Loại phiếu")}</label>
-          <select value={loai} onChange={(e) => doiLoai(e.target.value as Loai)}>
+          <ChonLoc value={loai} onChange={(e) => doiLoai(e.target.value as Loai)}>
             {loaiCoTheChon.map((l) => (
               <option key={l} value={l}>
                 {LOAI_GIAO_NHAN[l]} ({MO_TA_LOAI[l]})
               </option>
             ))}
-          </select>
+          </ChonLoc>
         </div>
         {(loai === "Cap phat" || loai === "Chuyen kho") && (
           <div className="field-group">
             <label className="field-label">{t("Kho nguồn")}</label>
-            <select
+            <ChonLoc
               value={tuKho}
               onChange={(e) => {
                 setTuKho(Number(e.target.value));
@@ -468,7 +469,7 @@ function LapPhieuModal({
                   {k.ten_kho} ({LOAI_KHO[k.loai]})
                 </option>
               ))}
-            </select>
+            </ChonLoc>
           </div>
         )}
         {loai !== "Chuyen kho" && (
@@ -494,7 +495,7 @@ function LapPhieuModal({
         {(loai === "Thu hoi" || loai === "Chuyen kho") && (
           <div className="field-group">
             <label className="field-label">{t("Kho nhận")}</label>
-            <select value={denKho} onChange={(e) => setDenKho(e.target.value ? Number(e.target.value) : "")}>
+            <ChonLoc value={denKho} onChange={(e) => setDenKho(e.target.value ? Number(e.target.value) : "")}>
               <option value="">{t("-- Chọn kho --")}</option>
               {loai === "Thu hoi"
                 ? myKho.map((k) => (
@@ -510,7 +511,7 @@ function LapPhieuModal({
                         {k.ten_kho} ({LOAI_KHO[k.loai]})
                       </option>
                     ))}
-            </select>
+            </ChonLoc>
             {chuyenCongTy && (
               <div className="field-hint text-orange">
                 {t("Chuyển tài sản sang công ty {x}: chờ Kế toán công ty nguồn duyệt, tài sản ở nguyên kho nguồn tới khi được duyệt.", { x: denRow?.cong_ty_ma ?? "" })}

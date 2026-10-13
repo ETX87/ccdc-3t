@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { laQuanTri } from "../lib/menu";
 import { laKhoTon } from "../lib/nhan";
+import { ChonLoc } from "./ChonLoc";
 
 interface KhoOpt {
   id: number;
@@ -33,14 +34,14 @@ export function KhoFilter({ value, onChange }: { value: string; onChange: (khoId
 
   return (
     <label className="header-dropdown unit-dropdown select-dropdown">
-      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={t("Đơn vị")}>
+      <ChonLoc value={value} onChange={(e) => onChange(e.target.value)} aria-label={t("Đơn vị")}>
         <option value="">{t("Tất cả đơn vị")}</option>
         {khos.map((k) => (
           <option key={k.id} value={k.id}>
             {k.ten_kho}
           </option>
         ))}
-      </select>
+      </ChonLoc>
       <ChevronDown size={13} className="dropdown-arrow" />
     </label>
   );

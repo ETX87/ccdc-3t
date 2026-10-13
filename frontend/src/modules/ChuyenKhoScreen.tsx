@@ -19,6 +19,7 @@ import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTriDong, fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { LOAI_KHO, LOAI_PHIEU_CK, TRANG_THAI_CK, isHcns, laKhoPhatChung, laKhoTon, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
+import { ChonLoc } from "../components/ChonLoc";
 
 interface KhoRow {
   id: number;
@@ -456,7 +457,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
       <div className="content-card task-card-full">
         <div className="filter-bar">
           <label className="header-dropdown select-dropdown">
-            <select value={filter.kho_id} onChange={(e) => doiLoc({ ...filter, kho_id: e.target.value })} aria-label={t("Kho")}>
+            <ChonLoc value={filter.kho_id} onChange={(e) => doiLoc({ ...filter, kho_id: e.target.value })} aria-label={t("Kho")}>
               <option value="">{t("Tất cả kho")}</option>
               {khoAll
                 .filter((k) => k.loai !== "Mua hang")
@@ -465,29 +466,29 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                     {k.ten_kho}
                   </option>
                 ))}
-            </select>
+            </ChonLoc>
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
           <label className="header-dropdown select-dropdown">
-            <select value={filter.loai} onChange={(e) => doiLoc({ ...filter, loai: e.target.value })} aria-label={t("Loại phiếu")}>
+            <ChonLoc value={filter.loai} onChange={(e) => doiLoc({ ...filter, loai: e.target.value })} aria-label={t("Loại phiếu")}>
               <option value="">{t("Tất cả loại")}</option>
               {Object.entries(LOAI_PHIEU_CK).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
                 </option>
               ))}
-            </select>
+            </ChonLoc>
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
           <label className="header-dropdown select-dropdown">
-            <select value={filter.trang_thai} onChange={(e) => doiLoc({ ...filter, trang_thai: e.target.value })} aria-label={t("Trạng thái")}>
+            <ChonLoc value={filter.trang_thai} onChange={(e) => doiLoc({ ...filter, trang_thai: e.target.value })} aria-label={t("Trạng thái")}>
               <option value="">{t("Tất cả trạng thái")}</option>
               {Object.entries(TRANG_THAI_CK).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v.label}
                 </option>
               ))}
-            </select>
+            </ChonLoc>
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
           <input type="month" value={filter.thang} onChange={(e) => doiLoc({ ...filter, thang: e.target.value })} aria-label={t("Tháng")} />
@@ -626,18 +627,18 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
           <div className="form-grid">
             <div className="field-group">
               <label className="field-label">{t("Kho nguồn")}</label>
-              <select value={tuKho} onChange={(e) => setTuKho(Number(e.target.value))}>
+              <ChonLoc value={tuKho} onChange={(e) => setTuKho(Number(e.target.value))}>
                 {khoNguonHopLe.map((k) => (
                   <option key={k.id} value={k.id}>
                     {k.ten_kho} ({LOAI_KHO[k.loai]})
                   </option>
                 ))}
-              </select>
+              </ChonLoc>
             </div>
             {loai !== "Cap phat NV" && (
               <div className="field-group">
                 <label className="field-label">{t("Kho đích")}</label>
-                <select value={denKho} onChange={(e) => setDenKho(e.target.value ? Number(e.target.value) : "")}>
+                <ChonLoc value={denKho} onChange={(e) => setDenKho(e.target.value ? Number(e.target.value) : "")}>
                   <option value="">{t("-- Chọn kho --")}</option>
                   {khoDichHopLe.map((k) => (
                     <option key={k.id} value={k.id}>
@@ -645,7 +646,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                       {k.ten_kho} ({LOAI_KHO[k.loai]})
                     </option>
                   ))}
-                </select>
+                </ChonLoc>
                 {chuyenCongTy && (
                   <div className="field-hint text-orange">
                     {t("Chuyển sang công ty {x}: phiếu chờ Kế toán công ty nguồn duyệt rồi mới trừ tồn; mặt hàng ghép theo tên + ĐVT trong danh mục công ty nhận (chưa có sẽ tự tạo).", {
@@ -674,14 +675,14 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                 </div>
                 {kieuNhan === "kho-th" && (
                   <>
-                    <select value={khoTh} onChange={(e) => setKhoTh(e.target.value ? Number(e.target.value) : "")}>
+                    <ChonLoc value={khoTh} onChange={(e) => setKhoTh(e.target.value ? Number(e.target.value) : "")}>
                       <option value="">{t("-- Chọn kho tiêu hao --")}</option>
                       {khoThHopLe.map((k) => (
                         <option key={k.id} value={k.id}>
                           {k.ten_kho}
                         </option>
                       ))}
-                    </select>
+                    </ChonLoc>
                     <div className="field-hint">
                       {khoThHopLe.length
                         ? t("Xuất vào kho tiêu hao = tiêu dùng hết: trừ tồn kho xuất ngay, không cần xác nhận nhận.")

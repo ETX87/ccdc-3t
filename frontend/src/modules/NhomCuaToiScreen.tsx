@@ -13,6 +13,7 @@ import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { TRANG_THAI_TS, thongBaoLoi } from "../lib/nhan";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
+import { ChonLoc } from "../components/ChonLoc";
 
 interface CapDuoiRow {
   ma_nv: string;
@@ -368,7 +369,7 @@ export function NhomCuaToiScreen() {
           </p>
           <div className="field-group">
             <label className="field-label">{t("Chuyển cho *")}</label>
-            <select value={den} onChange={(e) => setDen(e.target.value)}>
+            <ChonLoc value={den} onChange={(e) => setDen(e.target.value)}>
               <option value="">{t("-- Chọn người nhận --")}</option>
               {nhom
                 .filter((n) => n.ma_nv !== chon)
@@ -378,7 +379,7 @@ export function NhomCuaToiScreen() {
                     {n.la_toi ? t(" (tôi)") : ""}
                   </option>
                 ))}
-            </select>
+            </ChonLoc>
           </div>
           <div className="field-group">
             <label className="field-label">{t("Ghi chú")}</label>

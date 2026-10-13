@@ -18,6 +18,7 @@ import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 import { TruongCongTy } from "../components/ChonCongTy";
 import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
 import { SearchSelect } from "../components/SearchSelect";
+import { ChonLoc } from "../components/ChonLoc";
 
 const LOAI_DOI: LoaiKho[] = ["Mien", "Trung chuyen", "Quan ly"];
 
@@ -215,13 +216,13 @@ export function KhoScreen() {
               <input className="search-input" placeholder={t("Tìm tên kho...")} value={tim} onChange={(e) => setTim(e.target.value)} />
             </div>
             <label className="header-dropdown select-dropdown">
-              <select value={loaiLoc} onChange={(e) => setLoaiLoc(e.target.value)} aria-label={t("Loại kho")}>
+              <ChonLoc value={loaiLoc} onChange={(e) => setLoaiLoc(e.target.value)} aria-label={t("Loại kho")}>
                 <option value="">{t("Tất cả loại kho")}</option>
                 <option value="HCNS">{LOAI_KHO.HCNS}</option>
                 <option value="Mien">{LOAI_KHO.Mien}</option>
                 <option value="Trung chuyen">{LOAI_KHO["Trung chuyen"]}</option>
                 <option value="Quan ly">{LOAI_KHO["Quan ly"]}</option>
-              </select>
+              </ChonLoc>
               <ChevronDown size={13} className="dropdown-arrow" />
             </label>
             {soKhoTrongAn > 0 && (
@@ -275,11 +276,23 @@ export function KhoScreen() {
                       {LOAI_KHO[k.loai]}
                     </td>
                     <td data-label={t("TSCĐ trong kho")} style={{ textAlign: "right" }}>
-                      <div className="strong">{fmtSo(k.ts_trong_kho)}</div>
+                      {coTab("tai-san") && k.ts_trong_kho > 0 ? (
+                        <button type="button" className="so-link" title={t("Xem tài sản trong kho")} onClick={() => navigate("tai-san", { kho_id: String(k.id), trang_thai: "Trong kho" })}>
+                          {fmtSo(k.ts_trong_kho)}
+                        </button>
+                      ) : (
+                        <div className="strong">{fmtSo(k.ts_trong_kho)}</div>
+                      )}
                       {k.gt_ts > 0 && <div className="muted small">{fmtGiaTri(k.gt_ts)}</div>}
                     </td>
                     <td data-label={t("Tồn tiêu hao")} style={{ textAlign: "right" }}>
-                      <div className="strong">{fmtSo(k.so_mat_hang)} {t("mặt hàng")}</div>
+                      {coTab("cap-phat") ? (
+                        <button type="button" className="so-link" title={t("Xem tồn tiêu hao của kho")} onClick={() => navigate("cap-phat", { tab: "ton-kho", kho_id: String(k.id) })}>
+                          {fmtSo(k.so_mat_hang)} {t("mặt hàng")}
+                        </button>
+                      ) : (
+                        <div className="strong">{fmtSo(k.so_mat_hang)} {t("mặt hàng")}</div>
+                      )}
                       {k.gt_tieu_hao > 0 && <div className="muted small">{fmtGiaTri(k.gt_tieu_hao)}</div>}
                     </td>
                     <td data-label={t("Tồn âm")} style={{ textAlign: "center" }}>
@@ -513,13 +526,13 @@ function CauHinhKho() {
           </div>
           <div className="field-group">
             <label className="field-label">{t("Loại kho")}</label>
-            <select value={loaiMoi} onChange={(e) => setLoaiMoi(e.target.value as LoaiKho)}>
+            <ChonLoc value={loaiMoi} onChange={(e) => setLoaiMoi(e.target.value as LoaiKho)}>
               <option value="Mien">{t("Kho miền")}</option>
               <option value="Trung chuyen">{t("Kho trung chuyển (đại diện văn phòng nhận rồi phát cho nhân viên)")}</option>
               <option value="Tieu hao">{t("Kho tiêu hao (điểm tiêu dùng văn phòng)")}</option>
               <option value="HCNS">{t("Kho HCNS")}</option>
               <option value="Mua hang">{t("Kho mua hàng (nguồn nhập)")}</option>
-            </select>
+            </ChonLoc>
             <div className="field-hint">
               {loaiMoi === "Tieu hao"
                 ? t("Kho tiêu hao: VPP, vệ sinh, đóng hàng… xuất vào là tiêu hao hết (trừ tồn kho xuất), không tính tồn, không chuyển đi được.")
@@ -553,13 +566,13 @@ function CauHinhKho() {
         <Modal title={t("Đổi loại kho · {x}", { x: doiLoai.kho.ten_kho })} onClose={() => setDoiLoai(null)}>
           <div className="field-group">
             <label className="field-label">{t("Chuyển thành")}</label>
-            <select value={doiLoai.loai} onChange={(e) => setDoiLoai({ ...doiLoai, loai: e.target.value as LoaiKho })}>
+            <ChonLoc value={doiLoai.loai} onChange={(e) => setDoiLoai({ ...doiLoai, loai: e.target.value as LoaiKho })}>
               {LOAI_DOI.filter((l) => l !== doiLoai.kho.loai).map((l) => (
                 <option key={l} value={l}>
                   {LOAI_KHO[l]}
                 </option>
               ))}
-            </select>
+            </ChonLoc>
           </div>
           <div className="alert alert-info">
             {doiLoai.loai !== "Quan ly"

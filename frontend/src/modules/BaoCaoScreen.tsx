@@ -17,6 +17,7 @@ import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 import { useAuth } from "../auth/AuthContext";
 import { laQuanTri } from "../lib/menu";
 import { setCongTy } from "../lib/congTy";
+import { ChonLoc } from "../components/ChonLoc";
 
 type SubTab = "tong-quan" | "theo-cong-ty" | "tieu-dung" | "theo-nhan-vien" | "theo-bo-phan" | "sap-het-bao-hanh" | "kiem-ke-chenh-lech" | "da-thanh-ly";
 const SUB_TABS: { key: SubTab; label: string }[] = [
@@ -387,30 +388,30 @@ export function BaoCaoScreen() {
   const locRieng =
     tab === "sap-het-bao-hanh" ? (
       <label className="header-dropdown select-dropdown">
-        <select value={soNgay} onChange={(e) => setSoNgay(e.target.value)} aria-label={t("Khoảng thời gian")}>
+        <ChonLoc value={soNgay} onChange={(e) => setSoNgay(e.target.value)} aria-label={t("Khoảng thời gian")}>
           {["30", "60", "90", "180", "365"].map((n) => (
             <option key={n} value={n}>
               {t("Trong {n} ngày tới", { n })}
             </option>
           ))}
-        </select>
+        </ChonLoc>
         <ChevronDown size={13} className="dropdown-arrow" />
       </label>
     ) : tab === "da-thanh-ly" ? (
       <label className="header-dropdown select-dropdown">
-        <select value={nam} onChange={(e) => setNam(e.target.value)} aria-label={t("Năm")}>
+        <ChonLoc value={nam} onChange={(e) => setNam(e.target.value)} aria-label={t("Năm")}>
           <option value="">{t("Mọi năm")}</option>
           {[0, 1, 2, 3].map((i) => (
             <option key={i} value={String(namHienTai - i)}>
               {t("Năm")} {namHienTai - i}
             </option>
           ))}
-        </select>
+        </ChonLoc>
         <ChevronDown size={13} className="dropdown-arrow" />
       </label>
     ) : tab === "tieu-dung" ? (
       <label className="header-dropdown select-dropdown">
-        <select value={thangTd} onChange={(e) => setThangTd(e.target.value)} aria-label={t("Tháng")}>
+        <ChonLoc value={thangTd} onChange={(e) => setThangTd(e.target.value)} aria-label={t("Tháng")}>
           {Array.from({ length: 12 }, (_, i) => {
             const [y, m] = homNayVN().slice(0, 7).split("-").map(Number);
             const v = new Date(Date.UTC(y, m - 1 - i, 1)).toISOString().slice(0, 7);
@@ -420,12 +421,12 @@ export function BaoCaoScreen() {
               </option>
             );
           })}
-        </select>
+        </ChonLoc>
         <ChevronDown size={13} className="dropdown-arrow" />
       </label>
     ) : tab === "kiem-ke-chenh-lech" ? (
       <label className="header-dropdown select-dropdown">
-        <select value={dotId} onChange={(e) => setDotId(e.target.value)} aria-label={t("Đợt kiểm kê")}>
+        <ChonLoc value={dotId} onChange={(e) => setDotId(e.target.value)} aria-label={t("Đợt kiểm kê")}>
           <option value="">{t("Mọi đợt kiểm kê")}</option>
           {dots.map((o) => (
             <option key={o.id} value={o.id}>
@@ -433,7 +434,7 @@ export function BaoCaoScreen() {
               {o.ten_dot}
             </option>
           ))}
-        </select>
+        </ChonLoc>
         <ChevronDown size={13} className="dropdown-arrow" />
       </label>
     ) : null;

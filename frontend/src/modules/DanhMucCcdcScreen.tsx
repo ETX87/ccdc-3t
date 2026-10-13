@@ -20,6 +20,7 @@ import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTriDong, fmtNgay, fmtSo, homNayVN } from "../lib/format";
 import { isHcns, laKhoTon, thongBaoLoi, TINH_TRANG_TS, TRANG_THAI_TS } from "../lib/nhan";
+import { ChonLoc } from "../components/ChonLoc";
 
 // Danh muc tai san co dinh: KPI + dem theo trang thai lay tu /ccdc/thong-ke (cung bo loc, khong phu thuoc
 // so dong dang hien), bam ma -> popup chi tiet (lich su, QR, bao hong), in tem QR hang loat.
@@ -454,7 +455,7 @@ export function DanhMucCcdcScreen() {
             <input type="text" placeholder={t("Tìm mã, tên, số seri...")} value={search} onChange={(e) => setSearch(e.target.value)} className="search-input" />
           </div>
           <label className="header-dropdown select-dropdown">
-            <select value={nhomFilter} onChange={(e) => setNhomFilter(e.target.value)} aria-label={t("Nhóm")}>
+            <ChonLoc value={nhomFilter} onChange={(e) => setNhomFilter(e.target.value)} aria-label={t("Nhóm")}>
               <option value="">{t("Tất cả nhóm")}</option>
               {nhoms.map((n) => (
                 <option key={n.id} value={n.id}>
@@ -462,18 +463,18 @@ export function DanhMucCcdcScreen() {
                   {n.bat_tat ? "" : t(" (đã tắt)")}
                 </option>
               ))}
-            </select>
+            </ChonLoc>
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
           <label className="header-dropdown select-dropdown">
-            <select value={khoFilter} onChange={(e) => setKhoFilter(e.target.value)} aria-label={t("Kho")}>
+            <ChonLoc value={khoFilter} onChange={(e) => setKhoFilter(e.target.value)} aria-label={t("Kho")}>
               <option value="">{t("Tất cả kho")}</option>
               {khos.map((k) => (
                 <option key={k.id} value={k.id}>
                   {k.ten_kho}
                 </option>
               ))}
-            </select>
+            </ChonLoc>
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
           {nguoiGiu && (
@@ -632,14 +633,14 @@ export function DanhMucCcdcScreen() {
               </div>
               <div className="field-group">
                 <label className="field-label">{t("Nhóm tài sản")}</label>
-                <select value={form.nhom_id} onChange={(e) => setForm({ ...form, nhom_id: e.target.value })}>
+                <ChonLoc value={form.nhom_id} onChange={(e) => setForm({ ...form, nhom_id: e.target.value })}>
                   <option value="">{t("-- Chọn nhóm --")}</option>
                   {nhomDangDung.filter((n) => n.cong_ty_id === form.cong_ty_id).map((n) => (
                     <option key={n.id} value={n.id}>
                       {n.ten_nhom}
                     </option>
                   ))}
-                </select>
+                </ChonLoc>
               </div>
               <div className="field-group">
                 <label className="field-label">{t("Đơn vị tính")}</label>
@@ -667,13 +668,13 @@ export function DanhMucCcdcScreen() {
               </div>
               <div className="field-group">
                 <label className="field-label">{t("Tình trạng")}</label>
-                <select value={form.tinh_trang} onChange={(e) => setForm({ ...form, tinh_trang: e.target.value })}>
+                <ChonLoc value={form.tinh_trang} onChange={(e) => setForm({ ...form, tinh_trang: e.target.value })}>
                   {Object.entries(TINH_TRANG_TS).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v}
                     </option>
                   ))}
-                </select>
+                </ChonLoc>
               </div>
             </div>
             <div className="field-group">
@@ -763,13 +764,13 @@ function QuanLyNhomModal({
         }}
       >
         {ctTao.canChon && (
-          <select value={congTyMoi ?? ""} onChange={(e) => setCongTyMoi(Number(e.target.value))} aria-label={t("Công ty")} style={{ maxWidth: 120 }}>
+          <ChonLoc value={congTyMoi ?? ""} onChange={(e) => setCongTyMoi(Number(e.target.value))} aria-label={t("Công ty")} style={{ maxWidth: 120 }}>
             {ctTao.ds.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.ma}
               </option>
             ))}
-          </select>
+          </ChonLoc>
         )}
         <input type="text" placeholder={t("Tên nhóm mới…")} value={moi} onChange={(e) => setMoi(e.target.value)} />
         <button type="submit" className="btn btn-primary" disabled={busy || !moi.trim()}>

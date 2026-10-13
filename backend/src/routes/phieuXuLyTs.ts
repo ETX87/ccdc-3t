@@ -51,6 +51,11 @@ phieuXuLyTs.get("/", async (c) => {
     );
     binds.push(user.email, ...ts.binds);
   }
+  // Da phap nhan: chi phieu co tai san thuoc cac cong ty dang xem (ke ca phieu chinh minh de xuat).
+  if (!user.tat_ca_cong_ty) {
+    conditions.push("EXISTS (SELECT 1 FROM phieu_xu_ly_ts_ct ct JOIN ccdc y ON y.id = ct.ccdc_id WHERE ct.phieu_id = p.id AND y.cong_ty_id IN (SELECT value FROM json_each(?)))");
+    binds.push(JSON.stringify(user.cong_ty_xem));
+  }
   for (const k of ["loai", "trang_thai"] as const) {
     const ds = (c.req.query(k) ?? "").split(",").map((x) => x.trim()).filter(Boolean);
     if (ds.length) {

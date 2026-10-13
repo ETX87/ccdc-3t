@@ -267,6 +267,8 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
   // KT / HCNS: chi phieu / tai san / dot kiem ke cua cac cong ty dang xem (pv da gioi han cong ty).
   const pkV = dkPhieuKho(pv);
   const tsV = dkTaiSan(pv);
+  // Viec ca nhan / phieu bi tu choi: cung chi trong cac cong ty dang xem (doi cong ty o topbar -> chi viec cong ty do).
+  const ctXem = JSON.stringify(user.cong_ty_xem);
   const coTsV = `EXISTS (SELECT 1 FROM phieu_xu_ly_ts_ct ct JOIN ccdc c ON c.id = ct.ccdc_id WHERE ct.phieu_id = x.id AND ${tsV.sql})`;
   const rows: ViecRow[] = [];
   type R = Record<string, string | number | null>;
@@ -328,10 +330,11 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
       stmt: db
         .prepare(
           `SELECT g.id, g.ma_phieu, g.loai_phieu, g.ngay_lap AS t, ${TEN_NGUOI("g.nguoi_lap")} AS nguoi, ${TOM_TAT_GN} AS tom_tat
-           FROM phieu_giao_nhan g
-           WHERE g.da_xac_nhan = 0 AND ((g.loai_phieu = 'Cap phat' AND g.nhan_vien_id = ?) OR (g.loai_phieu = 'Dieu chuyen' AND g.nhan_vien_nhan_moi_id = ?))`,
+           FROM phieu_giao_nhan g LEFT JOIN kho kt ON kt.id = g.tu_kho_id
+           WHERE g.da_xac_nhan = 0 AND ((g.loai_phieu = 'Cap phat' AND g.nhan_vien_id = ?) OR (g.loai_phieu = 'Dieu chuyen' AND g.nhan_vien_nhan_moi_id = ?))
+             AND (kt.id IS NULL OR kt.cong_ty_id IN (SELECT value FROM json_each(?)))`,
         )
-        .bind(user.ma_nv, user.ma_nv),
+        .bind(user.ma_nv, user.ma_nv, ctXem),
     });
     stmts.push({
       kind: "cp_nv",
@@ -339,9 +342,10 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
         .prepare(
           `SELECT p.id, p.ma_phieu, p.created_at AS t, kt.ten_kho AS tu, ${TOM_TAT_CK} AS tom_tat
            FROM phieu_chuyen_kho p JOIN kho kt ON kt.id = p.tu_kho_id
-           WHERE p.loai = 'Cap phat NV' AND p.trang_thai = 'Da giao' AND p.da_xac_nhan = 0 AND p.den_nhan_vien_id = ?`,
+           WHERE p.loai = 'Cap phat NV' AND p.trang_thai = 'Da giao' AND p.da_xac_nhan = 0 AND p.den_nhan_vien_id = ?
+             AND kt.cong_ty_id IN (SELECT value FROM json_each(?))`,
         )
-        .bind(user.ma_nv),
+        .bind(user.ma_nv, ctXem),
     });
   }
   if (laHC) {
@@ -372,11 +376,12 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
       .prepare(
         `SELECT p.id, p.ma_phieu, p.trang_thai, p.updated_at AS t, ${TOM_TAT_CK} AS tom_tat, kd.ten_kho AS den,
                 (SELECT l.ghi_chu FROM phieu_chuyen_kho_log l WHERE l.phieu_id = p.id ORDER BY l.id DESC LIMIT 1) AS ly_do
-         FROM phieu_chuyen_kho p LEFT JOIN kho kd ON kd.id = p.den_kho_id
+         FROM phieu_chuyen_kho p JOIN kho kt ON kt.id = p.tu_kho_id LEFT JOIN kho kd ON kd.id = p.den_kho_id
          WHERE p.trang_thai IN ('Ke toan tu choi', 'Bi tu choi') AND p.da_xu_ly_tu_choi = 0
-           AND (p.nguoi_lap = ? OR p.tu_kho_id IN (SELECT value FROM json_each(?)))`,
+           AND (p.nguoi_lap = ? OR p.tu_kho_id IN (SELECT value FROM json_each(?)))
+           AND kt.cong_ty_id IN (SELECT value FROM json_each(?))`,
       )
-      .bind(user.email, JSON.stringify((await khoPhuTrach(db, user)).map((k) => k.id))),
+      .bind(user.email, JSON.stringify((await khoPhuTrach(db, user)).map((k) => k.id)), ctXem),
   });
   stmts.push({
     kind: "bi_tu_choi_xl",
@@ -384,9 +389,10 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
       .prepare(
         `SELECT x.id, x.ma_phieu, x.loai, (SELECT MAX(l.ngay_xu_ly) FROM phieu_xu_ly_ts_log l WHERE l.phieu_id = x.id) AS t, ${TOM_TAT_XL} AS tom_tat
          FROM phieu_xu_ly_ts x WHERE x.nguoi_de_xuat = ? AND x.trang_thai = 'Tu choi'
-           AND (SELECT MAX(l.ngay_xu_ly) FROM phieu_xu_ly_ts_log l WHERE l.phieu_id = x.id) >= ?`,
+           AND (SELECT MAX(l.ngay_xu_ly) FROM phieu_xu_ly_ts_log l WHERE l.phieu_id = x.id) >= ?
+           AND EXISTS (SELECT 1 FROM phieu_xu_ly_ts_ct ct JOIN ccdc c ON c.id = ct.ccdc_id WHERE ct.phieu_id = x.id AND c.cong_ty_id IN (SELECT value FROM json_each(?)))`,
       )
-      .bind(user.email, tuanTruoc),
+      .bind(user.email, tuanTruoc, ctXem),
   });
 
   const kq = await db.batch<R>(stmts.map((s) => s.stmt));

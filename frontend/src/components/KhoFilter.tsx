@@ -22,7 +22,7 @@ export function KhoFilter({ value, onChange }: { value: string; onChange: (khoId
 
   useEffect(() => {
     if (!user) return;
-    if (laQuanTri(user)) {
+    if (laQuanTri(user) || user.xem_ton) {
       api
         .get<{ rows: (KhoOpt & { bat_tat: number })[] }>("/kho")
         .then((r) => setKhos(r.rows.filter((k) => k.bat_tat && laKhoTon(k))))

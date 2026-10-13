@@ -2,13 +2,16 @@ import { Hono, type Context } from "hono";
 import type { Env } from "../types";
 import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
-import { dkCotKho, dkPhieuKho, dkTaiSan, layPhamVi, locTheoKho, type PhamVi } from "../lib/phamVi";
+import { dkCotKho, dkPhieuKho, dkTaiSan, layPhamVi, layPhamViXemTon, locTheoKho, type PhamVi } from "../lib/phamVi";
 import { nowVN } from "../lib/vnTime";
 
 const baoCao = new Hono<{ Bindings: Env }>();
 baoCao.use("*", verifySessionMiddleware, loadUser, async (c, next) => {
   // Bao cao toan he thong: chi quan tri / thu kho / quan ly co nhom (nhan vien thuong -> 403).
-  const pv = await layPhamVi(c.env.DB, c.get("user"));
+  // Quyen them "Xem ton kho toan cong ty" (users.xem_ton): chi mo cac bao cao TON (ton-kho, ton-theo-kho, the-kho).
+  const user = c.get("user");
+  if (user.xem_ton && /\/(ton-kho|ton-theo-kho|the-kho)$/.test(c.req.path)) return next();
+  const pv = await layPhamVi(c.env.DB, user);
   if (!pv.xemTongHop) return c.json({ error: "FORBIDDEN" }, 403);
   await next();
 });
@@ -27,7 +30,7 @@ const CON_QUAN_LY = "c.vo_hieu_hoa = 0 AND c.trang_thai_hien_tai NOT IN ('Da tha
 // (+ so luong dang tren duong toi kho). Khong co kho_id: tong toan he thong + so kho con hang.
 baoCao.get("/ton-kho", async (c) => {
   // Thu kho / QL chi xem ton kho minh phu trach (khong tin kho_id client gui); chi 1 kho -> xem thang kho do.
-  const pv = await layPhamVi(c.env.DB, c.get("user"));
+  const pv = await layPhamViXemTon(c.env.DB, c.get("user"));
   const khoId = c.req.query("kho_id") || (!pv.toanBo && pv.khoIds.length === 1 ? String(pv.khoIds[0]) : undefined);
   if (khoId && !pv.toanBo && !pv.khoIds.includes(Number(khoId))) return c.json({ error: "FORBIDDEN" }, 403);
   if (khoId) {
@@ -68,7 +71,7 @@ baoCao.get("/ton-kho", async (c) => {
 // GET /ton-theo-kho - ma tran ton tieu hao: moi kho TINH TON trong pham vi (cac cong ty dang xem) x vat tu co phat
 // sinh. Frontend chon cot kho (luu tren may). { kho, vt, ton: [{kho_id, vt_id, ton}] }.
 baoCao.get("/ton-theo-kho", async (c) => {
-  const pv = await layPhamVi(c.env.DB, c.get("user"));
+  const pv = await layPhamViXemTon(c.env.DB, c.get("user"));
   const dk = dkCotKho(pv, "k.id");
   const ct = JSON.stringify(c.get("user").cong_ty_xem);
   const [kho, vt, ton] = await c.env.DB.batch([
@@ -92,7 +95,7 @@ baoCao.get("/ton-theo-kho", async (c) => {
 // GET /the-kho?kho_id=&vt_id= - the kho 1 vat tu tai 1 kho: tung phieu lam doi ton (nhap / xuat / dieu chinh) theo
 // thoi gian + ton luy ke (cung cong thuc v_ton_kho), kem phieu dang chuyen den (chua tinh ton).
 baoCao.get("/the-kho", async (c) => {
-  const pv = await layPhamVi(c.env.DB, c.get("user"));
+  const pv = await layPhamViXemTon(c.env.DB, c.get("user"));
   const khoId = Number(c.req.query("kho_id"));
   const vtId = c.req.query("vt_id") ?? "";
   if (!khoId || !vtId) return c.json({ error: "MISSING_FIELDS" }, 400);

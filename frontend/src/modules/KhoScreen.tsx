@@ -141,7 +141,7 @@ export function KhoScreen() {
           tone="cyan"
           icon={<Store size={20} className="text-white" />}
           watermark={<Store size={52} />}
-          label={tongHop && !quanTriKho ? t("Kho tôi phụ trách") : t("Kho đang hoạt động")}
+          label={tongHop && !quanTriKho ? (user?.xem_ton ? t("Kho trong công ty") : t("Kho tôi phụ trách")) : t("Kho đang hoạt động")}
           value={fmtSo(hoatDong.length)}
           trend={
             <div className="kpi-trend">

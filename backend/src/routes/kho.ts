@@ -5,7 +5,7 @@ import { loadUser } from "../middleware/loadUser";
 import { requireRole } from "../middleware/requireRole";
 import { formatVNFromMs, nowVN } from "../lib/vnTime";
 import { getKho, khoPhuTrach, laHcns, LOAI_DOI_DUOC, type LoaiKho } from "../lib/quyen";
-import { layPhamVi } from "../lib/phamVi";
+import { layPhamViXemTon } from "../lib/phamVi";
 
 // Danh muc kho (chuoi KHO MUA -> HCNS -> MIEN -> QL) + gan thu kho. Kho QL thuong duoc tao tu dong
 // khi gan quan ly truc tiep cho nhan vien (routes/nhanVien.ts), van tao tay duoc o day.
@@ -52,7 +52,7 @@ kho.get("/cua-toi", async (c) => {
 // chuyen kho dang cho nhan (qua han 48h). v_ton_kho tinh 1 lan (CTE) thay vi moi kho 1 lan.
 kho.get("/tong-hop", async (c) => {
   const db = c.env.DB;
-  const pv = await layPhamVi(db, c.get("user"));
+  const pv = await layPhamViXemTon(db, c.get("user"));
   if (!pv.xemTongHop) return c.json({ error: "FORBIDDEN" }, 403);
   const moc = formatVNFromMs(Date.now() - 48 * 3600 * 1000);
   const loc = pv.toanBo ? "1=1" : "k.id IN (SELECT value FROM json_each(?))";

@@ -15,6 +15,8 @@ export interface AppUser {
   /** Cong ty tai khoan duoc xem / thao tac (da phap nhan) - o chon cong ty tren topbar khi >= 2. */
   cong_ty: { id: number; ma: string; ten: string }[];
   anh_dai_dien: string | null;
+  /** Quyen them: xem ton kho / tai san toan cong ty (chi doc, users.xem_ton). */
+  xem_ton?: boolean;
 }
 
 export type LoaiKho = "Mua hang" | "HCNS" | "Mien" | "Trung chuyen" | "Quan ly" | "Tieu hao";

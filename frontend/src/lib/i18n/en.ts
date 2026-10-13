@@ -1416,4 +1416,12 @@ export const EN: Record<string, string> = {
   "Cấp phát & điều chuyển": "Issue & transfer",
   "Danh mục tài sản": "Asset list",
   "Kho & thủ kho": "Warehouses & storekeepers",
+  "Bỏ quyền xem tồn kho toàn công ty": "Remove company-wide stock view",
+  "Chỉ xem tồn kho tiêu hao mọi kho, Kho & tồn và danh mục tài sản của công ty - không thêm quyền lập / duyệt phiếu": "View-only: consumable stock in all warehouses, Warehouses & stock and the company's asset list - no extra rights to create / approve slips",
+  "Cấp quyền xem tồn kho toàn công ty": "Grant company-wide stock view",
+  "Kho trong công ty": "Warehouses in company",
+  "Người này xem được tồn kho tiêu hao của mọi kho, thẻ kho, Kho & tồn và danh mục tài sản cố định của các công ty họ được xem. Quyền lập / duyệt / nhận phiếu giữ nguyên theo vai trò.": "This person can view consumable stock in every warehouse, stock cards, Warehouses & stock and the fixed asset list of the companies they can see. Rights to create / approve / receive slips stay as per their role.",
+  "Toàn công ty (cộng mọi kho)": "Whole company (all warehouses)",
+  "Toàn công ty": "Whole company",
+  "Xem tồn kho toàn công ty": "View company-wide stock",
 };

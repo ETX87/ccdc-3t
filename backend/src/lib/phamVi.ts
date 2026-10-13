@@ -23,22 +23,37 @@ export interface PhamVi {
   congTyToan?: number[] | null;
 }
 
+/** Pham vi "toan bo cac cong ty dang xem" (moi kho + moi nhan vien cua cac cong ty do). */
+async function phamViCongTy(db: D1Database, user: AppUser): Promise<PhamVi> {
+  const congTy = JSON.stringify(user.cong_ty_xem);
+  const [kho, nv] = await db.batch<{ id: number; ma_nv: string }>([
+    db.prepare("SELECT id FROM kho WHERE loai != 'Mua hang' AND cong_ty_id IN (SELECT value FROM json_each(?))").bind(congTy),
+    db.prepare("SELECT ma_nv FROM nhan_vien WHERE cong_ty_id IN (SELECT value FROM json_each(?))").bind(congTy),
+  ]);
+  return {
+    toanBo: false,
+    khoIds: kho.results.map((r) => r.id),
+    nhomMaNv: nv.results.map((r) => r.ma_nv),
+    xemTongHop: true,
+    congTyToan: user.cong_ty_xem,
+  };
+}
+
+/**
+ * Pham vi cho cac man XEM TON (ton tieu hao, ton theo kho, the kho, Kho & ton, danh muc TSCD): tai khoan co quyen them
+ * "Xem ton kho toan cong ty" (users.xem_ton) duoc xem moi kho / moi tai san CUA CAC CONG TY MINH DUOC PHEP (chi doc);
+ * con lai = layPhamVi. KHONG dung cho viec can lam / thao tac ghi.
+ */
+export async function layPhamViXemTon(db: D1Database, user: AppUser): Promise<PhamVi> {
+  const toanQuyen = user.vai_tro === "Admin" || user.vai_tro === "Ke toan" || user.vai_tro === "HCNS";
+  if (user.xem_ton && !toanQuyen) return phamViCongTy(db, user);
+  return layPhamVi(db, user);
+}
+
 export async function layPhamVi(db: D1Database, user: AppUser): Promise<PhamVi> {
   const toanQuyen = user.vai_tro === "Admin" || user.vai_tro === "Ke toan" || user.vai_tro === "HCNS";
   const congTy = JSON.stringify(user.cong_ty_xem);
-  if (toanQuyen && !user.tat_ca_cong_ty) {
-    const [kho, nv] = await db.batch<{ id: number; ma_nv: string }>([
-      db.prepare("SELECT id FROM kho WHERE loai != 'Mua hang' AND cong_ty_id IN (SELECT value FROM json_each(?))").bind(congTy),
-      db.prepare("SELECT ma_nv FROM nhan_vien WHERE cong_ty_id IN (SELECT value FROM json_each(?))").bind(congTy),
-    ]);
-    return {
-      toanBo: false,
-      khoIds: kho.results.map((r) => r.id),
-      nhomMaNv: nv.results.map((r) => r.ma_nv),
-      xemTongHop: true,
-      congTyToan: user.cong_ty_xem,
-    };
-  }
+  if (toanQuyen && !user.tat_ca_cong_ty) return phamViCongTy(db, user);
   const kho = (await khoPhuTrach(db, user)).filter((k) => k.loai !== "Mua hang" && user.cong_ty_xem.includes(k.cong_ty_id));
   let nhom: string[] = [];
   if (user.ma_nv) {

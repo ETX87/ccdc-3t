@@ -9,12 +9,13 @@ interface UserRow {
   trang_thai_duyet: "Cho duyet" | "Da duyet" | "Tu choi";
   bi_khoa: number;
   anh_dai_dien: string | null;
+  xem_ton?: number;
 }
 
 export async function loadUser(c: Context<{ Bindings: Env }>, next: Next) {
   const email = c.get("email");
 
-  let row = await c.env.DB.prepare("SELECT email, ten, vai_tro, trang_thai_duyet, bi_khoa, anh_dai_dien FROM users WHERE email = ?")
+  let row = await c.env.DB.prepare("SELECT email, ten, vai_tro, trang_thai_duyet, bi_khoa, anh_dai_dien, xem_ton FROM users WHERE email = ?")
     .bind(email)
     .first<UserRow>();
 
@@ -46,6 +47,7 @@ export async function loadUser(c: Context<{ Bindings: Env }>, next: Next) {
     cong_ty_ids: [],
     cong_ty_xem: [],
     tat_ca_cong_ty: false,
+    xem_ton: !!row.xem_ton,
   };
   let nv = await c.env.DB.prepare("SELECT ma_nv, cong_ty_id FROM nhan_vien WHERE email_dang_nhap = ? AND dang_lam_viec = 1 LIMIT 1")
     .bind(row.email)

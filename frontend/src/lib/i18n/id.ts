@@ -1416,4 +1416,12 @@ export const ID: Record<string, string> = {
   "Cấp phát & điều chuyển": "Pengeluaran & mutasi",
   "Danh mục tài sản": "Daftar aset",
   "Kho & thủ kho": "Gudang & penjaga gudang",
+  "Bỏ quyền xem tồn kho toàn công ty": "Cabut akses lihat stok seluruh perusahaan",
+  "Chỉ xem tồn kho tiêu hao mọi kho, Kho & tồn và danh mục tài sản của công ty - không thêm quyền lập / duyệt phiếu": "Hanya lihat: stok habis pakai semua gudang, Gudang & stok dan daftar aset perusahaan - tanpa hak tambahan membuat / menyetujui slip",
+  "Cấp quyền xem tồn kho toàn công ty": "Beri akses lihat stok seluruh perusahaan",
+  "Kho trong công ty": "Gudang di perusahaan",
+  "Người này xem được tồn kho tiêu hao của mọi kho, thẻ kho, Kho & tồn và danh mục tài sản cố định của các công ty họ được xem. Quyền lập / duyệt / nhận phiếu giữ nguyên theo vai trò.": "Orang ini dapat melihat stok habis pakai di semua gudang, kartu stok, Gudang & stok dan daftar aset tetap perusahaan yang dapat mereka lihat. Hak membuat / menyetujui / menerima slip tetap sesuai peran.",
+  "Toàn công ty (cộng mọi kho)": "Seluruh perusahaan (semua gudang)",
+  "Toàn công ty": "Seluruh perusahaan",
+  "Xem tồn kho toàn công ty": "Lihat stok seluruh perusahaan",
 };

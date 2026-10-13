@@ -22,6 +22,7 @@ interface UserRow {
   vai_tro: VaiTro | null;
   trang_thai_duyet: TrangThaiDuyet;
   bi_khoa: boolean;
+  xem_ton?: number;
   created_at: string;
   anh_dai_dien: string | null;
   ma_nv: string | null;
@@ -41,7 +42,7 @@ interface CongTyRow {
 type Tab = "cho-duyet" | "da-duyet" | "tu-choi" | "bi-khoa" | "tat-ca";
 interface ThayDoi {
   user: UserRow;
-  body: { trang_thai_duyet?: TrangThaiDuyet; vai_tro?: VaiTro | null; bi_khoa?: boolean };
+  body: { trang_thai_duyet?: TrangThaiDuyet; vai_tro?: VaiTro | null; bi_khoa?: boolean; xem_ton?: boolean };
   moTa: string;
 }
 
@@ -333,6 +334,12 @@ export function AdminUsersScreen() {
                       ) : (
                         tenVaiTro(u.vai_tro)
                       )}
+                      {daDuyet && !["Admin", "Ke toan", "HCNS"].includes(u.vai_tro ?? "") && (
+                        <label className="check-label small" style={{ marginTop: 5 }} title={t("Chỉ xem tồn kho tiêu hao mọi kho, Kho & tồn và danh mục tài sản của công ty - không thêm quyền lập / duyệt phiếu")}>
+                          <input type="checkbox" checked={!!u.xem_ton} onChange={() => hoi(u, { xem_ton: !u.xem_ton }, u.xem_ton ? t("Bỏ quyền xem tồn kho toàn công ty") : t("Cấp quyền xem tồn kho toàn công ty"))} />
+                          {t("Xem tồn kho toàn công ty")}
+                        </label>
+                      )}
                     </td>
                     <td data-label={t("Thủ kho")} className="text-secondary small">
                       {u.kho_thu_kho ?? "-"}
@@ -462,6 +469,9 @@ export function AdminUsersScreen() {
             <p className="muted small">
               {tenVaiTro(thayDoi.user.vai_tro)} → <b>{tenVaiTro(thayDoi.body.vai_tro)}</b>: {MO_TA_VAI_TRO[thayDoi.body.vai_tro ?? ""]}.
             </p>
+          )}
+          {thayDoi.body.xem_ton === true && (
+            <p className="muted small">{t("Người này xem được tồn kho tiêu hao của mọi kho, thẻ kho, Kho & tồn và danh mục tài sản cố định của các công ty họ được xem. Quyền lập / duyệt / nhận phiếu giữ nguyên theo vai trò.")}</p>
           )}
           {thayDoi.body.bi_khoa === true && <p className="muted small">{t("Người này sẽ không đăng nhập được cho tới khi mở khoá.")}</p>}
           {thayDoi.body.trang_thai_duyet === "Da duyet" && <p className="muted small">{t("Mặc định vai trò Nhân viên - đổi vai trò sau khi duyệt nếu cần.")}</p>}

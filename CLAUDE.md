@@ -109,6 +109,12 @@ state đang dùng.
   xác nhận. `v_ton_kho` vế nhập dùng `COALESCE(vt_id_den, vt_id)`. TSCĐ = `phieu_giao_nhan` `Chuyen kho` tới kho công
   ty khác → `trang_thai_duyet` `Cho ke toan duyet`; duyệt mới chuyển TS (đổi `cong_ty_id`, nhóm ghép theo tên); chưa
   duyệt thì không xác nhận được (`CHUA_KE_TOAN_DUYET`). Danh sách kho đích cho cả 2: `GET /kho/dich`.
+- **Mọi dữ liệu theo công ty đang xem** (`user.cong_ty_xem`) — kể cả Việc cần làm cá nhân / phiếu bị từ chối (sửa
+  2026-10-13: trước đó đổi công ty vẫn thấy việc công ty cũ). Truy vấn mới lọc theo `kho.cong_ty_id` / `ccdc.cong_ty_id`
+  hoặc qua `layPhamVi`; nhân sự chỉ được xem công ty của mình (+ công ty Admin gán thêm).
+- **Quyền thêm "Xem tồn kho toàn công ty"** (`users.xem_ton`, migration 0017, ô tích ở Tài khoản & phân quyền): chỉ ĐỌC
+  tồn tiêu hao mọi kho / ma trận / thẻ kho / Kho & tồn / danh mục TSCĐ của các công ty được xem — dùng
+  `layPhamViXemTon()` (lib/phamVi.ts) ở các route xem tồn; KHÔNG dùng cho việc cần làm hay thao tác ghi.
 - Báo cáo so sánh: `GET /bao-cao/theo-cong-ty` (tab "Theo công ty", Admin/KT/HCNS xem ≥2 công ty).
 
 ## Kho tiêu hao, sửa / gửi lại / điều chỉnh phiếu tiêu hao (2026-10-09, migration 0015)

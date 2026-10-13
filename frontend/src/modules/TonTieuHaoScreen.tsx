@@ -44,7 +44,7 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
   const auth = useAuth();
   const { params, navigate } = useNav();
   const user = auth.status === "authenticated" ? auth.user : null;
-  const toanBo = !!user && laQuanTri(user);
+  const toanBo = !!user && (laQuanTri(user) || !!user.xem_ton);
   const myKho = useMemo(() => (user?.kho_phu_trach ?? []).filter(laKhoTon), [user]);
   const [khos, setKhos] = useState<KhoRow[]>([]);
   const [khoId, setKhoId] = useState<string>(params.kho_id ?? (!toanBo && myKho.length === 1 ? String(myKho[0].id) : ""));
@@ -108,7 +108,7 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
     };
   }, [rows]);
   const khoChon = khos.find((k) => String(k.id) === khoId);
-  const tenKho = khoChon?.ten_kho ?? (toanBo ? t("Toàn hệ thống") : t("Các kho của tôi"));
+  const tenKho = khoChon?.ten_kho ?? (toanBo ? (user && !laQuanTri(user) ? t("Toàn công ty") : t("Toàn hệ thống")) : t("Các kho của tôi"));
   // Dieu chinh ton: HCNS (moi kho cong ty minh) hoac thu kho cua kho dang chon - server kiem lai.
   const duocDieuChinh = !!khoChon && !!user && (isHcns(user) || myKho.some((k) => k.id === khoChon.id));
 
@@ -223,7 +223,7 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
           <>
           <label className="header-dropdown select-dropdown">
             <ChonLoc value={khoId} onChange={(e) => setKhoId(e.target.value)} aria-label={t("Kho")}>
-              <option value="">{toanBo ? t("Toàn hệ thống (cộng mọi kho)") : t("Tất cả kho của tôi")}</option>
+              <option value="">{toanBo ? (user && !laQuanTri(user) ? t("Toàn công ty (cộng mọi kho)") : t("Toàn hệ thống (cộng mọi kho)")) : t("Tất cả kho của tôi")}</option>
               {khos.map((k) => (
                 <option key={k.id} value={k.id}>
                   {k.ten_kho} ({LOAI_KHO[k.loai]})

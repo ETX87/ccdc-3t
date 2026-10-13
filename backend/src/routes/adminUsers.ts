@@ -33,7 +33,7 @@ adminUsers.get("/", async (c) => {
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const { results } = await c.env.DB.prepare(
-    `SELECT u.email, u.ten, u.vai_tro, u.trang_thai_duyet, u.bi_khoa, u.created_at, u.anh_dai_dien,
+    `SELECT u.email, u.ten, u.vai_tro, u.trang_thai_duyet, u.bi_khoa, u.xem_ton, u.created_at, u.anh_dai_dien,
             nv.ma_nv, nv.ten_nv, nv.bo_phan,
             (SELECT GROUP_CONCAT(k.ten_kho, ', ') FROM kho_thu_kho t JOIN kho k ON k.id = t.kho_id WHERE t.email = u.email) AS kho_thu_kho,
             nv.cong_ty_id AS cong_ty_nv,
@@ -86,6 +86,7 @@ interface PatchUserBody {
   trang_thai_duyet?: TrangThaiDuyet;
   vai_tro?: VaiTro | null;
   bi_khoa?: boolean;
+  xem_ton?: boolean;
 }
 
 const VALID_VAI_TRO: VaiTro[] = ["Admin", "Ke toan", "HCNS", "Quan ly"];
@@ -121,6 +122,10 @@ adminUsers.patch("/:email", async (c) => {
   if (body.bi_khoa !== undefined) {
     sets.push("bi_khoa = ?");
     binds.push(body.bi_khoa ? 1 : 0);
+  }
+  if (body.xem_ton !== undefined) {
+    sets.push("xem_ton = ?");
+    binds.push(body.xem_ton ? 1 : 0);
   }
   if (sets.length === 0) return c.json({ error: "NO_FIELDS" }, 400);
   sets.push("updated_at = ?");

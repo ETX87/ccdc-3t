@@ -18,6 +18,8 @@ export interface AppUser {
   cong_ty_ids: number[];
   cong_ty_xem: number[];
   tat_ca_cong_ty: boolean;
+  // Quyen them "Xem ton kho toan cong ty" (users.xem_ton, migration 0017) - chi doc, trong cac cong ty duoc phep.
+  xem_ton: boolean;
 }
 
 export interface Env {

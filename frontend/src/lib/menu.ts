@@ -33,6 +33,8 @@ export const coKho = (u: AppUser) => u.kho_phu_trach.some(laKhoTon);
 export const coNhom = (u: AppUser) => u.co_cap_duoi;
 /** Duoc xem so lieu tong hop (tong quan, canh bao, bao cao): quan tri, thu kho, quan ly co nhom. */
 export const xemTongHop = (u: AppUser) => laQuanTri(u) || coKho(u) || coNhom(u);
+/** Quyen them "Xem ton kho toan cong ty" (Admin bat o Tai khoan & phan quyen) - chi xem ton / tai san. */
+export const xemTon = (u: AppUser) => !!u.xem_ton;
 
 export interface MenuChild {
   label: string;
@@ -97,7 +99,7 @@ export const MENU: MenuItem[] = [
   { key: "viec-can-lam", nhom: "chung", label: t("Việc cần làm"), icon: ClipboardCheck, tab: "viec-can-lam", badgeKey: "viec-can-lam", show: moiNguoi },
   { key: "canh-bao", nhom: "chung", label: t("Cảnh báo"), icon: Bell, tab: "canh-bao", badgeKey: "canh-bao", show: xemTongHop },
   // ---- tai san co dinh
-  { key: "tai-san", nhom: "tscd", label: t("Danh mục tài sản"), icon: Laptop, tab: "tai-san", show: xemTongHop },
+  { key: "tai-san", nhom: "tscd", label: t("Danh mục tài sản"), icon: Laptop, tab: "tai-san", show: (u) => xemTongHop(u) || xemTon(u) },
   { key: "ca-nhan", nhom: "tscd", label: t("Tài sản của tôi"), icon: UserRound, tab: "ca-nhan", show: moiNguoi },
   { key: "nhom", nhom: "tscd", label: t("Nhóm của tôi"), icon: Users, tab: "nhom", show: coNhom },
   { key: "giao-nhan", nhom: "tscd", label: t("Cấp phát & điều chuyển"), icon: ArrowLeftRight, tab: "giao-nhan", badgeKey: "giao-nhan", show: (u) => laQuanTri(u) || coKho(u) || coNhom(u) },
@@ -117,10 +119,10 @@ export const MENU: MenuItem[] = [
     badgeParams: { trang_thai: "Cho ke toan duyet", thang: "" },
     show: xemKhoTieuHao,
   },
-  { key: "ton-tieu-hao", nhom: "tieu-hao", label: t("Tồn kho tiêu hao"), icon: Boxes, tab: "cap-phat", params: { tab: "ton-kho" }, show: xemKhoTieuHao },
+  { key: "ton-tieu-hao", nhom: "tieu-hao", label: t("Tồn kho tiêu hao"), icon: Boxes, tab: "cap-phat", params: { tab: "ton-kho" }, show: (u) => xemKhoTieuHao(u) || xemTon(u) },
   { key: "danh-muc-vt", nhom: "tieu-hao", label: t("Danh mục vật tư"), icon: Tags, tab: "cap-phat", params: { tab: "danh-muc" }, show: xemKhoTieuHao },
   // ---- kho
-  { key: "kho", nhom: "kho", label: t("Kho & tồn"), icon: Store, tab: "kho", params: { tab: "ton" }, macDinh: true, badgeKey: "kho", show: (u) => laQuanTri(u) || coKho(u) },
+  { key: "kho", nhom: "kho", label: t("Kho & tồn"), icon: Store, tab: "kho", params: { tab: "ton" }, macDinh: true, badgeKey: "kho", show: (u) => laQuanTri(u) || coKho(u) || xemTon(u) },
   // ---- bao cao
   {
     key: "bao-cao-tscd",

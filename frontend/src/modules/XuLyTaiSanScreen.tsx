@@ -25,6 +25,7 @@ interface PhieuRow {
   ma_phieu: string | null;
   loai: string;
   ly_do: string | null;
+  ma_eo: string | null;
   ngay_de_xuat: string;
   nguoi_de_xuat: string;
   trang_thai: string;
@@ -365,7 +366,10 @@ export function XuLyTaiSanScreen() {
                     <span className="strong">{p.so_luong_ccdc} TS</span>
                     {p.tom_tat && <span className="muted small"> · {p.tom_tat}</span>}
                   </td>
-                  <td data-label={t("Lý do")}>{p.ly_do ?? "-"}</td>
+                  <td data-label={t("Lý do")}>
+                    {p.ly_do ?? "-"}
+                    {p.ma_eo && <div className="muted small">{t("Mã EO")}: <span className="strong">{p.ma_eo}</span></div>}
+                  </td>
                   <td data-label={t("Nguyên giá")} style={{ textAlign: "right" }}>
                     <TienTe so={p.nguyen_gia || null} />
                     {p.gia_tri_thu_hoi != null && <div className="muted small">{t("Thu hồi")} {fmtSo(p.gia_tri_thu_hoi)}</div>}
@@ -423,6 +427,7 @@ function DeXuatModal({ loai, onClose, onDone }: { loai: LoaiDeXuat; onClose: () 
   const [ungVien, setUngVien] = useState<CcdcRow[] | null>(null);
   const [chon, setChon] = useState<Set<string>>(new Set());
   const [lyDo, setLyDo] = useState("");
+  const [maEo, setMaEo] = useState("");
   const [tep, setTep] = useState<TepCho[]>([]);
   const [tim, setTim] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -443,11 +448,12 @@ function DeXuatModal({ loai, onClose, onDone }: { loai: LoaiDeXuat; onClose: () 
 
   async function gui() {
     if (!lyDo.trim()) return setErr(t("Vui lòng nhập lý do."));
+    if (loai === "Tieu huy" && !maEo.trim()) return setErr(t("Tiêu hủy bắt buộc nhập mã EO."));
     if (chon.size === 0) return setErr(t("Chọn ít nhất 1 tài sản."));
     setBusy(true);
     setErr(null);
     try {
-      const r = await api.post<{ id: string }>("/phieu-xu-ly-ts", { loai, ccdc_ids: [...chon], ly_do: lyDo.trim() });
+      const r = await api.post<{ id: string }>("/phieu-xu-ly-ts", { loai, ccdc_ids: [...chon], ly_do: lyDo.trim(), ma_eo: loai === "Tieu huy" ? maEo.trim() : undefined });
       // Tep loi van mo phieu binh thuong - nguoi dung tai lai trong popup chi tiet phieu.
       if (tep.length) await taiLenTepCho("xu_ly", r.id, tep);
       onDone(r.id);
@@ -493,6 +499,12 @@ function DeXuatModal({ loai, onClose, onDone }: { loai: LoaiDeXuat; onClose: () 
         <label className="field-label">{loai === "Bao hong" ? t("Mô tả hư hỏng *") : t("Lý do *")}</label>
         <textarea rows={2} value={lyDo} onChange={(e) => setLyDo(e.target.value)} />
       </div>
+      {loai === "Tieu huy" && (
+        <div className="field-group">
+          <label className="field-label">{t("Mã EO *")}</label>
+          <input type="text" value={maEo} onChange={(e) => setMaEo(e.target.value)} placeholder={t("Mã phê duyệt EO cho việc tiêu hủy")} />
+        </div>
+      )}
       <ChonTep tep={tep} onDoi={setTep} loaiMacDinh={loai === "Bao hong" ? "Bang chung" : "Chung tu"} />
       {err && <div className="alert alert-error">{err}</div>}
       <div className="modal-actions">

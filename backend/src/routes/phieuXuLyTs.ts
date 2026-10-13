@@ -115,9 +115,12 @@ interface CcdcRow {
 phieuXuLyTs.post("/", async (c) => {
   const user = c.get("user");
   const db = c.env.DB;
-  const body = await c.req.json<{ loai?: Loai; ccdc_ids?: string[]; ly_do?: string; ghi_chu?: string }>().catch(() => null);
+  const body = await c.req.json<{ loai?: Loai; ccdc_ids?: string[]; ly_do?: string; ghi_chu?: string; ma_eo?: string }>().catch(() => null);
   if (!body?.loai || !LOAI.includes(body.loai) || !body.ccdc_ids?.length) return c.json({ error: "MISSING_FIELDS" }, 400);
   if (body.loai !== "Nhap mua" && !body.ly_do?.trim()) return c.json({ error: "CAN_LY_DO" }, 400);
+  // Tieu huy: bat buoc ma EO (ma phe duyet tu he thong EO Mua hang).
+  const maEo = chuanMaEo(body.ma_eo);
+  if (body.loai === "Tieu huy" && !maEo) return c.json({ error: "CAN_MA_EO" }, 400);
   if (body.loai !== "Bao hong" && !laHcns(user)) return c.json({ error: "CHI_HCNS" }, 403);
 
   const ids = [...new Set(body.ccdc_ids)];
@@ -165,11 +168,11 @@ phieuXuLyTs.post("/", async (c) => {
   const choState = TRANG_THAI_CHO[body.loai];
   const stmts: D1PreparedStatement[] = [
     db
-      .prepare(`INSERT INTO phieu_xu_ly_ts (id, loai, ly_do, ngay_de_xuat, nguoi_de_xuat, ghi_chu, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, body.loai, body.ly_do?.trim() || null, ngay, user.email, body.ghi_chu ?? null, ngay),
+      .prepare(`INSERT INTO phieu_xu_ly_ts (id, loai, ly_do, ngay_de_xuat, nguoi_de_xuat, ghi_chu, ma_eo, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, body.loai, body.ly_do?.trim() || null, ngay, user.email, body.ghi_chu ?? null, body.loai === "Tieu huy" ? maEo : null, ngay),
     db
       .prepare(`INSERT INTO phieu_xu_ly_ts_log (phieu_id, trang_thai, nguoi_xu_ly, ngay_xu_ly, ghi_chu) VALUES (?, 'Cho ke toan duyet', ?, ?, ?)`)
-      .bind(id, user.email, ngay, body.ly_do?.trim() || null),
+      .bind(id, user.email, ngay, [body.loai === "Tieu huy" ? `Mã EO: ${maEo}` : null, body.ly_do?.trim()].filter(Boolean).join(". ") || null),
     ...sinhMaPhieu(db, "phieu_xu_ly_ts", id, TIEN_TO_XU_LY[body.loai], ngay),
   ];
   for (const r of rows) {
@@ -225,8 +228,16 @@ async function chuyenTrangThai(
 }
 
 async function docGhiChu(c: Context<{ Bindings: Env }>) {
-  const b = await c.req.json<{ ghi_chu?: string; gia_tri_thu_hoi?: number }>().catch(() => ({}) as { ghi_chu?: string; gia_tri_thu_hoi?: number });
-  return { ghiChu: b.ghi_chu?.trim() || null, giaTri: typeof b.gia_tri_thu_hoi === "number" ? b.gia_tri_thu_hoi : null };
+  const b = await c.req
+    .json<{ ghi_chu?: string; gia_tri_thu_hoi?: number; ma_eo?: string }>()
+    .catch(() => ({}) as { ghi_chu?: string; gia_tri_thu_hoi?: number; ma_eo?: string });
+  return { ghiChu: b.ghi_chu?.trim() || null, giaTri: typeof b.gia_tri_thu_hoi === "number" ? b.gia_tri_thu_hoi : null, maEo: chuanMaEo(b.ma_eo) };
+}
+
+/** Ma EO: bo khoang trang 2 dau, viet hoa, toi da 50 ky tu; rong -> null. */
+function chuanMaEo(v: unknown): string | null {
+  const s = typeof v === "string" ? v.trim().toUpperCase().slice(0, 50) : "";
+  return s || null;
 }
 
 // KT duyet: Nhap mua / Bao hong co hieu luc ngay ('Da hoan tat'); Thanh ly / Tieu huy -> 'Da duyet'
@@ -279,21 +290,24 @@ phieuXuLyTs.post("/:id/ke-toan-tu-choi", async (c) => {
 // HCNS xac nhan da thanh ly / tieu huy xong vat ly (sau khi KT duyet).
 phieuXuLyTs.post("/:id/hoan-tat", async (c) => {
   if (!laHcns(c.get("user"), await congTyPhieu(c.env.DB, c.req.param("id") ?? ""))) return c.json({ error: "CHI_HCNS" }, 403);
-  const { ghiChu, giaTri } = await docGhiChu(c);
+  const { ghiChu, giaTri, maEo } = await docGhiChu(c);
   const id = c.req.param("id");
   const db = c.env.DB;
-  const p = await db.prepare("SELECT loai FROM phieu_xu_ly_ts WHERE id = ?").bind(id).first<{ loai: Loai }>();
+  const p = await db.prepare("SELECT loai, ma_eo FROM phieu_xu_ly_ts WHERE id = ?").bind(id).first<{ loai: Loai; ma_eo: string | null }>();
   if (!p) return c.json({ error: "NOT_FOUND" }, 404);
   if (p.loai !== "Thanh ly" && p.loai !== "Tieu huy") return c.json({ error: "SAI_LOAI" }, 400);
+  // Phieu tieu huy lap truoc khi bat buoc ma EO: phai bo sung luc hoan tat.
+  if (p.loai === "Tieu huy" && !p.ma_eo && !maEo) return c.json({ error: "CAN_MA_EO" }, 400);
+  const themEo = p.loai === "Tieu huy" && !p.ma_eo && maEo ? [db.prepare("UPDATE phieu_xu_ly_ts SET ma_eo = ? WHERE id = ?").bind(maEo, id)] : [];
   const ketThuc = p.loai === "Thanh ly" ? "Da thanh ly" : "Da tieu huy";
   return chuyenTrangThai(
     c,
     "Da duyet",
     "Da hoan tat",
-    ghiChu,
+    themEo.length ? [`Mã EO: ${maEo}`, ghiChu].filter(Boolean).join(". ") : ghiChu,
     (_p, ct, ngay) =>
       db.prepare(`UPDATE ccdc SET trang_thai_hien_tai = ?, kho_id = NULL, nguoi_dang_giu = NULL, updated_at = ? WHERE id = ?`).bind(ketThuc, ngay, ct.ccdc_id),
-    giaTri != null ? [db.prepare("UPDATE phieu_xu_ly_ts SET gia_tri_thu_hoi = ? WHERE id = ?").bind(giaTri, id)] : [],
+    [...(giaTri != null ? [db.prepare("UPDATE phieu_xu_ly_ts SET gia_tri_thu_hoi = ? WHERE id = ?").bind(giaTri, id)] : []), ...themEo],
   );
 });
 

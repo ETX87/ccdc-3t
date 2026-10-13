@@ -131,6 +131,8 @@ interface HanhDong {
   /** Bat buoc nhap ly do/ghi chu truoc khi gui. */
   canLyDo?: string;
   canGiaTri?: boolean;
+  /** Bat buoc nhap ma EO (hoan tat tieu huy cua phieu lap truoc khi bat buoc ma EO). */
+  canMaEo?: boolean;
   /** Hoi xac nhan (kem ghi chu khong bat buoc) truoc khi gui. */
   hoiLai?: boolean;
   path: string;
@@ -196,6 +198,7 @@ function tinhHanhDong(loai: LoaiPhieu, row: Row, user: AppUser): HanhDong[] {
         nhan: row.loai === "Thanh ly" ? t("Hoàn tất thanh lý") : t("Hoàn tất tiêu hủy"),
         kieu: "primary",
         canGiaTri: row.loai === "Thanh ly",
+        canMaEo: row.loai === "Tieu huy" && !row.ma_eo,
         path: `${base}/hoan-tat`,
       });
     }
@@ -208,6 +211,7 @@ function ThanhHanhDong({ ds, onDone }: { ds: HanhDong[]; onDone: () => void }) {
   const [chon, setChon] = useState<HanhDong | null>(null);
   const [ghiChu, setGhiChu] = useState("");
   const [giaTri, setGiaTri] = useState("");
+  const [maEo, setMaEo] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   if (!ds.length) return null;
@@ -217,11 +221,16 @@ function ThanhHanhDong({ ds, onDone }: { ds: HanhDong[]; onDone: () => void }) {
       setErr(t("Vui lòng nhập {x}.", { x: h.canLyDo.toLowerCase() }));
       return;
     }
+    if (h.canMaEo && !maEo.trim()) {
+      setErr(t("Tiêu hủy bắt buộc nhập mã EO."));
+      return;
+    }
     setBusy(true);
     setErr(null);
     try {
       const body: Record<string, unknown> = { ghi_chu: ghiChu.trim() || undefined };
       if (h.canGiaTri && giaTri !== "") body.gia_tri_thu_hoi = Number(giaTri);
+      if (h.canMaEo) body.ma_eo = maEo.trim();
       await api.post(h.path, body);
       baoThayDoi();
       await reload();
@@ -236,15 +245,21 @@ function ThanhHanhDong({ ds, onDone }: { ds: HanhDong[]; onDone: () => void }) {
   return (
     <div className="action-panel">
       {err && <div className="alert alert-error">{err}</div>}
-      {chon && (chon.canLyDo || chon.canGiaTri || chon.hoiLai) && (
+      {chon && (chon.canLyDo || chon.canGiaTri || chon.canMaEo || chon.hoiLai) && (
         <div className="form-grid">
+          {chon.canMaEo && (
+            <div className="field-group">
+              <label className="field-label">{t("Mã EO *")}</label>
+              <input type="text" value={maEo} onChange={(e) => setMaEo(e.target.value)} placeholder={t("Mã phê duyệt EO cho việc tiêu hủy")} />
+            </div>
+          )}
           {chon.canGiaTri && (
             <div className="field-group">
               <label className="field-label">{t("Giá trị thu hồi (đ)")}</label>
               <input type="number" min={0} value={giaTri} onChange={(e) => setGiaTri(e.target.value)} placeholder="0" />
             </div>
           )}
-          <div className="field-group" style={{ gridColumn: chon.canGiaTri ? undefined : "1 / -1" }}>
+          <div className="field-group" style={{ gridColumn: chon.canGiaTri || chon.canMaEo ? undefined : "1 / -1" }}>
             <label className="field-label">{chon.canLyDo ?? t("Ghi chú (không bắt buộc)")}</label>
             <input type="text" value={ghiChu} onChange={(e) => setGhiChu(e.target.value)} autoFocus />
           </div>
@@ -267,7 +282,7 @@ function ThanhHanhDong({ ds, onDone }: { ds: HanhDong[]; onDone: () => void }) {
               type="button"
               className={`btn ${h.kieu === "primary" ? "btn-primary" : h.kieu === "danger" ? "btn-danger" : "btn-outline"}`}
               disabled={busy}
-              onClick={() => (h.canLyDo || h.canGiaTri || h.hoiLai ? (setChon(h), setGhiChu(""), setErr(null)) : gui(h))}
+              onClick={() => (h.canLyDo || h.canGiaTri || h.canMaEo || h.hoiLai ? (setChon(h), setGhiChu(""), setErr(null)) : gui(h))}
             >
               {h.nhan}
             </button>
@@ -350,6 +365,7 @@ function PhieuModal({ loai, id, onClose }: { loai: LoaiPhieu; id: string; onClos
       trangThai = TRANG_THAI_XU_LY[s(row.trang_thai)] ?? { label: s(row.trang_thai), tone: "neutral" };
       info = [
         [t("Lý do"), s(row.ly_do)],
+        [t("Mã EO"), s(row.ma_eo)],
         [t("Người đề xuất"), s(row.nguoi_de_xuat)],
         [t("Ngày đề xuất"), fmtNgayGio(s(row.ngay_de_xuat))],
         [t("Giá trị thu hồi"), row.gia_tri_thu_hoi != null ? fmtGiaTri(n(row.gia_tri_thu_hoi)) : ""],
@@ -466,6 +482,7 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
   const [qr, setQr] = useState<string | null>(null);
   const [form, setForm] = useState<"bao-hong" | "kiem-ke" | "thanh-ly" | null>(null);
   const [loaiXuLy, setLoaiXuLy] = useState<"Thanh ly" | "Tieu huy">("Thanh ly");
+  const [maEo, setMaEo] = useState("");
   const [lyDo, setLyDo] = useState("");
   const [dotKiemKe, setDotKiemKe] = useState<Row[]>([]);
   const [kk, setKk] = useState({ dot: "", tinh_trang: "Dung vi tri", ghi_chu: "" });
@@ -645,6 +662,12 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
                   <label className="field-label">{t("Lý do *")}</label>
                   <input type="text" value={lyDo} onChange={(e) => setLyDo(e.target.value)} autoFocus />
                 </div>
+                {loaiXuLy === "Tieu huy" && (
+                  <div className="field-group">
+                    <label className="field-label">{t("Mã EO *")}</label>
+                    <input type="text" value={maEo} onChange={(e) => setMaEo(e.target.value)} placeholder={t("Mã phê duyệt EO cho việc tiêu hủy")} />
+                  </div>
+                )}
               </div>
               <div className="modal-actions" style={{ marginTop: 0 }}>
                 <button type="button" className="btn" onClick={() => setForm(null)}>
@@ -653,10 +676,10 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
                 <button
                   type="button"
                   className="btn btn-primary"
-                  disabled={busy || !lyDo.trim()}
+                  disabled={busy || !lyDo.trim() || (loaiXuLy === "Tieu huy" && !maEo.trim())}
                   onClick={() =>
                     gui(
-                      () => api.post("/phieu-xu-ly-ts", { loai: loaiXuLy, ccdc_ids: [id], ly_do: lyDo.trim() }),
+                      () => api.post("/phieu-xu-ly-ts", { loai: loaiXuLy, ccdc_ids: [id], ly_do: lyDo.trim(), ma_eo: loaiXuLy === "Tieu huy" ? maEo.trim() : undefined }),
                       t("Đã lập phiếu đề xuất {x} - chờ Kế toán duyệt.", { x: loaiXuLy === "Thanh ly" ? t("thanh lý") : t("tiêu hủy") }),
                     )
                   }
@@ -688,7 +711,7 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
                 </button>
               )}
               {coTheThanhLy && (
-                <button type="button" className="btn btn-outline" onClick={() => (setForm("thanh-ly"), setLyDo(""), setMsg(null))}>
+                <button type="button" className="btn btn-outline" onClick={() => (setForm("thanh-ly"), setLyDo(""), setMaEo(""), setMsg(null))}>
                   {t("Đề xuất thanh lý / tiêu hủy")}
                 </button>
               )}

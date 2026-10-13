@@ -253,6 +253,9 @@ Drive đã kết nối) → `chup_ql_nv.py chuan_bi …` (Playwright giả lập
   sửa thực tế phải qua 1 `phieu_giao_nhan` điều chỉnh riêng, có người chịu trách nhiệm.
 - Chỉ cho đề xuất thanh lý/tiêu hủy TSCĐ đang nằm trong kho (`trang_thai_hien_tai IN ('Trong kho',
   'Hong')`, không ai giữ) — phải qua Kế toán duyệt (`phieu_xu_ly_ts`).
+- **Tiêu hủy bắt buộc mã EO** (2026-10-13, migration 0018, `phieu_xu_ly_ts.ma_eo`): mã phê duyệt từ hệ thống EO Mua
+  hàng, nhập tay (trim + viết hoa, ≤50 ký tự, KHÔNG đối chiếu với hệ EO). Thiếu → lỗi `CAN_MA_EO`. Phiếu tiêu hủy cũ
+  chưa có mã → bổ sung lúc "Hoàn tất". Thanh lý không cần.
 
 ## Ports dev (khác các app khác trong hệ, chạy song song được)
 

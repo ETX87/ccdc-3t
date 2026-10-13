@@ -17,6 +17,9 @@ import type { LoaiKho } from "../types";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 import { TruongCongTy } from "../components/ChonCongTy";
 import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
+import { SearchSelect } from "../components/SearchSelect";
+
+const LOAI_DOI: LoaiKho[] = ["Mien", "Trung chuyen", "Quan ly"];
 
 interface TongHopKho {
   id: number;
@@ -141,7 +144,8 @@ export function KhoScreen() {
           trend={
             <div className="kpi-trend">
               <span className="trend-sub">
-                {demLoai("HCNS")} HCNS · {demLoai("Mien")} {t("miền ·")} {demLoai("Quan ly")} {t("quản lý")}
+                {demLoai("HCNS")} HCNS · {demLoai("Mien")} {t("miền ·")} {demLoai("Trung chuyen") > 0 && <>{demLoai("Trung chuyen")} {t("trung chuyển ·")} </>}
+                {demLoai("Quan ly")} {t("quản lý")}
               </span>
             </div>
           }
@@ -215,6 +219,7 @@ export function KhoScreen() {
                 <option value="">{t("Tất cả loại kho")}</option>
                 <option value="HCNS">{LOAI_KHO.HCNS}</option>
                 <option value="Mien">{LOAI_KHO.Mien}</option>
+                <option value="Trung chuyen">{LOAI_KHO["Trung chuyen"]}</option>
                 <option value="Quan ly">{LOAI_KHO["Quan ly"]}</option>
               </select>
               <ChevronDown size={13} className="dropdown-arrow" />
@@ -330,7 +335,12 @@ function CauHinhKho() {
   const [loaiMoi, setLoaiMoi] = useState<LoaiKho>("Mien");
   const [emailThuKho, setEmailThuKho] = useState<Record<number, string>>({});
   const [xoa, setXoa] = useState<{ kho: KhoRow; email: string } | null>(null);
-  const [doiLoai, setDoiLoai] = useState<{ kho: KhoRow; ten: string } | null>(null);
+  const [doiLoai, setDoiLoai] = useState<{ kho: KhoRow; ten: string; loai: LoaiKho; nv: string } | null>(null);
+  const [dsNv, setDsNv] = useState<{ ma_nv: string; ten_nv: string; cong_ty_id: number | null }[]>([]);
+  const canChonNv = !!doiLoai && doiLoai.loai === "Quan ly" && !doiLoai.kho.nhan_vien_id;
+  useEffect(() => {
+    if (canChonNv && !dsNv.length) api.get<{ rows: typeof dsNv }>("/nhan-vien?gon=1").then((r) => setDsNv(r.rows)).catch(() => undefined);
+  }, [canChonNv, dsNv.length]);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [showQl, setShowQl] = useState(false);
@@ -418,7 +428,7 @@ function CauHinhKho() {
                 <td data-label={t("Thủ kho")}>
                   <div className="cell-stack">
                     {k.loai === "Quan ly" && k.nhan_vien_ten && <div className="muted small">{t("Quản lý chủ kho:")} {k.nhan_vien_ten}</div>}
-                    {k.loai === "Mien" && k.nhan_vien_ten && <div className="muted small">{t("Người phụ trách:")} {k.nhan_vien_ten}</div>}
+                    {(k.loai === "Mien" || k.loai === "Trung chuyen") && k.nhan_vien_ten && <div className="muted small">{t("Người phụ trách:")} {k.nhan_vien_ten}</div>}
                     {k.loai === "HCNS" && <div className="muted small">{t("Mọi tài khoản HCNS / Admin")}</div>}
                     {k.loai === "Mua hang" && <div className="muted small">{t("Kho nguồn ảo - chỉ dùng cho phiếu nhập mua")}</div>}
                     {k.loai === "Tieu hao" && <div className="muted small">{t("Điểm tiêu dùng văn phòng - xuất vào là tiêu hao hết, không tính tồn")}</div>}
@@ -464,9 +474,13 @@ function CauHinhKho() {
                   <StatusBadge label={k.bat_tat ? t("Hoạt động") : t("Ngừng")} tone={k.bat_tat ? "success" : "neutral"} />
                 </td>
                 <td data-label={t("Thao tác")} style={{ textAlign: "right" }}>
-                  {(k.loai === "Quan ly" || (k.loai === "Mien" && k.nhan_vien_id)) && (
-                    <button className="btn btn-outline btn-sm" style={{ marginRight: 6 }} onClick={() => setDoiLoai({ kho: k, ten: k.ten_kho })}>
-                      {k.loai === "Quan ly" ? t("→ Kho miền") : t("→ Kho quản lý")}
+                  {LOAI_DOI.includes(k.loai) && (
+                    <button
+                      className="btn btn-outline btn-sm"
+                      style={{ marginRight: 6 }}
+                      onClick={() => setDoiLoai({ kho: k, ten: k.ten_kho, loai: LOAI_DOI.find((l) => l !== k.loai)!, nv: "" })}
+                    >
+                      {t("Đổi loại kho")}
                     </button>
                   )}
                   {k.id > 2 && (
@@ -501,6 +515,7 @@ function CauHinhKho() {
             <label className="field-label">{t("Loại kho")}</label>
             <select value={loaiMoi} onChange={(e) => setLoaiMoi(e.target.value as LoaiKho)}>
               <option value="Mien">{t("Kho miền")}</option>
+              <option value="Trung chuyen">{t("Kho trung chuyển (đại diện văn phòng nhận rồi phát cho nhân viên)")}</option>
               <option value="Tieu hao">{t("Kho tiêu hao (điểm tiêu dùng văn phòng)")}</option>
               <option value="HCNS">{t("Kho HCNS")}</option>
               <option value="Mua hang">{t("Kho mua hàng (nguồn nhập)")}</option>
@@ -508,7 +523,9 @@ function CauHinhKho() {
             <div className="field-hint">
               {loaiMoi === "Tieu hao"
                 ? t("Kho tiêu hao: VPP, vệ sinh, đóng hàng… xuất vào là tiêu hao hết (trừ tồn kho xuất), không tính tồn, không chuyển đi được.")
-                : t("Kho quản lý được tạo tự động khi gán quản lý trực tiếp cho nhân viên.")}
+                : loaiMoi === "Trung chuyen"
+                  ? t("Kho trung chuyển hoạt động giống hệt kho miền: nhận hàng từ kho HCNS / kho miền, cấp phát cho mọi nhân viên công ty. Gán thủ kho (người đại diện) sau khi tạo.")
+                  : t("Kho quản lý được tạo tự động khi gán quản lý trực tiếp cho nhân viên.")}
             </div>
           </div>
           <div className="modal-actions">
@@ -533,15 +550,35 @@ function CauHinhKho() {
       )}
 
       {doiLoai && (
-        <Modal
-          title={doiLoai.kho.loai === "Quan ly" ? t("Chuyển thành kho miền") : t("Chuyển về kho quản lý")}
-          onClose={() => setDoiLoai(null)}
-        >
-          <div className="alert alert-info">
-            {doiLoai.kho.loai === "Quan ly"
-              ? t("Kho miền được nhận hàng từ HCNS / kho miền khác, chuyển tiếp cho mọi kho và cấp phát / bàn giao cho TẤT CẢ nhân viên (không giới hạn nhóm). Tồn kho, lịch sử phiếu giữ nguyên; {nv} vẫn là người phụ trách (thủ kho) của kho.", { nv: doiLoai.kho.nhan_vien_ten ?? "" })
-              : t("Kho quản lý chỉ cấp phát cho {nv} và nhân viên cấp dưới trực tiếp, không chuyển sang kho quản lý khác. Tồn kho, lịch sử phiếu giữ nguyên.", { nv: doiLoai.kho.nhan_vien_ten ?? "" })}
+        <Modal title={t("Đổi loại kho · {x}", { x: doiLoai.kho.ten_kho })} onClose={() => setDoiLoai(null)}>
+          <div className="field-group">
+            <label className="field-label">{t("Chuyển thành")}</label>
+            <select value={doiLoai.loai} onChange={(e) => setDoiLoai({ ...doiLoai, loai: e.target.value as LoaiKho })}>
+              {LOAI_DOI.filter((l) => l !== doiLoai.kho.loai).map((l) => (
+                <option key={l} value={l}>
+                  {LOAI_KHO[l]}
+                </option>
+              ))}
+            </select>
           </div>
+          <div className="alert alert-info">
+            {doiLoai.loai !== "Quan ly"
+              ? t("{loai} được nhận hàng từ HCNS / kho miền khác, chuyển tiếp cho mọi kho và cấp phát / bàn giao cho TẤT CẢ nhân viên (không giới hạn nhóm). Tồn kho, lịch sử phiếu, thủ kho đã gán giữ nguyên.", { loai: LOAI_KHO[doiLoai.loai] })
+              : t("Kho quản lý chỉ cấp phát cho {nv} và nhân viên cấp dưới trực tiếp, không chuyển sang kho quản lý khác. Tồn kho, lịch sử phiếu giữ nguyên.", {
+                  nv: doiLoai.kho.nhan_vien_ten ?? dsNv.find((n) => n.ma_nv === doiLoai.nv)?.ten_nv ?? t("người phụ trách"),
+                })}
+          </div>
+          {canChonNv && (
+            <div className="field-group">
+              <label className="field-label">{t("Người phụ trách (chủ kho quản lý) *")}</label>
+              <SearchSelect
+                options={dsNv.filter((n) => n.cong_ty_id == null || n.cong_ty_id === doiLoai.kho.cong_ty_id).map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` }))}
+                value={doiLoai.nv}
+                onChange={(nv) => setDoiLoai({ ...doiLoai, nv })}
+                placeholder={t("Tìm nhân viên...")}
+              />
+            </div>
+          )}
           <div className="field-group">
             <label className="field-label">{t("Tên kho *")}</label>
             <input type="text" value={doiLoai.ten} onChange={(e) => setDoiLoai({ ...doiLoai, ten: e.target.value })} autoFocus />
@@ -552,12 +589,11 @@ function CauHinhKho() {
             </button>
             <button
               className="btn btn-primary"
-              disabled={!doiLoai.ten.trim()}
+              disabled={!doiLoai.ten.trim() || (canChonNv && !doiLoai.nv)}
               onClick={() => {
-                const { kho: k, ten } = doiLoai;
-                const loai = k.loai === "Quan ly" ? "Mien" : "Quan ly";
+                const { kho: k, ten, loai, nv } = doiLoai;
                 run(async () => {
-                  await api.post(`/kho/${k.id}/doi-loai`, { loai, ten_kho: ten.trim() });
+                  await api.post(`/kho/${k.id}/doi-loai`, { loai, ten_kho: ten.trim(), nhan_vien_id: nv || undefined });
                   setDoiLoai(null);
                 }, t("Đã chuyển {ten} thành {loai}.", { ten: ten.trim(), loai: LOAI_KHO[loai] }));
               }}

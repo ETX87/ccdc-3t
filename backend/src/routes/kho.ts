@@ -4,7 +4,7 @@ import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { requireRole } from "../middleware/requireRole";
 import { formatVNFromMs, nowVN } from "../lib/vnTime";
-import { getKho, khoPhuTrach, laHcns, type LoaiKho } from "../lib/quyen";
+import { getKho, khoPhuTrach, laHcns, LOAI_DOI_DUOC, type LoaiKho } from "../lib/quyen";
 import { layPhamVi } from "../lib/phamVi";
 
 // Danh muc kho (chuoi KHO MUA -> HCNS -> MIEN -> QL) + gan thu kho. Kho QL thuong duoc tao tu dong
@@ -12,7 +12,7 @@ import { layPhamVi } from "../lib/phamVi";
 const kho = new Hono<{ Bindings: Env }>();
 kho.use("*", verifySessionMiddleware, loadUser);
 
-const LOAI_HOP_LE: LoaiKho[] = ["Mua hang", "HCNS", "Mien", "Quan ly", "Tieu hao"];
+const LOAI_HOP_LE: LoaiKho[] = ["Mua hang", "HCNS", "Mien", "Trung chuyen", "Quan ly", "Tieu hao"];
 
 // Danh sach kho cac cong ty dang xem (bo loc cong ty tren topbar).
 kho.get("/", async (c) => {
@@ -21,7 +21,7 @@ kho.get("/", async (c) => {
             (SELECT group_concat(t.email, ',') FROM kho_thu_kho t WHERE t.kho_id = k.id) AS thu_kho
      FROM kho k LEFT JOIN nhan_vien nv ON nv.ma_nv = k.nhan_vien_id JOIN cong_ty ct ON ct.id = k.cong_ty_id
      WHERE k.cong_ty_id IN (SELECT value FROM json_each(?))
-     ORDER BY k.cong_ty_id, CASE k.loai WHEN 'Mua hang' THEN 0 WHEN 'HCNS' THEN 1 WHEN 'Mien' THEN 2 WHEN 'Quan ly' THEN 3 ELSE 4 END, k.ten_kho`,
+     ORDER BY k.cong_ty_id, CASE k.loai WHEN 'Mua hang' THEN 0 WHEN 'HCNS' THEN 1 WHEN 'Mien' THEN 2 WHEN 'Trung chuyen' THEN 2 WHEN 'Quan ly' THEN 3 ELSE 4 END, k.ten_kho`,
   )
     .bind(JSON.stringify(c.get("user").cong_ty_xem))
     .all<{ thu_kho: string | null }>();
@@ -36,7 +36,7 @@ kho.get("/dich", async (c) => {
     `SELECT k.id, k.ten_kho, k.loai, k.nhan_vien_id, k.bat_tat, k.cong_ty_id, ct.ma AS cong_ty_ma
      FROM kho k JOIN cong_ty ct ON ct.id = k.cong_ty_id
      WHERE k.bat_tat = 1 AND ct.bat_tat = 1 AND k.loai NOT IN ('Mua hang', 'Tieu hao')
-     ORDER BY k.cong_ty_id, CASE k.loai WHEN 'HCNS' THEN 1 WHEN 'Mien' THEN 2 ELSE 3 END, k.ten_kho`,
+     ORDER BY k.cong_ty_id, CASE k.loai WHEN 'HCNS' THEN 1 WHEN 'Mien' THEN 2 WHEN 'Trung chuyen' THEN 2 ELSE 3 END, k.ten_kho`,
   ).all();
   return c.json({ rows: results });
 });
@@ -78,7 +78,7 @@ kho.get("/tong-hop", async (c) => {
        LEFT JOIN nhan_vien nv ON nv.ma_nv = k.nhan_vien_id
        LEFT JOIN ton ON ton.kho_id = k.id LEFT JOIN ts ON ts.kho_id = k.id LEFT JOIN cn ON cn.kho_id = k.id
        WHERE k.loai NOT IN ('Mua hang', 'Tieu hao') AND ${loc}
-       ORDER BY CASE k.loai WHEN 'HCNS' THEN 1 WHEN 'Mien' THEN 2 ELSE 3 END, k.ten_kho`,
+       ORDER BY CASE k.loai WHEN 'HCNS' THEN 1 WHEN 'Mien' THEN 2 WHEN 'Trung chuyen' THEN 2 ELSE 3 END, k.ten_kho`,
     )
     .bind(moc, ...(pv.toanBo ? [] : [JSON.stringify(pv.khoIds)]))
     .all();
@@ -143,20 +143,31 @@ kho.put("/:id", requireRole("Admin", "HCNS"), async (c) => {
   return c.json({ ok: true });
 });
 
-// Doi loai kho QL <-> Mien (vd kho QL phat cho MOI nhan vien, khong chi nhom). Giu nguyen id, ton, lich su
+// Doi loai kho Mien <-> Trung chuyen <-> QL (vd kho QL phat cho MOI nhan vien, khong chi nhom). Giu nguyen id, ton, lich su
 // va nhan_vien_id (nguoi phu trach - van la thu kho mac nhien; giu de dong bo ETX / gan quan ly khong tu tao
 // lai "Kho QL - ..." moi nho ON CONFLICT(nhan_vien_id)). Chi anh huong quy tac cua phieu lap SAU khi doi.
+// Kho chua co nguoi phu trach -> sang kho QL phai chon 1 nhan vien (cung cong ty, chua co kho rieng).
 kho.post("/:id/doi-loai", requireRole("Admin", "HCNS"), async (c) => {
   const id = Number(c.req.param("id"));
-  const body = await c.req.json<{ loai?: LoaiKho; ten_kho?: string }>().catch(() => null);
-  if (body?.loai !== "Mien" && body?.loai !== "Quan ly") return c.json({ error: "MISSING_FIELDS" }, 400);
+  const body = await c.req.json<{ loai?: LoaiKho; ten_kho?: string; nhan_vien_id?: string }>().catch(() => null);
+  if (!body?.loai || !LOAI_DOI_DUOC.includes(body.loai)) return c.json({ error: "MISSING_FIELDS" }, 400);
   const q = await khoQuanTri(c.env.DB, c.get("user"), id);
   if ("error" in q) return c.json({ error: q.error }, q.status);
   const k = q.kho;
-  if (k.loai !== "Mien" && k.loai !== "Quan ly") return c.json({ error: "CHI_DOI_KHO_QL_MIEN" }, 400);
-  if (body.loai === "Quan ly" && !k.nhan_vien_id) return c.json({ error: "MISSING_NHAN_VIEN" }, 400);
+  if (!LOAI_DOI_DUOC.includes(k.loai)) return c.json({ error: "CHI_DOI_KHO_QL_MIEN" }, 400);
+  if (k.loai === body.loai) return c.json({ error: "TRUNG_LOAI_KHO" }, 400);
+  let nv = k.nhan_vien_id;
+  if (body.loai === "Quan ly" && !nv) {
+    const chon = body.nhan_vien_id?.trim();
+    if (!chon) return c.json({ error: "MISSING_NHAN_VIEN" }, 400);
+    const r = await c.env.DB.prepare("SELECT cong_ty_id FROM nhan_vien WHERE ma_nv = ? AND dang_lam_viec = 1").bind(chon).first<{ cong_ty_id: number }>();
+    if (!r) return c.json({ error: "NHAN_VIEN_NOT_FOUND" }, 404);
+    if (r.cong_ty_id !== k.cong_ty_id) return c.json({ error: "NHAN_VIEN_KHAC_CONG_TY" }, 400);
+    if (await c.env.DB.prepare("SELECT id FROM kho WHERE nhan_vien_id = ?").bind(chon).first()) return c.json({ error: "QL_DA_CO_KHO" }, 409);
+    nv = chon;
+  }
   const ten = body.ten_kho?.trim() || k.ten_kho;
-  await c.env.DB.prepare("UPDATE kho SET loai = ?, ten_kho = ?, updated_at = ? WHERE id = ?").bind(body.loai, ten, nowVN(), id).run();
+  await c.env.DB.prepare("UPDATE kho SET loai = ?, ten_kho = ?, nhan_vien_id = ?, updated_at = ? WHERE id = ?").bind(body.loai, ten, nv, nowVN(), id).run();
   return c.json({ ok: true });
 });
 

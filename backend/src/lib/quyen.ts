@@ -4,10 +4,14 @@ import type { AppUser } from "../types";
 // PHAI kiem tra lai o server qua cac ham nay - KHONG tin kho_id/ma_nv client gui len (vd 1 QL gui
 // tu_kho_id cua kho HCNS, hoac xuat cho nguoi ngoai nhom = IDOR).
 
-export type LoaiKho = "Mua hang" | "HCNS" | "Mien" | "Quan ly" | "Tieu hao";
+export type LoaiKho = "Mua hang" | "HCNS" | "Mien" | "Trung chuyen" | "Quan ly" | "Tieu hao";
 /** Kho TINH TON (khong phai kho mua hang - nguon ao, hay kho tieu hao - diem tieu dung cua van phong). */
 export const KHO_TON_SQL = "NOT IN ('Mua hang', 'Tieu hao')";
 export const laKhoTon = (loai: LoaiKho) => loai !== "Mua hang" && loai !== "Tieu hao";
+/** Kho cap phat cho MOI nhan vien cong ty (khong gioi han nhom): HCNS, Mien, Trung chuyen (= Mien, chi khac ten). */
+export const laKhoPhatChung = (loai: LoaiKho) => loai === "HCNS" || loai === "Mien" || loai === "Trung chuyen";
+/** Cac loai kho doi qua lai duoc (POST /kho/:id/doi-loai). */
+export const LOAI_DOI_DUOC: LoaiKho[] = ["Mien", "Trung chuyen", "Quan ly"];
 
 export interface KhoRow {
   id: number;
@@ -55,7 +59,7 @@ export function laHcns(user: AppUser, congTyId?: number | null): boolean {
 //   - HCNS: moi kho loai 'HCNS' + 'Mua hang' (lap phieu nhap mua) - khong can gan tay.
 //   - Thu kho duoc gan (kho_thu_kho) - doc lap vai tro.
 //   - Nguoi phu trach kho: kho co nhan_vien_id = ho so nhan vien cua chinh ho (kho QL, hoac kho QL da
-//     doi thanh kho Mien - POST /kho/:id/doi-loai - van giu nguoi phu trach).
+//     doi thanh kho Mien / Trung chuyen - POST /kho/:id/doi-loai - van giu nguoi phu trach).
 export async function khoPhuTrach(db: D1Database, user: AppUser): Promise<KhoRow[]> {
   const congTy = JSON.stringify(user.cong_ty_ids);
   const cot = "id, ten_kho, loai, nhan_vien_id, bat_tat, cong_ty_id";

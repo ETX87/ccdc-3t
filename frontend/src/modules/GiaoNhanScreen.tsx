@@ -16,7 +16,7 @@ import { useDuLieuChung } from "../lib/duLieuChung";
 import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
-import { LOAI_GIAO_NHAN, LOAI_KHO, isHcns, laKhoTon, thongBaoLoi } from "../lib/nhan";
+import { LOAI_GIAO_NHAN, LOAI_KHO, isHcns, laKhoPhatChung, laKhoTon, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 
@@ -85,7 +85,7 @@ export function GiaoNhanScreen() {
   const { viec, reload: reloadViec } = useDuLieuChung();
   const user = auth.status === "authenticated" ? auth.user : null;
   const myKho = useMemo(() => (user?.kho_phu_trach ?? []).filter(laKhoTon), [user]);
-  const toanQuyen = !!user && (isHcns(user) || myKho.some((k) => k.loai === "HCNS" || k.loai === "Mien"));
+  const toanQuyen = !!user && (isHcns(user) || myKho.some(laKhoPhatChung));
 
   const [phieus, setPhieus] = useState<PhieuRow[] | null>(null);
   const [choXacNhan, setChoXacNhan] = useState<PhieuRow[]>([]);

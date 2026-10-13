@@ -3,7 +3,7 @@ import type { Env } from "../types";
 import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { nowVN } from "../lib/vnTime";
-import { laKhoTon, coCongTy, getKho, khoPhuTrach, laBenNhan, laHcns, laNguoiLap, laKeToan, laThuKho, trongNhom } from "../lib/quyen";
+import { laKhoTon, laKhoPhatChung, coCongTy, getKho, khoPhuTrach, laBenNhan, laHcns, laNguoiLap, laKeToan, laThuKho, trongNhom } from "../lib/quyen";
 import { sinhMaPhieu } from "../lib/maPhieu";
 import { layPhamVi } from "../lib/phamVi";
 
@@ -199,7 +199,7 @@ phieuGiaoNhan.post("/", async (c) => {
     congTyId = await congTyNv(db, body.nhan_vien_nhan_moi_id);
     if (congTyId == null || (await congTyNv(db, body.nhan_vien_id)) !== congTyId) return c.json({ error: "NHAN_VIEN_KHAC_CONG_TY" }, 400);
     const ctDc = congTyId;
-    const toanQuyen = laHcns(user, ctDc) || (await khoPhuTrach(db, user)).some((k) => (k.loai === "HCNS" || k.loai === "Mien") && k.cong_ty_id === ctDc);
+    const toanQuyen = laHcns(user, ctDc) || (await khoPhuTrach(db, user)).some((k) => laKhoPhatChung(k.loai) && k.cong_ty_id === ctDc);
     if (!toanQuyen) {
       const ok =
         !!user.ma_nv &&

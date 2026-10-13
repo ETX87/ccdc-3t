@@ -17,7 +17,7 @@ import { exportRowsToExcel } from "../lib/exportExcel";
 import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTriDong, fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
-import { LOAI_KHO, LOAI_PHIEU_CK, TRANG_THAI_CK, isHcns, laKhoTon, thongBaoLoi } from "../lib/nhan";
+import { LOAI_KHO, LOAI_PHIEU_CK, TRANG_THAI_CK, isHcns, laKhoPhatChung, laKhoTon, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
 
 interface KhoRow {
@@ -220,12 +220,12 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
     if (loai === "Nhap mua") return k.loai === "HCNS" && k.cong_ty_id === congTyNguon;
     if (k.id === tuKho || k.loai === "Mua hang") return false;
     if (k.cong_ty_id !== congTyNguon) return true;
-    if (tuKhoRow?.loai === "Quan ly") return k.loai === "HCNS" || k.loai === "Mien";
+    if (tuKhoRow?.loai === "Quan ly") return laKhoPhatChung(k);
     return true;
   });
   const denKhoRow = khoDichAll.find((k) => k.id === denKho);
   const chuyenCongTy = loai === "Chuyen kho" && !!denKhoRow && congTyNguon != null && denKhoRow.cong_ty_id !== congTyNguon;
-  // Kho QL chi cap cho chinh QL + cap duoi truc tiep; kho HCNS/Mien cap cho moi nhan vien CUNG CONG TY kho.
+  // Kho QL chi cap cho chinh QL + cap duoi truc tiep; kho HCNS/Mien/Trung chuyen cap cho moi nhan vien CUNG CONG TY kho.
   const nvHopLe = useMemo(() => {
     const cungCt = (n: NvRow) => n.cong_ty_id == null || n.cong_ty_id === congTyNguon;
     if (tuKhoRow?.loai === "Quan ly") {

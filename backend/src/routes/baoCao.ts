@@ -75,7 +75,7 @@ baoCao.get("/ton-theo-kho", async (c) => {
     c.env.DB.prepare(
       `SELECT k.id, k.ten_kho, k.loai, k.cong_ty_id FROM kho k
        WHERE k.bat_tat = 1 AND k.loai NOT IN ('Mua hang', 'Tieu hao') AND k.cong_ty_id IN (SELECT value FROM json_each(?)) AND ${dk.sql}
-       ORDER BY CASE k.loai WHEN 'HCNS' THEN 1 WHEN 'Mien' THEN 2 ELSE 3 END, k.ten_kho`,
+       ORDER BY CASE k.loai WHEN 'HCNS' THEN 1 WHEN 'Mien' THEN 2 WHEN 'Trung chuyen' THEN 2 ELSE 3 END, k.ten_kho`,
     ).bind(ct, ...dk.binds),
     c.env.DB.prepare(
       `SELECT v.id, v.ten_vt, v.don_vi_tinh, n.ten_nhom, v.don_gia_tham_khao FROM vt_tieu_hao v LEFT JOIN nhom_ccdc n ON n.id = v.nhom_id

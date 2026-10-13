@@ -4,7 +4,7 @@ import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { requireRole } from "../middleware/requireRole";
 import { nowVN } from "../lib/vnTime";
-import { coCongTy, congTyTao, khoPhuTrach, laHcns } from "../lib/quyen";
+import { coCongTy, congTyTao, khoPhuTrach, laHcns, laKhoPhatChung } from "../lib/quyen";
 import { dkTaiSan, layPhamVi } from "../lib/phamVi";
 import { sinhMaPhieu } from "../lib/maPhieu";
 import { docTrang, layTrang } from "../lib/phanTrang";
@@ -22,7 +22,7 @@ async function dieuKienLoc(c: Context<{ Bindings: Env }>, boTrangThai = false) {
   const conditions = ["c.vo_hieu_hoa = 0", "c.cong_ty_id IN (SELECT value FROM json_each(?))"];
   const binds: unknown[] = [JSON.stringify(user.cong_ty_xem)];
   const pv = await layPhamVi(c.env.DB, user);
-  const moiTaiSan = pv.toanBo || (await khoPhuTrach(c.env.DB, user)).some((k) => k.loai === "HCNS" || k.loai === "Mien");
+  const moiTaiSan = pv.toanBo || (await khoPhuTrach(c.env.DB, user)).some((k) => laKhoPhatChung(k.loai));
   if (!moiTaiSan) {
     const dk = dkTaiSan(pv);
     conditions.push(dk.sql);

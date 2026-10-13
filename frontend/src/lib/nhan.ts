@@ -22,12 +22,15 @@ export const LOAI_KHO: Record<LoaiKho, string> = {
   "Mua hang": t("Kho mua hàng"),
   HCNS: t("Kho HCNS"),
   Mien: t("Kho miền"),
+  "Trung chuyen": t("Kho trung chuyển"),
   "Quan ly": t("Kho quản lý"),
   "Tieu hao": t("Kho tiêu hao"),
 };
 
 /** Kho TINH TON (khong phai kho mua hang - nguon ao, hay kho tieu hao - diem tieu dung van phong). */
 export const laKhoTon = (k: { loai: LoaiKho | string }) => k.loai !== "Mua hang" && k.loai !== "Tieu hao";
+/** Kho cap phat cho MOI nhan vien cong ty: HCNS, Mien, Trung chuyen (= kho mien, chi khac ten). */
+export const laKhoPhatChung = (k: { loai: LoaiKho | string }) => k.loai === "HCNS" || k.loai === "Mien" || k.loai === "Trung chuyen";
 
 export const LOAI_PHIEU_CK: Record<string, string> = {
   "Nhap mua": t("Nhập mua"),
@@ -101,7 +104,8 @@ const LOI: Record<string, string> = {
   KHONG_TU_DUYET: t("Người lập phiếu không được tự duyệt phiếu của mình - Kế toán khác duyệt."),
   TRUNG_KHO: t("Kho nguồn và kho đích trùng nhau."),
   QL_KHONG_CHUYEN_SANG_KHO_QL_KHAC: t("Kho quản lý chỉ trả về kho HCNS/miền."),
-  CHI_DOI_KHO_QL_MIEN: t("Chỉ đổi qua lại được giữa kho quản lý và kho miền."),
+  CHI_DOI_KHO_QL_MIEN: t("Chỉ đổi qua lại được giữa kho miền, kho trung chuyển và kho quản lý."),
+  TRUNG_LOAI_KHO: t("Kho đã thuộc loại này."),
   USER_CHUA_DANG_NHAP: t("Email này chưa từng đăng nhập hệ thống - cần đăng nhập 1 lần trước khi gán."),
   ID_EXISTS: t("Mã này đã tồn tại."),
   FORBIDDEN: t("Bạn không có quyền thực hiện thao tác này."),

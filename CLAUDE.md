@@ -56,7 +56,11 @@ state đang dùng.
   bảng gán riêng `kho_thu_kho` (kho, email), độc lập vai trò; QL tự là thủ kho kho QL của mình.
 - Kho: `Mua hang` (id 1, nguồn ảo, không tính tồn) → `HCNS` (id 2) → `Mien` → `Quan ly` (1 kho/QL,
   `nhan_vien_id` UNIQUE) → NV. Tồn tiêu hao tính động qua view `v_ton_kho` (không denormalize).
-- **Đổi loại kho QL ↔ Miền** (2026-10-07, `POST /kho/:id/doi-loai`, nút "→ Kho miền" ở Cấu hình kho): giữ id,
+- **Kho `Trung chuyen`** (2026-10-13, migration 0016) = kho miền khác tên (đại diện văn phòng nhận từ HCNS/kho miền rồi
+  phát cho NV). Kiểm "phát cho mọi NV" dùng `laKhoPhatChung()` (backend `quyen.ts`, frontend `lib/nhan.ts`) — KHÔNG
+  so `=== "Mien"` rời rạc. Đổi qua lại Miền ↔ Trung chuyển ↔ QL (`LOAI_DOI_DUOC`); kho chưa có người phụ trách → QL
+  phải gửi `nhan_vien_id`.
+- **Đổi loại kho QL ↔ Miền** (2026-10-07, `POST /kho/:id/doi-loai`, nút "Đổi loại kho" ở Cấu hình kho): giữ id,
   tồn, lịch sử và `nhan_vien_id` (= "người phụ trách", vẫn là thủ kho mặc nhiên qua `khoPhuTrach` với MỌI loại
   kho; giữ để ETX/gán quản lý không tự tạo lại "Kho QL - …" nhờ `ON CONFLICT(nhan_vien_id)`). Kho miền cấp phát
   cho mọi nhân viên, chuyển được sang kho QL; thủ kho kho miền xem mọi tài sản + điều chuyển TSCĐ toàn hệ thống.

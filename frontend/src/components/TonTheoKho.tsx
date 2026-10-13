@@ -10,7 +10,7 @@ import { useKhiThayDoi } from "../lib/suKien";
 import { thongBaoLoi } from "../lib/nhan";
 
 // Ma tran ton tieu hao: dong = vat tu, cot = kho (nguoi xem chon cot, luu tren may - localStorage). Bam 1 o -> the kho.
-// Mac dinh cot: kho HCNS + kho mien (kho van chinh); them kho QL (vd Nam Dinh, Hai Duong) bang nut "Chọn kho".
+// Mac dinh cot: kho HCNS + kho mien + kho trung chuyen; them kho QL (vd Nam Dinh, Hai Duong) bang nut "Chọn kho".
 
 interface Kho {
   id: number;
@@ -62,7 +62,7 @@ export function TonTheoKho({ tim, onDangTai }: { tim: string; onDangTai?: (b: bo
     const ds = data?.kho ?? [];
     const chon = cot?.filter((id) => ds.some((k) => k.id === id));
     if (chon?.length) return chon.map((id) => ds.find((k) => k.id === id)!);
-    return ds.filter((k) => k.loai === "HCNS" || k.loai === "Mien");
+    return ds.filter((k) => k.loai === "HCNS" || k.loai === "Mien" || k.loai === "Trung chuyen");
   }, [data, cot]);
   const tonMap = useMemo(() => {
     const m = new Map<string, number>();

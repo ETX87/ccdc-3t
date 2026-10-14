@@ -94,7 +94,11 @@ phieuChuyenKho.get("/", async (c) => {
             (SELECT COUNT(*) FROM phieu_chuyen_kho_ct ct WHERE ct.phieu_id = p.id) AS so_dong,
             (SELECT group_concat(v.ten_vt || CASE WHEN ct.dau IS NULL THEN ' x' || printf('%g', ct.so_luong) ELSE ' ' || printf('%+g', ct.so_luong * ct.dau) END, '; ') FROM phieu_chuyen_kho_ct ct
                JOIN vt_tieu_hao v ON v.id = ct.vt_id WHERE ct.phieu_id = p.id) AS tom_tat,
-            (SELECT SUM(ct.thanh_tien) FROM phieu_chuyen_kho_ct ct WHERE ct.phieu_id = p.id) AS tong_tien
+            (SELECT SUM(ct.thanh_tien) FROM phieu_chuyen_kho_ct ct WHERE ct.phieu_id = p.id) AS tong_tien,
+            (SELECT SUM(CASE WHEN COALESCE(ct.dau, 1) > 0 THEN ct.so_luong ELSE 0 END) FROM phieu_chuyen_kho_ct ct WHERE ct.phieu_id = p.id) AS tong_sl,
+            (SELECT SUM(CASE WHEN ct.dau < 0 THEN ct.so_luong ELSE 0 END) FROM phieu_chuyen_kho_ct ct WHERE ct.phieu_id = p.id) AS sl_giam,
+            (SELECT CASE WHEN COUNT(DISTINCT COALESCE(v.don_vi_tinh, '')) = 1 THEN MAX(v.don_vi_tinh) END FROM phieu_chuyen_kho_ct ct
+               JOIN vt_tieu_hao v ON v.id = ct.vt_id WHERE ct.phieu_id = p.id) AS dvt_chung
      FROM phieu_chuyen_kho p
      JOIN kho kt ON kt.id = p.tu_kho_id
      LEFT JOIN kho kd ON kd.id = p.den_kho_id

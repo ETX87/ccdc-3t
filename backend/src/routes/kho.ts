@@ -85,6 +85,74 @@ kho.get("/tong-hop", async (c) => {
   return c.json({ cap_nhat_luc: nowVN(), toan_bo: pv.toanBo, rows: results });
 });
 
+// GET /nhap-xuat-ton?tu=YYYY-MM-DD&den=YYYY-MM-DD[&kho_id=] - nhap / xuat / ton tieu hao theo ky (cung quy tac v_ton_kho):
+//   ton dau ky = moi bien dong truoc `tu`; nhap / xuat = bien dong trong ky; ton cuoi = dau + nhap - xuat (den = hom nay
+//   -> khop ton hien tai). Ngay bien dong: vao kho (Da nhan) + dieu chinh tinh luc doi trang thai (updated_at - luc thu kho
+//   xac nhan / KT duyet), ra kho tinh luc lap phieu (created_at - tru ton ngay). Dieu chinh +/- gop vao nhap / xuat.
+//   Khong kho_id: 1 dong / kho (pham vi xem nhu /tong-hop). Co kho_id: 1 dong / mat hang cua kho do. Gia tri = SL x gia tham khao.
+kho.get("/nhap-xuat-ton", async (c) => {
+  const db = c.env.DB;
+  const pv = await layPhamViXemTon(db, c.get("user"));
+  if (!pv.xemTongHop) return c.json({ error: "FORBIDDEN" }, 403);
+  const ngay = /^\d{4}-\d{2}-\d{2}$/;
+  const tu = c.req.query("tu") ?? "";
+  const den = c.req.query("den") ?? "";
+  if (!ngay.test(tu) || !ngay.test(den) || tu > den) return c.json({ error: "MISSING_FIELDS" }, 400);
+  const khoId = Number(c.req.query("kho_id")) || null;
+  if (khoId && !pv.toanBo && !pv.khoIds.includes(khoId)) return c.json({ error: "FORBIDDEN" }, 403);
+  const tuTs = `${tu} 00:00:00`;
+  const denTs = `${den} 23:59:59`;
+  const loc = khoId ? "k.id = ?" : pv.toanBo ? "1=1" : "k.id IN (SELECT value FROM json_each(?))";
+  const locBind = khoId ? [khoId] : pv.toanBo ? [] : [JSON.stringify(pv.khoIds)];
+  const nhom = khoId ? "m.vt_id" : "m.kho_id";
+  const { results } = await db
+    .prepare(
+      `WITH m AS (
+         SELECT p.den_kho_id AS kho_id, COALESCE(ct.vt_id_den, ct.vt_id) AS vt_id, p.updated_at AS ngay, ct.so_luong AS delta
+         FROM phieu_chuyen_kho p JOIN phieu_chuyen_kho_ct ct ON ct.phieu_id = p.id
+         WHERE p.den_kho_id IS NOT NULL AND p.trang_thai = 'Da nhan'
+         UNION ALL
+         SELECT p.tu_kho_id, ct.vt_id, p.created_at, -ct.so_luong
+         FROM phieu_chuyen_kho p JOIN phieu_chuyen_kho_ct ct ON ct.phieu_id = p.id
+         WHERE p.trang_thai IN ('Dang chuyen', 'Da nhan', 'Da giao')
+         UNION ALL
+         SELECT p.tu_kho_id, ct.vt_id, p.updated_at, ct.so_luong * ct.dau
+         FROM phieu_chuyen_kho p JOIN phieu_chuyen_kho_ct ct ON ct.phieu_id = p.id
+         WHERE p.loai = 'Dieu chinh' AND p.trang_thai = 'Da dieu chinh'),
+       a AS (
+         SELECT ${nhom} AS khoa,
+                SUM(CASE WHEN m.ngay < ?1 THEN m.delta ELSE 0 END) AS ton_dau,
+                SUM(CASE WHEN m.ngay >= ?1 AND m.ngay <= ?2 AND m.delta > 0 THEN m.delta ELSE 0 END) AS nhap,
+                SUM(CASE WHEN m.ngay >= ?1 AND m.ngay <= ?2 AND m.delta < 0 THEN -m.delta ELSE 0 END) AS xuat,
+                SUM(CASE WHEN m.ngay < ?1 THEN m.delta ELSE 0 END * COALESCE(v.don_gia_tham_khao, 0)) AS gt_dau,
+                SUM(CASE WHEN m.ngay >= ?1 AND m.ngay <= ?2 AND m.delta > 0 THEN m.delta ELSE 0 END * COALESCE(v.don_gia_tham_khao, 0)) AS gt_nhap,
+                SUM(CASE WHEN m.ngay >= ?1 AND m.ngay <= ?2 AND m.delta < 0 THEN -m.delta ELSE 0 END * COALESCE(v.don_gia_tham_khao, 0)) AS gt_xuat,
+                COUNT(DISTINCT CASE WHEN m.ngay >= ?1 AND m.ngay <= ?2 THEN m.vt_id END) AS so_mat_hang_ps
+         FROM m JOIN kho k ON k.id = m.kho_id AND k.loai NOT IN ('Mua hang', 'Tieu hao')
+         JOIN vt_tieu_hao v ON v.id = m.vt_id
+         WHERE m.ngay <= ?2 AND ${loc.replace("?", "?3")}
+         GROUP BY ${nhom})
+       ${
+         khoId
+           ? `SELECT v.id AS vt_id, v.ten_vt, v.don_vi_tinh, a.* FROM a JOIN vt_tieu_hao v ON v.id = a.khoa
+              WHERE a.ton_dau <> 0 OR a.nhap <> 0 OR a.xuat <> 0 ORDER BY v.ten_vt`
+           : `SELECT a.khoa AS kho_id, a.* FROM a`
+       }`,
+    )
+    .bind(tuTs, denTs, ...locBind)
+    .all<Record<string, number | string | null>>();
+  const tron = (x: unknown) => Math.round(Number(x ?? 0) * 1000) / 1000;
+  const rows = results.map((r) => {
+    const o: Record<string, number | string | null> = { ...r };
+    for (const k of ["ton_dau", "nhap", "xuat", "gt_dau", "gt_nhap", "gt_xuat"]) o[k] = tron(r[k]);
+    o.ton_cuoi = tron(Number(o.ton_dau) + Number(o.nhap) - Number(o.xuat));
+    o.gt_cuoi = Math.round(Number(o.gt_dau) + Number(o.gt_nhap) - Number(o.gt_xuat));
+    delete o.khoa;
+    return o;
+  });
+  return c.json({ tu, den, kho_id: khoId, rows });
+});
+
 interface Body {
   ten_kho?: string;
   loai?: LoaiKho;

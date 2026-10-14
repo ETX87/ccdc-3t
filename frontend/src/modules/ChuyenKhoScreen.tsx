@@ -64,6 +64,10 @@ interface PhieuRow {
   created_at: string;
   tom_tat: string | null;
   tong_tien: number | null;
+  tong_sl: number | null;
+  sl_giam?: number | null;
+  so_dong?: number;
+  dvt_chung: string | null;
 }
 interface ThongKe {
   thang: string;
@@ -82,6 +86,43 @@ interface Dong {
   don_gia: string;
 }
 
+function denText(p: PhieuRow): string {
+  if (p.den_kho_ten) return p.den_kho_ten;
+  if (p.den_nhan_vien_ten) return p.den_nhan_vien_ten;
+  if (p.nguoi_nhan_ten_tu_do) return t("{nguoi_nhan_ten_tu_do} (ngoài danh bạ)", { nguoi_nhan_ten_tu_do: p.nguoi_nhan_ten_tu_do });
+  return "-";
+}
+/** Tong so luong phieu: cung 1 DVT -> kem DVT; nhieu DVT -> chi tong + "n mat hang". Dieu chinh tach tang (+) / giam (-). */
+function SoLuongPhieu({ p }: { p: PhieuRow }) {
+  if (p.tong_sl == null) return <span className="muted">-</span>;
+  const dvt = p.dvt_chung && <span className="nb-dvt">{p.dvt_chung}</span>;
+  if (p.loai === "Dieu chinh")
+    return (
+      <div>
+        {p.tong_sl > 0 && (
+          <div className="nb-nhap">
+            +{fmtSo(p.tong_sl, 2)}
+            {dvt}
+          </div>
+        )}
+        {(p.sl_giam ?? 0) > 0 && (
+          <div className="nb-xuat">
+            -{fmtSo(p.sl_giam ?? 0, 2)}
+            {dvt}
+          </div>
+        )}
+      </div>
+    );
+  return (
+    <div>
+      <span className="nb-so">
+        {fmtSo(p.tong_sl, 2)}
+        {dvt}
+      </span>
+      {(p.so_dong ?? 0) > 1 && <div className="muted small">{t("{n} mặt hàng", { n: p.so_dong })}</div>}
+    </div>
+  );
+}
 function denLabel(p: PhieuRow) {
   if (p.den_kho_ten) return <KhoTag ten={p.den_kho_ten} loai={p.den_kho_loai} />;
   if (p.den_nhan_vien_ten) return <NguoiTag ten={p.den_nhan_vien_ten} />;
@@ -347,8 +388,9 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
         ma_phieu: p.ma_phieu ?? p.id,
         loai: LOAI_PHIEU_CK[p.loai] ?? p.loai,
         tu: p.tu_kho_ten,
-        den: denLabel(p),
+        den: denText(p),
         hang: p.tom_tat,
+        tong_sl: p.loai === "Dieu chinh" ? `+${p.tong_sl ?? 0} / -${p.sl_giam ?? 0}` : p.tong_sl,
         tong_tien: p.tong_tien,
         trang_thai: TRANG_THAI_CK[p.trang_thai]?.label ?? p.trang_thai,
         nguoi_lap: p.nguoi_lap,
@@ -356,7 +398,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
       })),
       `Phieu_tieu_hao_${filter.thang || homNayVN()}.xlsx`,
       "Phieu tieu hao",
-      { ma_phieu: t("Mã phiếu"), loai: t("Loại"), tu: t("Từ"), den: t("Đến"), hang: t("Hàng"), tong_tien: t("Tổng tiền"), trang_thai: t("Trạng thái"), nguoi_lap: t("Người lập"), ngay: t("Ngày") },
+      { ma_phieu: t("Mã phiếu"), loai: t("Loại"), tu: t("Từ"), den: t("Đến"), hang: t("Hàng"), tong_sl: t("Tổng SL"), tong_tien: t("Tổng tiền"), trang_thai: t("Trạng thái"), nguoi_lap: t("Người lập"), ngay: t("Ngày") },
     );
   }
 
@@ -521,6 +563,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                 <th style={{ width: "14%" }}>{t("Từ")}</th>
                 <th style={{ width: "16%" }}>{t("Đến")}</th>
                 <th>{t("Hàng")}</th>
+                <th style={{ width: "8%", textAlign: "right" }}>{t("SL")}</th>
                 <th style={{ width: "10%", textAlign: "right" }}>{t("Giá trị")}</th>
                 <th style={{ width: "11%", textAlign: "center" }}>{t("Trạng thái")}</th>
                 <th style={{ width: "11%" }}>{t("Ngày")}</th>
@@ -529,14 +572,14 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             <tbody>
               {rows === null && (
                 <tr>
-                  <td colSpan={8} className="task-empty">
+                  <td colSpan={9} className="task-empty">
                     {t("Đang tải…")}
                   </td>
                 </tr>
               )}
               {rows !== null && rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="task-empty">
+                  <td colSpan={9} className="task-empty">
                     {t("Không có phiếu nào khớp bộ lọc.")}
                   </td>
                 </tr>
@@ -565,6 +608,9 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                   </td>
                   <td data-label={t("Đến")}>{denLabel(p)}</td>
                   <td data-label={t("Hàng")}>{p.tom_tat}</td>
+                  <td data-label={t("SL")} style={{ textAlign: "right" }}>
+                    <SoLuongPhieu p={p} />
+                  </td>
                   <td data-label={t("Giá trị")} style={{ textAlign: "right" }}>
                     <TienTe so={p.tong_tien} />
                   </td>
@@ -601,6 +647,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                   <th>{t("Từ kho")}</th>
                   <th>{t("Đến kho")}</th>
                   <th>{t("Hàng")}</th>
+                  <th style={{ textAlign: "right" }}>{t("SL")}</th>
                   <th>{t("Ngày lập")}</th>
                   <th style={{ textAlign: "right" }}>{t("Thao tác")}</th>
                 </tr>
@@ -620,6 +667,9 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                       <KhoTag ten={p.den_kho_ten} loai={p.den_kho_loai} />
                     </td>
                     <td data-label={t("Hàng")}>{p.tom_tat}</td>
+                    <td data-label={t("SL")} style={{ textAlign: "right" }}>
+                      <SoLuongPhieu p={p} />
+                    </td>
                     <td data-label={t("Ngày lập")}>
                       <NgayCho ngay={p.created_at} dangCho />
                     </td>

@@ -128,6 +128,10 @@ state đang dùng.
 - Phiếu chờ KT (`Cho ke toan duyet` / `Ke toan tu choi`): người lập / HCNS sửa (`PUT /:id`, nhật ký ghi diff, bị từ chối
   → sửa xong tự gửi duyệt lại) hoặc hủy (`/:id/huy` → `Da huy`). Phiếu `Bi tu choi` nhận: `/:id/gui-lai` (phiếu mới,
   `gui_lai_tu`) hoặc `/:id/da-xu-ly` (`da_xu_ly_tu_choi`); việc cần làm hiện cho người lập + thủ kho nguồn tới khi xử lý.
+- **Nhập - xuất - tồn theo kỳ** (2026-10-14): `GET /kho/nhap-xuat-ton?tu&den[&kho_id]` (cùng quy tắc `v_ton_kho`; vào kho /
+  điều chỉnh tính theo `updated_at`, ra kho theo `created_at`; tồn cuối = đầu + nhập − xuất, kỳ tới hôm nay = tồn hiện tại)
+  → cột Tồn đầu kỳ / SL nhập / SL xuất / Tồn cuối kỳ ở bảng "Tồn theo kho" (KhoScreen, chọn ngày/tháng/năm) + popup từng
+  mặt hàng `NxtKhoModal` (`components/NhapXuatTon.tsx`). Danh sách phiếu tiêu hao có cột SL (`tong_sl`, điều chỉnh tách `sl_giam`).
 - Tồn theo kho: `GET /bao-cao/ton-theo-kho` (ma trận, cột kho người xem chọn - localStorage `ccdc_cot_kho_ton`) +
   thẻ kho `GET /bao-cao/the-kho?kho_id&vt_id` (`components/TonTheoKho.tsx`, `TheKho.tsx`).
 - Nút Back: mỗi `navigate()` = 1 `history.pushState` (App.tsx), popup chi tiết cũng chiếm 1 bước (Back đóng popup);

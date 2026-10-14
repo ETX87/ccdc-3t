@@ -20,6 +20,8 @@ import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
 import { SearchSelect } from "../components/SearchSelect";
 import { KhoTag } from "../components/NoiBat";
 import { ChonLoc } from "../components/ChonLoc";
+import { ChonKyNxt, kyMacDinh, khoangKyNxt, nhanKy, NxtKhoModal, SoPhatSinh, type DongNxtKho, type Ky } from "../components/NhapXuatTon";
+import { exportRowsToExcel } from "../lib/exportExcel";
 
 const LOAI_DOI: LoaiKho[] = ["Mien", "Trung chuyen", "Quan ly"];
 
@@ -66,6 +68,24 @@ export function KhoScreen() {
   const [loaiLoc, setLoaiLoc] = useState("");
   const [tim, setTim] = useState("");
   const [anKhoTrong, setAnKhoTrong] = useState(true);
+  // Nhap - xuat - ton tieu hao theo ky (ngay / thang / nam) - tai rieng, doi ky khong tai lai tong hop.
+  const [ky, setKy] = useState<Ky>(() => kyMacDinh("thang"));
+  const [nxt, setNxt] = useState<Map<number, DongNxtKho> | null>(null);
+  const [nxtKho, setNxtKho] = useState<{ id: number; ten_kho: string } | null>(null);
+  const loadNxt = useCallback(async () => {
+    const { tu, den } = khoangKyNxt(ky);
+    setNxt(null);
+    try {
+      const r = await api.get<{ rows: DongNxtKho[] }>(`/kho/nhap-xuat-ton?tu=${tu}&den=${den}`);
+      setNxt(new Map(r.rows.map((x) => [x.kho_id, x])));
+    } catch (e) {
+      setLoi(thongBaoLoi(e, t("Không tải được số liệu nhập xuất tồn.")));
+    }
+  }, [ky]);
+  useEffect(() => {
+    loadNxt();
+  }, [loadNxt]);
+  useKhiThayDoi(loadNxt);
 
   const load = useCallback(async () => {
     setDangTai(true);
@@ -103,7 +123,10 @@ export function KhoScreen() {
   );
   const demLoai = (l: LoaiKho) => hoatDong.filter((k) => k.loai === l).length;
 
-  const khoConSoLieu = (k: TongHopKho) => k.ts_trong_kho || k.so_mat_hang || k.ton_am || k.cho_nhan;
+  const khoConSoLieu = (k: TongHopKho) => {
+    const n = nxt?.get(k.id);
+    return !!(k.ts_trong_kho || k.so_mat_hang || k.ton_am || k.cho_nhan || (n && (n.nhap || n.xuat || n.ton_dau)));
+  };
   const hienThi = rows.filter(
     (k) =>
       (!loaiLoc || k.loai === loaiLoc) &&
@@ -111,6 +134,47 @@ export function KhoScreen() {
       (!anKhoTrong || khoConSoLieu(k) || k.loai !== "Quan ly"),
   );
   const tKho = useTrangKhach(hienThi, [loaiLoc, tim, anKhoTrong]);
+  const tongNxt = hienThi.reduce(
+    (a, k) => {
+      const n = nxt?.get(k.id);
+      return n ? { dau: a.dau + n.gt_dau, nhap: a.nhap + n.gt_nhap, xuat: a.xuat + n.gt_xuat, cuoi: a.cuoi + n.gt_cuoi } : a;
+    },
+    { dau: 0, nhap: 0, xuat: 0, cuoi: 0 },
+  );
+  function xuatExcelNxt() {
+    const { tu, den } = khoangKyNxt(ky);
+    exportRowsToExcel(
+      hienThi.map((k) => {
+        const n = nxt?.get(k.id);
+        return {
+          kho: k.ten_kho,
+          loai: LOAI_KHO[k.loai],
+          ton_dau: n?.ton_dau ?? 0,
+          gt_dau: n?.gt_dau ?? 0,
+          nhap: n?.nhap ?? 0,
+          gt_nhap: n?.gt_nhap ?? 0,
+          xuat: n?.xuat ?? 0,
+          gt_xuat: n?.gt_xuat ?? 0,
+          ton_cuoi: n?.ton_cuoi ?? 0,
+          gt_cuoi: n?.gt_cuoi ?? 0,
+        };
+      }),
+      `NXT_theo_kho_${tu}_${den}.xlsx`,
+      "NXT",
+      {
+        kho: t("Kho"),
+        loai: t("Loại"),
+        ton_dau: t("Tồn đầu kỳ (SL)"),
+        gt_dau: t("Tồn đầu kỳ (giá trị)"),
+        nhap: t("Nhập (SL)"),
+        gt_nhap: t("Nhập (giá trị)"),
+        xuat: t("Xuất (SL)"),
+        gt_xuat: t("Xuất (giá trị)"),
+        ton_cuoi: t("Tồn cuối kỳ (SL)"),
+        gt_cuoi: t("Tồn cuối kỳ (giá trị)"),
+      },
+    );
+  }
   const soKhoTrongAn = rows.filter((k) => k.loai === "Quan ly" && !khoConSoLieu(k)).length;
   const coTab = (t: Parameters<typeof duocMoTab>[1]) => !!user && duocMoTab(user, t);
 
@@ -210,6 +274,9 @@ export function KhoScreen() {
               <Store size={18} className="card-title-icon text-teal" />
               <h2 className="card-title">{t("Tồn theo kho")}</h2>
             </div>
+            <button type="button" className="btn btn-outline btn-sm" onClick={xuatExcelNxt} disabled={!nxt || !hienThi.length}>
+              {t("Xuất Excel")}
+            </button>
           </div>
           <div className="filter-bar">
             <div className="topbar-search filter-search">
@@ -226,6 +293,8 @@ export function KhoScreen() {
               </ChonLoc>
               <ChevronDown size={13} className="dropdown-arrow" />
             </label>
+            <ChonKyNxt value={ky} onChange={setKy} />
+            <span className="muted small">{t("Nhập / xuất tiêu hao kỳ {ky}", { ky: nhanKy(ky) })}</span>
             {soKhoTrongAn > 0 && (
               <label className="check-label">
                 <input type="checkbox" checked={anKhoTrong} onChange={(e) => setAnKhoTrong(e.target.checked)} />
@@ -237,26 +306,28 @@ export function KhoScreen() {
             <table className="task-table">
               <thead>
                 <tr>
-                  <th style={{ width: "24%" }}>{t("Kho")}</th>
-                  <th style={{ width: "10%" }}>{t("Loại")}</th>
-                  <th style={{ width: "14%", textAlign: "right" }}>{t("TSCĐ trong kho")}</th>
-                  <th style={{ width: "14%", textAlign: "right" }}>{t("Tồn tiêu hao")}</th>
-                  <th style={{ width: "9%", textAlign: "center" }}>{t("Tồn âm")}</th>
+                  <th style={{ width: "21%" }}>{t("Kho")}</th>
+                  <th style={{ width: "9%", textAlign: "right" }}>{t("TSCĐ trong kho")}</th>
+                  <th style={{ width: "10%", textAlign: "right" }}>{t("Tồn đầu kỳ")}</th>
+                  <th style={{ width: "10%", textAlign: "right" }}>{t("SL nhập")}</th>
+                  <th style={{ width: "10%", textAlign: "right" }}>{t("SL xuất")}</th>
+                  <th style={{ width: "11%", textAlign: "right" }}>{t("Tồn cuối kỳ")}</th>
+                  <th style={{ width: "10%", textAlign: "right" }}>{t("Mặt hàng còn tồn")}</th>
+                  <th style={{ width: "8%", textAlign: "center" }}>{t("Tồn âm")}</th>
                   <th style={{ width: "11%", textAlign: "center" }}>{t("Chờ nhận")}</th>
-                  <th style={{ width: "18%", textAlign: "right" }}>{t("Xem")}</th>
                 </tr>
               </thead>
               <tbody>
                 {!tongHop && (
                   <tr>
-                    <td colSpan={7} className="task-empty">
+                    <td colSpan={9} className="task-empty">
                       {t("Đang tải…")}
                     </td>
                   </tr>
                 )}
                 {tongHop && hienThi.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="task-empty">
+                    <td colSpan={9} className="task-empty">
                       {t("Không có kho khớp bộ lọc.")}
                     </td>
                   </tr>
@@ -269,9 +340,7 @@ export function KhoScreen() {
                       </span>
                       {hienCongTy(user) && <span className="muted small"> · {maCongTy(user, k.cong_ty_id)}</span>}
                       {!k.bat_tat && <span className="muted small"> {t("(đã ngừng)")}</span>}
-                    </td>
-                    <td data-label={t("Loại")}>
-                      <span className="nb-chip nb-slate">{LOAI_KHO[k.loai]}</span>
+                      <div className="muted small">{LOAI_KHO[k.loai]}</div>
                     </td>
                     <td data-label={t("TSCĐ trong kho")} style={{ textAlign: "right" }}>
                       {coTab("tai-san") && k.ts_trong_kho > 0 ? (
@@ -283,7 +352,41 @@ export function KhoScreen() {
                       )}
                       {k.gt_ts > 0 && <div className="muted small">{fmtGiaTri(k.gt_ts)}</div>}
                     </td>
-                    <td data-label={t("Tồn tiêu hao")} style={{ textAlign: "right" }}>
+                    {(() => {
+                      const n = nxt?.get(k.id);
+                      if (!nxt)
+                        return (
+                          <td colSpan={4} className="muted small" style={{ textAlign: "center" }}>
+                            {t("Đang tải…")}
+                          </td>
+                        );
+                      const mo = () => setNxtKho({ id: k.id, ten_kho: k.ten_kho });
+                      return (
+                        <>
+                          <td data-label={t("Tồn đầu kỳ")} style={{ textAlign: "right" }}>
+                            <span className="nb-so">{fmtSo(n?.ton_dau ?? 0, 2)}</span>
+                            {!!n?.gt_dau && <div className="muted small">{fmtGiaTri(n.gt_dau)}</div>}
+                          </td>
+                          <td data-label={t("SL nhập")} style={{ textAlign: "right" }}>
+                            <SoPhatSinh so={n?.nhap ?? 0} gt={n?.gt_nhap ?? 0} dau="+" onClick={mo} />
+                          </td>
+                          <td data-label={t("SL xuất")} style={{ textAlign: "right" }}>
+                            <SoPhatSinh so={n?.xuat ?? 0} gt={n?.gt_xuat ?? 0} dau="-" onClick={mo} />
+                          </td>
+                          <td data-label={t("Tồn cuối kỳ")} style={{ textAlign: "right" }}>
+                            {n && (n.ton_dau || n.nhap || n.xuat) ? (
+                              <button type="button" className="so-link" title={t("Xem chi tiết theo mặt hàng")} onClick={mo}>
+                                {fmtSo(n.ton_cuoi, 2)}
+                              </button>
+                            ) : (
+                              <span className="muted">0</span>
+                            )}
+                            {!!n?.gt_cuoi && <div className="muted small">{fmtGiaTri(n.gt_cuoi)}</div>}
+                          </td>
+                        </>
+                      );
+                    })()}
+                    <td data-label={t("Mặt hàng còn tồn")} style={{ textAlign: "right" }}>
                       {coTab("cap-phat") ? (
                         <button type="button" className="so-link" title={t("Xem tồn tiêu hao của kho")} onClick={() => navigate("cap-phat", { tab: "ton-kho", kho_id: String(k.id) })}>
                           {fmtSo(k.so_mat_hang)} {t("mặt hàng")}
@@ -303,26 +406,28 @@ export function KhoScreen() {
                         <span className="muted">0</span>
                       )}
                     </td>
-                    <td data-label={t("Xem")} style={{ textAlign: "right" }}>
-                      <div className="row-actions">
-                        {coTab("tai-san") && k.ts_trong_kho > 0 && (
-                          <button className="btn btn-outline btn-sm" onClick={() => navigate("tai-san", { kho_id: String(k.id), trang_thai: "Trong kho" })}>
-                            {t("TSCĐ")}
-                          </button>
-                        )}
-                        {coTab("cap-phat") && (
-                          <button className="btn btn-outline btn-sm" onClick={() => navigate("cap-phat", { tab: "ton-kho", kho_id: String(k.id) })}>
-                            {t("Tồn tiêu hao")}
-                          </button>
-                        )}
-                      </div>
-                    </td>
                   </tr>
                 ))}
               </tbody>
+              {nxt && hienThi.length > 0 && (
+                <tfoot>
+                  <tr className="nb-tong">
+                    <td colSpan={2}>{t("Tổng giá trị tiêu hao ({n} kho)", { n: hienThi.length })}</td>
+                    <td style={{ textAlign: "right" }}>{fmtGiaTri(tongNxt.dau)}</td>
+                    <td style={{ textAlign: "right" }} className="nb-nhap">{fmtGiaTri(tongNxt.nhap)}</td>
+                    <td style={{ textAlign: "right" }} className="nb-xuat">{fmtGiaTri(tongNxt.xuat)}</td>
+                    <td style={{ textAlign: "right" }}>{fmtGiaTri(tongNxt.cuoi)}</td>
+                    <td colSpan={3} />
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
-          <PhanTrang trang={tKho.trang} tong={tKho.tong} onDoi={tKho.setTrang} donVi="kho" />
+          <PhanTrang trang={tKho.trang} tong={tKho.tong} onDoi={tKho.setTrang} donVi={t("kho")} />
+          <div className="field-hint">
+            {t("SL nhập / xuất / tồn là tổng số lượng tiêu hao mọi mặt hàng (khác đơn vị tính) — bấm vào số để xem từng mặt hàng. Kỳ kết thúc hôm nay thì tồn cuối kỳ = tồn hiện tại. Giá trị theo giá tham khảo.")}
+          </div>
+          {nxtKho && <NxtKhoModal kho={nxtKho} ky={ky} onClose={() => setNxtKho(null)} />}
         </div>
       ) : (
         <CauHinhKho />

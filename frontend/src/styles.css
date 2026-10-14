@@ -1837,3 +1837,8 @@ td.o-link:hover { background: #f0f9ff; }
 .sidebar-nhom-kho .sidebar-nav-item.active { box-shadow: inset 3px 0 0 #a7f3d0; }
 .sidebar-nhom-bao-cao .sidebar-nav-item.active { box-shadow: inset 3px 0 0 #d8c4ff; }
 .sidebar-nav > div + div { margin-top: 0; }
+
+/* Nhap - xuat - ton theo ky (2026-10-14): nhap xanh, xuat cam, dong tong cuoi bang */
+.nb-nhap { color: #0F766E; font-weight: 700; font-variant-numeric: tabular-nums; }
+.nb-xuat { color: #C2410C; font-weight: 700; font-variant-numeric: tabular-nums; }
+.task-table tfoot .nb-tong td { background: #F8FAFC; font-weight: 700; border-top: 2px solid #E2E8F0; }

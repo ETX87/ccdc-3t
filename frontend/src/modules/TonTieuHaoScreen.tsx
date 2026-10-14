@@ -13,7 +13,7 @@ import { fmtGiaTri, fmtGiaTriDong, fmtSo, homNayVN } from "../lib/format";
 import { LOAI_KHO, laKhoTon, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
-import { TonTheoKho } from "../components/TonTheoKho";
+import { TonTheoKho, TonVtCacKhoModal } from "../components/TonTheoKho";
 import { DieuChinhTonModal, TheKhoModal } from "../components/TheKho";
 import { isHcns } from "../lib/nhan";
 import { SoTon, TienTe } from "../components/NoiBat";
@@ -58,6 +58,7 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
   // "vt" = danh sach theo vat tu (1 kho / cong don); "kho" = ma tran vat tu x kho.
   const [cheDo, setCheDo] = useState<"vt" | "kho">(params.che_do === "kho" ? "kho" : "vt");
   const [theKho, setTheKho] = useState<TonRow | null>(null);
+  const [cacKho, setCacKho] = useState<TonRow | null>(null); // ton 1 vat tu o tung kho
   const [dieuChinh, setDieuChinh] = useState<string[] | null>(null);
 
   useEffect(() => {
@@ -301,7 +302,15 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
                     <TienTe so={r.ton > 0 && r.don_gia_tham_khao ? r.ton * r.don_gia_tham_khao : null} />
                   </td>
                   <td data-label={khoId ? t("Đang chuyển đến") : t("Số kho còn hàng")} style={{ textAlign: "right" }}>
-                    {khoId ? (r.dang_chuyen_den ? fmtSo(r.dang_chuyen_den, 2) : "-") : fmtSo(r.so_kho_con_hang ?? 0)}
+                    {khoId ? (
+                      r.dang_chuyen_den ? fmtSo(r.dang_chuyen_den, 2) : "-"
+                    ) : (r.so_kho_con_hang ?? 0) > 0 || (r.so_kho_am ?? 0) > 0 ? (
+                      <button type="button" className="so-link" title={t("Xem tồn từng kho")} onClick={() => setCacKho(r)}>
+                        {t("{x} kho", { x: fmtSo(r.so_kho_con_hang ?? 0) })}
+                      </button>
+                    ) : (
+                      <span className="muted">0</span>
+                    )}
                   </td>
                   <td data-label={t("Phiếu")} style={{ textAlign: "right" }}>
                     <div className="row-actions">
@@ -310,8 +319,8 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
                           {t("Thẻ kho")}
                         </button>
                       ) : (
-                        <button className="btn btn-outline btn-sm" onClick={() => setCheDo("kho")} title={t("Xem tồn từng kho")}>
-                          {t("Theo kho")}
+                        <button className="btn btn-outline btn-sm" onClick={() => setCacKho(r)} title={t("Xem tồn từng kho")}>
+                          {t("Xem các kho")}
                         </button>
                       )}
                       {r.ton < 0 && duocDieuChinh && (
@@ -330,6 +339,7 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
         </>
         )}
       </div>
+      {cacKho && <TonVtCacKhoModal vt={cacKho} onClose={() => setCacKho(null)} />}
       {theKho && khoChon && <TheKhoModal khoId={khoChon.id} tenKho={khoChon.ten_kho} vt={theKho} onClose={() => setTheKho(null)} />}
       {dieuChinh && khoChon && (
         <DieuChinhTonModal

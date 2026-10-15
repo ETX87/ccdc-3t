@@ -115,6 +115,10 @@ state đang dùng.
 - **Quyền thêm "Xem tồn kho toàn công ty"** (`users.xem_ton`, migration 0017, ô tích ở Tài khoản & phân quyền): chỉ ĐỌC
   tồn tiêu hao mọi kho / ma trận / thẻ kho / Kho & tồn / danh mục TSCĐ của các công ty được xem — dùng
   `layPhamViXemTon()` (lib/phamVi.ts) ở các route xem tồn; KHÔNG dùng cho việc cần làm hay thao tác ghi.
+- **Dữ liệu cũ NSKX** (import 2026-10-15, `scripts/import_nskx.py` — quyết định ánh xạ ở docstring): nhân sự NSKX có
+  trong ETX (đang bị xếp 3T) đã CHUYỂN sang NSKX (giữ mã NS-xxx); người không có trên ETX dùng mã T… / `NSKX-TAM-xxx`
+  (mã tạm, có thể trùng người 3T cùng tên → HCNS gộp tay). Kho NSKX: Văn phòng Hà Nội, Kho sửa chữa Hồ Chí Minh, Kho 3T,
+  Kho cấp phát vật phẩm (Miền) + Kho tiêu hao. ETX vẫn tạo nhân sự MỚI vào công ty mặc định 3T → HCNS đổi tay.
 - Báo cáo so sánh: `GET /bao-cao/theo-cong-ty` (tab "Theo công ty", Admin/KT/HCNS xem ≥2 công ty).
 
 ## Kho tiêu hao, sửa / gửi lại / điều chỉnh phiếu tiêu hao (2026-10-09, migration 0015)

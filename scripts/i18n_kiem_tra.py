@@ -27,7 +27,7 @@ def khoa_dung():
         if I18N in f.parents or f.name == "i18n.ts":
             continue
         for no, line in enumerate(f.read_text(encoding="utf-8").split("\n"), 1):
-            for m in re.finditer(r"\bt\(\s*" + STR, line):
+            for m in re.finditer(r"\b(?:t|moiNgonNgu)\(\s*" + STR, line):
                 keys.setdefault(unesc(m.group(1)), f"{f.relative_to(SRC)}:{no}")
     for m in re.finditer(STR + r"|'((?:\\.|[^'\\])*)'", (I18N / "server.ts").read_text(encoding="utf-8")):
         k = m.group(1) if m.group(1) is not None else m.group(2)
@@ -49,7 +49,7 @@ def chua_boc():
         if I18N in f.parents or f.name == "i18n.ts":
             continue
         for no, line in enumerate(f.read_text(encoding="utf-8").split("\n"), 1):
-            bo = re.sub(r"\btS?\(\s*" + STR, "", line)
+            bo = re.sub(r"\b(?:tS?|moiNgonNgu)\(\s*" + STR, "", line)
             bo = re.sub(r"//.*|/\*.*?\*/", "", bo)
             bo = re.sub(r"(===|!==|startsWith\(|endsWith\(|includes\()\s*" + STR, "", bo)
             bo = re.sub(STR + r"\s*(===|!==)", "", bo)

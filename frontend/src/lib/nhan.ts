@@ -134,7 +134,27 @@ const LOI: Record<string, string> = {
   KHONG_CO_CHENH_LECH: t("Tồn thực tế khớp sổ sách - không có gì để điều chỉnh."),
   TRUNG_VAT_TU: t("Một vật tư chỉ nhập 1 dòng."),
   VT_NOT_FOUND: t("Có mặt hàng không thuộc danh mục công ty của kho nguồn."),
+  SO_LUONG_KHONG_HOP_LE: t("Số lượng phải lớn hơn 0."),
+  NHAN_VIEN_NOT_FOUND: t("Không tìm thấy nhân viên đang làm việc với mã này."),
+  TU_KHO_NOT_FOUND: t("Không tìm thấy kho xuất hoặc kho đã ngừng."),
+  DEN_KHO_NOT_FOUND: t("Không tìm thấy kho nhận hoặc kho đã ngừng."),
+  KHONG_CHUYEN_VE_KHO_MUA: t("Không chuyển hàng về kho mua hàng."),
+  KHO_MUA_CHI_NHAP_MUA: t("Kho mua hàng chỉ dùng cho phiếu nhập mua."),
+  IMPORT_QUA_NHIEU: t("File quá nhiều dòng (tối đa 1.000 dòng mỗi lần)."),
+  IMPORT_THIEU_KHO: t("Thiếu kho xuất."),
+  IMPORT_KHO_KHONG_THAY: t("Không tìm thấy kho (theo tên hoặc mã kho)."),
+  IMPORT_KHO_TRUNG_TEN: t("Tên kho trùng nhiều kho - ghi mã kho thay cho tên."),
+  IMPORT_THIEU_NGUOI_NHAN: t("Thiếu người nhận: điền Kho nhận, Mã NV nhận hoặc Người nhận ngoài danh bạ."),
+  IMPORT_NHIEU_NGUOI_NHAN: t("Chỉ điền 1 trong 3 cột: Kho nhận / Mã NV nhận / Người nhận ngoài danh bạ."),
+  IMPORT_THIEU_VT: t("Thiếu mã hoặc tên vật tư."),
+  IMPORT_VT_KHONG_THAY: t("Không tìm thấy vật tư trong danh mục công ty của kho xuất."),
+  IMPORT_VT_TRUNG_TEN: t("Tên vật tư trùng nhiều mã - ghi Mã vật tư."),
+  IMPORT_DON_GIA_SAI: t("Đơn giá không hợp lệ."),
+  IMPORT_VUOT_TON: t("Tổng số lượng xuất (cộng dồn cả file) vượt tồn kho xuất."),
 };
+
+/** Mo ta 1 ma loi server (danh sach loi tung dong khi import). */
+export const moTaLoi = (ma: string) => LOI[ma] ?? ma;
 
 export function thongBaoLoi(e: unknown, macDinh = t("Không thực hiện được - vui lòng thử lại.")) {
   const err = e as ApiError;

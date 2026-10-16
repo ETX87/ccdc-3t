@@ -1,6 +1,6 @@
 import { t } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowLeftRight, Building2, ChevronDown, Clock, Download, PackagePlus, Plus, ShoppingCart, Tag, Truck } from "lucide-react";
+import { ArrowLeftRight, Building2, ChevronDown, Clock, Download, FileSpreadsheet, PackagePlus, Plus, ShoppingCart, Tag, Truck } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { Modal } from "../components/Modal";
@@ -21,6 +21,7 @@ import { LOAI_KHO, LOAI_PHIEU_CK, TRANG_THAI_CK, isHcns, laKhoPhatChung, laKhoTo
 import type { LoaiKho } from "../types";
 import { KhoTag, LoaiChip, NgayCho, NguoiTag, soGioTu, TienTe } from "../components/NoiBat";
 import { ChonLoc } from "../components/ChonLoc";
+import { NhapExcelPhieuCk } from "../components/NhapExcelPhieuCk";
 
 interface KhoRow {
   id: number;
@@ -185,6 +186,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
   const [tonNguon, setTonNguon] = useState<Record<string, number>>({});
   const [formErr, setFormErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   // Bang phieu phan trang o server (moi trang 50 phieu) - doi bo loc thi ve trang 1.
   const [trang, setTrang] = useState(1);
@@ -429,6 +431,9 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             )}
             {coKhoXuat && (
               <>
+                <button className="btn btn-outline" onClick={() => setShowImport(true)} title={t("Nhập hàng loạt phiếu chuyển kho / cấp phát / xuất tiêu dùng từ file Excel")}>
+                  <FileSpreadsheet size={14} /> {t("Nhập từ Excel")}
+                </button>
                 <button className="btn btn-outline" onClick={() => moForm("Chuyen kho")}>
                   <ArrowLeftRight size={14} /> {t("Chuyển kho")}
                 </button>
@@ -836,6 +841,20 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             </button>
           </div>
         </Modal>
+      )}
+      {showImport && (
+        <NhapExcelPhieuCk
+          khoNguon={myKho}
+          khoKhac={[...khoAll, ...khoDichAll]}
+          vts={vts}
+          onClose={() => setShowImport(false)}
+          onXong={async (m, ma) => {
+            setShowImport(false);
+            setMsg(ma.length ? `${m} ${ma.join(", ")}` : m);
+            baoThayDoi();
+            await reloadViec();
+          }}
+        />
       )}
     </div>
   );

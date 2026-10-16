@@ -313,9 +313,32 @@ async function taoPhieu(c: Context<{ Bindings: Env }>, body: CreateBody | null, 
     }
   }
 
-  const id = crypto.randomUUID();
-  const ngay = nowVN();
   const db = c.env.DB;
+  const { id, stmts } = lenhTaoPhieu(db, user, body as CreateBody & { loai: Loai; tu_kho_id: number; items: CreateItem[] }, kt.trangThai, nowVN(), phu.guiLaiTu);
+  stmts.push(...(phu.lenhThem ?? []));
+  if (truTon) stmts.push(...guardTonKhongAm(db, body.tu_kho_id, vtIds));
+
+  try {
+    await db.batch(stmts);
+  } catch (e) {
+    if (String(e).includes("CHECK constraint failed")) return c.json({ error: phu.lenhThem?.length ? "SAI_TRANG_THAI" : "VUOT_TON" }, 409);
+    throw e;
+  }
+  return c.json({ ok: true, id, trang_thai: kt.trangThai });
+}
+
+/** Cac lenh INSERT 1 phieu (phieu + chi tiet + log + ma phieu) - dung chung cho lap tay va import Excel. */
+function lenhTaoPhieu(
+  db: D1Database,
+  user: AppUser,
+  body: CreateBody & { loai: Loai; tu_kho_id: number; items: CreateItem[] },
+  trangThai: string,
+  ngay: string,
+  guiLaiTu?: string,
+): { id: string; stmts: D1PreparedStatement[] } {
+  const id = crypto.randomUUID();
+  const kt = { trangThai };
+  const phu = { guiLaiTu };
   // Xuat vao kho tieu hao van phong: tieu dung het ngay, khong ai phai xac nhan.
   const xuatTieuDung = body.loai === "Cap phat NV" && !!body.den_kho_id;
   const stmts: D1PreparedStatement[] = [
@@ -353,17 +376,265 @@ async function taoPhieu(c: Context<{ Bindings: Env }>, body: CreateBody | null, 
       .bind(id, kt.trangThai, user.email, ngay, body.ghi_chu ?? null),
     ...sinhMaPhieu(db, "phieu_chuyen_kho", id, TIEN_TO_CHUYEN_KHO[body.loai], ngay),
   ];
-  stmts.push(...(phu.lenhThem ?? []));
-  if (truTon) stmts.push(...guardTonKhongAm(db, body.tu_kho_id, vtIds));
+  return { id, stmts };
+}
 
+// ------------------------------------------------------------------ Import Excel (2026-10-16)
+// Nhap hang loat phieu Chuyen kho / Cap phat NV / Xuat tieu dung VP tu kho HCNS, Mien, Trung chuyen, QL.
+// Moi dong Excel = 1 mat hang; cac dong cung (Nhom phieu, Kho xuat, Nguoi/kho nhan) gop thanh 1 phieu. Loai phieu
+// suy ra tu nguoi nhan: kho thuong -> Chuyen kho; kho tieu hao -> xuat tieu dung; ma NV / ten tu do -> Cap phat NV.
+// Server tu tra ten kho / vat tu / ma NV, kiem quyen (kiemTraTao - y nhu lap tay) + ton CONG DON moi phieu cung kho.
+// thuc_hien = false: chi xem truoc. true: CHI tao khi KHONG co loi nao - tat ca phieu trong 1 db.batch (dung 1 phieu
+// loi -> khong phieu nao duoc tao), kem chot chan ton khong am tung kho nguon.
+interface DongImport {
+  dong: number;
+  nhom?: string | number | null;
+  kho_xuat?: string | number | null;
+  kho_nhan?: string | number | null;
+  ma_nv?: string | number | null;
+  nguoi_nhan?: string | null;
+  vt?: string | number | null;
+  ten_vt?: string | null;
+  so_luong?: string | number | null;
+  don_gia?: string | number | null;
+  ghi_chu?: string | null;
+}
+type LoiImport = { dong: number; ma: string; gia_tri?: string };
+const MAX_DONG_IMPORT = 1000;
+
+const chuan = (v: unknown) =>
+  String(v ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\u0111/gi, "d")
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .trim();
+const so = (v: unknown) => (typeof v === "number" ? v : Number(String(v ?? "").replace(/\s/g, "").replace(",", ".")));
+
+phieuChuyenKho.post("/import", async (c) => {
+  const user = c.get("user");
+  const db = c.env.DB;
+  const body = await c.req.json<{ dong?: DongImport[]; thuc_hien?: boolean }>().catch(() => null);
+  const dongs = (body?.dong ?? []).filter((d) => d && (d.kho_xuat || d.vt || d.ten_vt || d.so_luong));
+  if (!dongs.length) return c.json({ error: "MISSING_FIELDS" }, 400);
+  if (dongs.length > MAX_DONG_IMPORT) return c.json({ error: "IMPORT_QUA_NHIEU", max: MAX_DONG_IMPORT }, 400);
+
+  // Danh muc tra cuu: kho moi cong ty tai khoan duoc phep (kho dich co the khac cong ty), vat tu + NV cac cong ty do.
+  const congTy = JSON.stringify(user.cong_ty_ids);
+  const [{ results: khos }, { results: vts }, { results: nvs }] = await db.batch([
+    db.prepare(`SELECT id, ten_kho, loai, nhan_vien_id, bat_tat, cong_ty_id FROM kho WHERE bat_tat = 1`),
+    db.prepare(
+      `SELECT id, ten_vt, don_vi_tinh, cong_ty_id FROM vt_tieu_hao WHERE vo_hieu_hoa = 0 AND cong_ty_id IN (SELECT value FROM json_each(?))`,
+    ).bind(congTy),
+    db.prepare(`SELECT ma_nv, ten_nv, cong_ty_id FROM nhan_vien WHERE dang_lam_viec = 1 AND cong_ty_id IN (SELECT value FROM json_each(?))`).bind(congTy),
+  ]) as unknown as [
+    { results: { id: number; ten_kho: string; loai: string; cong_ty_id: number }[] },
+    { results: { id: string; ten_vt: string; don_vi_tinh: string | null; cong_ty_id: number }[] },
+    { results: { ma_nv: string; ten_nv: string; cong_ty_id: number }[] },
+  ];
+  const tenKho = new Map(khos.map((k) => [k.id, k.ten_kho]));
+
+  // Kho: theo ma (id) hoac ten (bo dau). Trung ten -> uu tien cong ty `uuTien` (cong ty kho nguon / dang xem), con
+  // trung nua thi bao loi de nguoi dung ghi ma kho.
+  function timKho(v: unknown, uuTien: number[]): { id: number } | { loi: string } {
+    const s = chuan(v);
+    if (!s) return { loi: "IMPORT_THIEU_KHO" };
+    let ds = /^\d+$/.test(s) ? khos.filter((k) => k.id === Number(s)) : [];
+    if (!ds.length) ds = khos.filter((k) => chuan(k.ten_kho) === s);
+    if (ds.length > 1) {
+      const uu = ds.filter((k) => uuTien.includes(k.cong_ty_id));
+      if (uu.length) ds = uu;
+    }
+    if (!ds.length) return { loi: "IMPORT_KHO_KHONG_THAY" };
+    if (ds.length > 1) return { loi: "IMPORT_KHO_TRUNG_TEN" };
+    return { id: ds[0].id };
+  }
+
+  const loi: LoiImport[] = [];
+  type Nhom = {
+    khoa: string;
+    dong: number[];
+    body: CreateBody & { loai: Loai; tu_kho_id: number; items: CreateItem[] };
+    congTyId: number;
+    den: string;
+  };
+  const nhoms = new Map<string, Nhom>();
+
+  for (const d of dongs) {
+    const loiTruoc = loi.length;
+    const gv = (x: unknown) => String(x ?? "").trim();
+    const tu = timKho(d.kho_xuat, user.cong_ty_xem);
+    if ("loi" in tu) loi.push({ dong: d.dong, ma: tu.loi, gia_tri: gv(d.kho_xuat) });
+    const khoTu = "id" in tu ? khos.find((k) => k.id === tu.id)! : null;
+    const ctNguon = khoTu?.cong_ty_id ?? 0;
+
+    // Nguoi / kho nhan: dung 1 trong 3 (kho nhan, ma NV, ten tu do).
+    const coKho = !!gv(d.kho_nhan);
+    const coNv = !!gv(d.ma_nv);
+    const coTuDo = !!gv(d.nguoi_nhan);
+    let loai: Loai = "Cap phat NV";
+    let denKho: number | null = null;
+    let denNv: string | null = null;
+    let tuDo: string | null = null;
+    let den = "";
+    if (Number(coKho) + Number(coNv) + Number(coTuDo) !== 1) {
+      loi.push({ dong: d.dong, ma: coKho || coNv || coTuDo ? "IMPORT_NHIEU_NGUOI_NHAN" : "IMPORT_THIEU_NGUOI_NHAN" });
+    } else if (coKho) {
+      const k = timKho(d.kho_nhan, ctNguon ? [ctNguon] : user.cong_ty_xem);
+      if ("loi" in k) loi.push({ dong: d.dong, ma: k.loi, gia_tri: gv(d.kho_nhan) });
+      else {
+        denKho = k.id;
+        loai = khos.find((x) => x.id === k.id)!.loai === "Tieu hao" ? "Cap phat NV" : "Chuyen kho";
+        den = tenKho.get(k.id) ?? "";
+      }
+    } else if (coNv) {
+      const ma = gv(d.ma_nv).toUpperCase();
+      const nv = nvs.find((n) => n.ma_nv.toUpperCase() === ma);
+      if (!nv) loi.push({ dong: d.dong, ma: "NHAN_VIEN_NOT_FOUND", gia_tri: gv(d.ma_nv) });
+      else {
+        denNv = nv.ma_nv;
+        den = `${nv.ten_nv} (${nv.ma_nv})`;
+      }
+    } else {
+      tuDo = gv(d.nguoi_nhan);
+      den = tuDo;
+    }
+
+    // Vat tu: ma (id) hoac ten, trong danh muc cong ty kho nguon.
+    const vtMa = chuan(d.vt);
+    const vtTen = chuan(d.ten_vt);
+    const dsVt = vts.filter((v) => v.cong_ty_id === ctNguon);
+    let vt = vtMa ? dsVt.find((v) => chuan(v.id) === vtMa) : undefined;
+    if (!vt && !vtMa && vtTen) {
+      const theoTen = dsVt.filter((v) => chuan(v.ten_vt) === vtTen);
+      if (theoTen.length > 1) loi.push({ dong: d.dong, ma: "IMPORT_VT_TRUNG_TEN", gia_tri: gv(d.ten_vt) });
+      vt = theoTen.length === 1 ? theoTen[0] : undefined;
+    }
+    if (!vt && khoTu && !loi.some((l) => l.dong === d.dong && l.ma === "IMPORT_VT_TRUNG_TEN")) {
+      loi.push({ dong: d.dong, ma: vtMa || vtTen ? "IMPORT_VT_KHONG_THAY" : "IMPORT_THIEU_VT", gia_tri: gv(d.vt) || gv(d.ten_vt) });
+    }
+    const sl = so(d.so_luong);
+    if (!(sl > 0)) loi.push({ dong: d.dong, ma: "SO_LUONG_KHONG_HOP_LE", gia_tri: gv(d.so_luong) });
+    const dg = gv(d.don_gia) ? so(d.don_gia) : null;
+    if (dg != null && !(dg >= 0)) loi.push({ dong: d.dong, ma: "IMPORT_DON_GIA_SAI", gia_tri: gv(d.don_gia) });
+    if (loi.length > loiTruoc || !khoTu || !vt) continue;
+
+    const khoa = [gv(d.nhom), khoTu.id, denKho ?? "", denNv ?? "", chuan(tuDo)].join("|");
+    let n = nhoms.get(khoa);
+    if (!n) {
+      n = {
+        khoa,
+        dong: [],
+        congTyId: ctNguon,
+        den,
+        body: {
+          loai,
+          tu_kho_id: khoTu.id,
+          den_kho_id: denKho,
+          den_nhan_vien_id: denNv,
+          nguoi_nhan_ten_tu_do: tuDo,
+          ghi_chu: gv(d.ghi_chu) || null,
+          items: [],
+        },
+      };
+      nhoms.set(khoa, n);
+    } else if (!n.body.ghi_chu && gv(d.ghi_chu)) n.body.ghi_chu = gv(d.ghi_chu);
+    n.dong.push(d.dong);
+    // Cung vat tu nhieu dong trong 1 phieu -> cong don thanh 1 dong.
+    const cu = n.body.items.find((i) => i.vt_id === vt!.id);
+    if (cu) cu.so_luong += sl;
+    else n.body.items.push({ vt_id: vt.id, so_luong: sl, don_gia: dg });
+  }
+
+  // Quyen + quy tac nguon/dich tung phieu (y nhu lap tay), roi ton cong don theo kho nguon.
+  const ketQua: {
+    dong: number[];
+    loai: Loai;
+    xuat_tieu_dung: boolean;
+    tu_kho: string;
+    den: string;
+    trang_thai: string | null;
+    items: { vt_id: string; ten_vt: string; don_vi_tinh: string | null; so_luong: number; don_gia: number | null; ton: number }[];
+  }[] = [];
+  const trangThai = new Map<string, string>();
+  const canXuat = new Map<string, number>();
+  for (const n of nhoms.values()) {
+    const kt = await kiemTraTao(db, user, n.body);
+    if ("error" in kt) for (const dg of n.dong) loi.push({ dong: dg, ma: kt.error });
+    else trangThai.set(n.khoa, kt.trangThai);
+    for (const it of n.body.items) {
+      const k = `${n.body.tu_kho_id}|${it.vt_id}`;
+      canXuat.set(k, (canXuat.get(k) ?? 0) + it.so_luong);
+    }
+  }
+  const khoNguon = [...new Set([...nhoms.values()].map((n) => n.body.tu_kho_id))];
+  const ton = new Map<string, number>();
+  if (khoNguon.length) {
+    const { results } = await db
+      .prepare(`SELECT kho_id, vt_id, ton FROM v_ton_kho WHERE kho_id IN (SELECT value FROM json_each(?))`)
+      .bind(JSON.stringify(khoNguon))
+      .all<{ kho_id: number; vt_id: string; ton: number }>();
+    for (const r of results) ton.set(`${r.kho_id}|${r.vt_id}`, r.ton);
+  }
+  const vtMap = new Map(vts.map((v) => [v.id, v]));
+  for (const n of nhoms.values()) {
+    for (const it of n.body.items) {
+      const k = `${n.body.tu_kho_id}|${it.vt_id}`;
+      const tonCo = ton.get(k) ?? 0;
+      if ((canXuat.get(k) ?? 0) > tonCo) {
+        loi.push({ dong: n.dong[0], ma: "IMPORT_VUOT_TON", gia_tri: `${vtMap.get(it.vt_id)?.ten_vt ?? it.vt_id}: ${tonCo} < ${canXuat.get(k)}` });
+        canXuat.set(k, -Infinity); // bao 1 lan / mat hang / kho
+      }
+    }
+    ketQua.push({
+      dong: n.dong,
+      loai: n.body.loai,
+      xuat_tieu_dung: n.body.loai === "Cap phat NV" && !!n.body.den_kho_id,
+      tu_kho: tenKho.get(n.body.tu_kho_id) ?? String(n.body.tu_kho_id),
+      den: n.den,
+      trang_thai: trangThai.get(n.khoa) ?? null,
+      items: n.body.items.map((it) => ({
+        vt_id: it.vt_id,
+        ten_vt: vtMap.get(it.vt_id)?.ten_vt ?? it.vt_id,
+        don_vi_tinh: vtMap.get(it.vt_id)?.don_vi_tinh ?? null,
+        so_luong: it.so_luong,
+        don_gia: it.don_gia ?? null,
+        ton: ton.get(`${n.body.tu_kho_id}|${it.vt_id}`) ?? 0,
+      })),
+    });
+  }
+  loi.sort((a, b) => a.dong - b.dong);
+
+  if (!body?.thuc_hien || loi.length || !nhoms.size) {
+    return c.json({ phieu: ketQua, loi, so_dong: dongs.length, hop_le: !loi.length && nhoms.size > 0 });
+  }
+
+  const ngay = nowVN();
+  const ids: string[] = [];
+  const stmts: D1PreparedStatement[] = [];
+  for (const n of nhoms.values()) {
+    const g = lenhTaoPhieu(db, user, { ...n.body, ghi_chu: n.body.ghi_chu ?? "Import Excel" }, trangThai.get(n.khoa)!, ngay);
+    ids.push(g.id);
+    stmts.push(...g.stmts);
+  }
+  // Chot chan ton tung kho nguon (phieu chuyen cong ty chua tru ton - guard van dung vi khong lam ton am).
+  for (const k of khoNguon) {
+    const vtIds = [...new Set([...nhoms.values()].filter((n) => n.body.tu_kho_id === k).flatMap((n) => n.body.items.map((i) => i.vt_id)))];
+    stmts.push(...guardTonKhongAm(db, k, vtIds));
+  }
   try {
     await db.batch(stmts);
   } catch (e) {
-    if (String(e).includes("CHECK constraint failed")) return c.json({ error: phu.lenhThem?.length ? "SAI_TRANG_THAI" : "VUOT_TON" }, 409);
+    if (String(e).includes("CHECK constraint failed")) return c.json({ error: "VUOT_TON" }, 409);
     throw e;
   }
-  return c.json({ ok: true, id, trang_thai: kt.trangThai });
-}
+  const { results: tao } = await db
+    .prepare(`SELECT id, ma_phieu FROM phieu_chuyen_kho WHERE id IN (SELECT value FROM json_each(?)) ORDER BY ma_phieu`)
+    .bind(JSON.stringify(ids))
+    .all<{ id: string; ma_phieu: string }>();
+  return c.json({ ok: true, so_phieu: ids.length, phieu: tao });
+});
 
 // ------------------------------------------------------------------ Sua / huy phieu cho KT duyet
 interface PhieuSua {

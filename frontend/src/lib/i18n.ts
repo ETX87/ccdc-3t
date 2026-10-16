@@ -80,3 +80,8 @@ export function tS(s: string | null | undefined): string {
 
 /** Locale cho Intl (dinh dang so, ngay). */
 export const LOCALE = lang === "en" ? "en-US" : lang === "id" ? "id-ID" : "vi-VN";
+
+/** Chuoi goc tieng Viet + moi ban dich (vd nhan dien tieu de cot file Excel do nguoi dung o ngon ngu khac tao). */
+export function moiNgonNgu(vi: string): string[] {
+  return [vi, EN[vi], ID[vi]].filter((x): x is string => !!x);
+}

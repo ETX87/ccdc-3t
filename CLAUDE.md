@@ -136,6 +136,12 @@ state đang dùng.
   điều chỉnh tính theo `updated_at`, ra kho theo `created_at`; tồn cuối = đầu + nhập − xuất, kỳ tới hôm nay = tồn hiện tại)
   → cột Tồn đầu kỳ / SL nhập / SL xuất / Tồn cuối kỳ ở bảng "Tồn theo kho" (KhoScreen, chọn ngày/tháng/năm) + popup từng
   mặt hàng `NxtKhoModal` (`components/NhapXuatTon.tsx`). Danh sách phiếu tiêu hao có cột SL (`tong_sl`, điều chỉnh tách `sl_giam`).
+- **Import Excel phiếu tiêu hao** (2026-10-16, nút "Nhập từ Excel" ở Cấp phát tiêu hao, `components/NhapExcelPhieuCk.tsx`
+  → `POST /phieu-chuyen-kho/import {dong, thuc_hien}`): Chuyển kho / Cấp phát NV / Xuất tiêu dùng VP từ kho người dùng phụ
+  trách. Mỗi dòng 1 mặt hàng, gộp phiếu theo (Nhóm phiếu, Kho xuất, người/kho nhận); loại phiếu suy từ người nhận. Server
+  tra tên kho / vật tư (bỏ dấu) / mã NV, kiểm quyền bằng CHÍNH `kiemTraTao` của lập tay + tồn cộng dồn cả file; có lỗi thì
+  không tạo phiếu nào, tạo thì mọi phiếu trong 1 `db.batch` (dùng chung `lenhTaoPhieu`). Tiêu đề cột nhận mọi ngôn ngữ
+  (`moiNgonNgu()` trong i18n.ts — script kiểm i18n coi như `t()`).
 - Tồn theo kho: `GET /bao-cao/ton-theo-kho` (ma trận, cột kho người xem chọn - localStorage `ccdc_cot_kho_ton`) +
   thẻ kho `GET /bao-cao/the-kho?kho_id&vt_id` (`components/TonTheoKho.tsx`, `TheKho.tsx`).
 - Nút Back: mỗi `navigate()` = 1 `history.pushState` (App.tsx), popup chi tiết cũng chiếm 1 bước (Back đóng popup);

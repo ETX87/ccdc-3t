@@ -21,6 +21,11 @@ export interface PhamVi {
    * ccdc.cong_ty_id. null = khong ap dung (toanBo that, hoac thu kho / QL / NV).
    */
   congTyToan?: number[] | null;
+  /**
+   * Nhan vien kiem nhiem nhieu cong ty: tai san NHOM (nhomMaNv) giu chi tinh TS cua cac cong ty nay - kho QL cong ty A
+   * khong dem TS cong ty B ma cap duoi kiem nhiem dang giu. Vang mat = khong loc.
+   */
+  congTyNhom?: number[];
 }
 
 /** Pham vi "toan bo cac cong ty dang xem" (moi kho + moi nhan vien cua cac cong ty do). */
@@ -28,7 +33,7 @@ async function phamViCongTy(db: D1Database, user: AppUser): Promise<PhamVi> {
   const congTy = JSON.stringify(user.cong_ty_xem);
   const [kho, nv] = await db.batch<{ id: number; ma_nv: string }>([
     db.prepare("SELECT id FROM kho WHERE loai != 'Mua hang' AND cong_ty_id IN (SELECT value FROM json_each(?))").bind(congTy),
-    db.prepare("SELECT ma_nv FROM nhan_vien WHERE cong_ty_id IN (SELECT value FROM json_each(?))").bind(congTy),
+    db.prepare("SELECT DISTINCT ma_nv FROM v_nv_cong_ty WHERE cong_ty_id IN (SELECT value FROM json_each(?))").bind(congTy),
   ]);
   return {
     toanBo: false,
@@ -58,7 +63,9 @@ export async function layPhamVi(db: D1Database, user: AppUser): Promise<PhamVi> 
   let nhom: string[] = [];
   if (user.ma_nv) {
     const { results } = await db
-      .prepare("SELECT ma_nv FROM nhan_vien WHERE quan_ly_id = ? AND dang_lam_viec = 1 AND cong_ty_id IN (SELECT value FROM json_each(?))")
+      .prepare(
+        "SELECT ma_nv FROM nhan_vien WHERE quan_ly_id = ? AND dang_lam_viec = 1 AND ma_nv IN (SELECT ma_nv FROM v_nv_cong_ty WHERE cong_ty_id IN (SELECT value FROM json_each(?)))",
+      )
       .bind(user.ma_nv, congTy)
       .all<{ ma_nv: string }>();
     nhom = [user.ma_nv, ...results.map((r) => r.ma_nv)];
@@ -69,6 +76,7 @@ export async function layPhamVi(db: D1Database, user: AppUser): Promise<PhamVi> 
     nhomMaNv: nhom,
     xemTongHop: toanQuyen || kho.length > 0 || nhom.length > 1,
     congTyToan: null,
+    congTyNhom: user.cong_ty_xem,
   };
 }
 
@@ -80,12 +88,12 @@ export async function locTheoKho(db: D1Database, pv: PhamVi, khoId: number): Pro
   let nhom: string[] = [];
   if (kho.loai === "Quan ly" && kho.nhan_vien_id) {
     const { results } = await db
-      .prepare("SELECT ma_nv FROM nhan_vien WHERE quan_ly_id = ? AND dang_lam_viec = 1")
-      .bind(kho.nhan_vien_id)
+      .prepare("SELECT ma_nv FROM nhan_vien WHERE quan_ly_id = ? AND dang_lam_viec = 1 AND ma_nv IN (SELECT ma_nv FROM v_nv_cong_ty WHERE cong_ty_id = ?)")
+      .bind(kho.nhan_vien_id, kho.cong_ty_id)
       .all<{ ma_nv: string }>();
     nhom = [kho.nhan_vien_id, ...results.map((r) => r.ma_nv)];
   }
-  return { toanBo: false, khoIds: [khoId], nhomMaNv: nhom, xemTongHop: true };
+  return { toanBo: false, khoIds: [khoId], nhomMaNv: nhom, xemTongHop: true, congTyNhom: [kho.cong_ty_id] };
 }
 
 export interface DieuKien {
@@ -109,6 +117,12 @@ export function dkTaiSan(pv: PhamVi, a = "c"): DieuKien {
   for (const [cot, ds] of [[`${a}.kho_id`, pv.khoIds], [`${a}.nguoi_dang_giu`, pv.nhomMaNv]] as const) {
     if (!ds.length) continue;
     const t = trong(cot, ds);
+    if (cot.endsWith("nguoi_dang_giu") && pv.congTyNhom) {
+      const ct = trong(`${a}.cong_ty_id`, pv.congTyNhom);
+      parts.push(`(${t.sql} AND ${ct.sql})`);
+      binds.push(t.bind, ct.bind);
+      continue;
+    }
     parts.push(t.sql);
     binds.push(t.bind);
   }

@@ -4,6 +4,7 @@ import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { nowVN } from "../lib/vnTime";
 import { coCongTy, getKho, guardTonKhongAm, khoNhanHang, khoPhuTrach, laBenNhan, laCapDuoi, laNguoiLap, laHcns, laKeToan, laKhoTon, laThuKho, tonKho } from "../lib/quyen";
+import { NV_THUOC_CT, nvThuocCongTy } from "../lib/nvCongTy";
 import { ghepVatTu } from "../lib/ghepVatTu";
 import { sinhMaPhieu, TIEN_TO_CHUYEN_KHO } from "../lib/maPhieu";
 import { dkPhieuKho, layPhamVi, type PhamVi } from "../lib/phamVi";
@@ -258,12 +259,10 @@ async function kiemTraTaoGoc(db: D1Database, user: AppUser, body: CreateBody): P
     return { trangThai: "Da giao" };
   }
   if (coNv) {
-    const nv = await db
-      .prepare("SELECT ma_nv, cong_ty_id FROM nhan_vien WHERE ma_nv = ? AND dang_lam_viec = 1")
-      .bind(body.den_nhan_vien_id)
-      .first<{ cong_ty_id: number }>();
+    const nv = await db.prepare("SELECT ma_nv FROM nhan_vien WHERE ma_nv = ? AND dang_lam_viec = 1").bind(body.den_nhan_vien_id).first();
     if (!nv) return { error: "NHAN_VIEN_NOT_FOUND" };
-    if (nv.cong_ty_id !== tu.cong_ty_id) return { error: "NHAN_VIEN_KHAC_CONG_TY" };
+    // Nhan vien kiem nhiem nhieu cong ty nhan duoc tu kho cua MOI cong ty ho thuoc ve.
+    if (!(await nvThuocCongTy(db, body.den_nhan_vien_id!, tu.cong_ty_id))) return { error: "NHAN_VIEN_KHAC_CONG_TY" };
   }
   if (tu.loai === "Quan ly") {
     // QL chi phat cho cap duoi truc tiep cua chu kho (hoac chinh QL) - ten tu do khong kiem chung
@@ -427,7 +426,7 @@ phieuChuyenKho.post("/import", async (c) => {
     db.prepare(
       `SELECT id, ten_vt, don_vi_tinh, cong_ty_id FROM vt_tieu_hao WHERE vo_hieu_hoa = 0 AND cong_ty_id IN (SELECT value FROM json_each(?))`,
     ).bind(congTy),
-    db.prepare(`SELECT ma_nv, ten_nv, cong_ty_id FROM nhan_vien WHERE dang_lam_viec = 1 AND cong_ty_id IN (SELECT value FROM json_each(?))`).bind(congTy),
+    db.prepare(`SELECT ma_nv, ten_nv, cong_ty_id FROM nhan_vien WHERE dang_lam_viec = 1 AND ${NV_THUOC_CT("ma_nv")}`).bind(congTy),
   ]) as unknown as [
     { results: { id: number; ten_kho: string; loai: string; cong_ty_id: number }[] },
     { results: { id: string; ten_vt: string; don_vi_tinh: string | null; cong_ty_id: number }[] },

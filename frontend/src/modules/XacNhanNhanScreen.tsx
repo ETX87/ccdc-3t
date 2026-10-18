@@ -15,6 +15,7 @@ import { fmtGiaTri, fmtGiaTriDong, fmtNgay, fmtNgayGio, fmtSo } from "../lib/for
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { LOAI_KHO, TRANG_THAI_TS, isHcns, laKhoTon, tenVaiTro, thongBaoLoi } from "../lib/nhan";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
+import { TongTheoCongTyCaNhan } from "../components/TongTheoCongTy";
 
 interface CcdcRow {
   id: string;
@@ -23,6 +24,7 @@ interface CcdcRow {
   so_seri: string | null;
   nguyen_gia: number | null;
   trang_thai_hien_tai: string;
+  cong_ty_id?: number;
 }
 interface PhieuGnRow {
   id: string;
@@ -47,6 +49,7 @@ interface TieuHaoRow {
   trang_thai: string;
   created_at: string;
   da_xac_nhan: number;
+  tu_cong_ty_id?: number;
 }
 interface BaoHongRow {
   id: string;
@@ -293,6 +296,14 @@ export function XacNhanNhanScreen() {
           </div>
           <PhanTrang trang={tCho.trang} tong={tCho.tong} onDoi={tCho.setTrang} donVi={t("phiếu")} />
         </div>
+      )}
+
+      {(user?.cong_ty.length ?? 0) > 1 && ccdcs && (
+        <TongTheoCongTyCaNhan
+          congTy={user?.cong_ty ?? []}
+          taiSan={ccdcs.map((c) => ({ cong_ty_id: c.cong_ty_id, gia_tri: c.nguyen_gia }))}
+          tieuHao={tieuHao.map((p) => ({ cong_ty_id: p.tu_cong_ty_id, gia_tri: p.tong_tien }))}
+        />
       )}
 
       <div className="content-card task-card-full">

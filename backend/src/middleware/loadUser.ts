@@ -73,8 +73,9 @@ export async function loadUser(c: Context<{ Bindings: Env }>, next: Next) {
     c.env.DB.prepare("SELECT id, mac_dinh FROM cong_ty WHERE bat_tat = 1 ORDER BY id"),
     c.env.DB.prepare(
       `SELECT cong_ty_id AS id FROM user_cong_ty WHERE email = ?
-       UNION SELECT k.cong_ty_id FROM kho_thu_kho t JOIN kho k ON k.id = t.kho_id WHERE t.email = ?`,
-    ).bind(row.email, row.email),
+       UNION SELECT k.cong_ty_id FROM kho_thu_kho t JOIN kho k ON k.id = t.kho_id WHERE t.email = ?
+       UNION SELECT cong_ty_id FROM nhan_vien_cong_ty WHERE ma_nv = ?`,
+    ).bind(row.email, row.email, nv?.ma_nv ?? ""),
   ]);
   const hoatDong = ct.results.map((r) => r.id);
   const tap = new Set(gan.results.map((r) => r.id));

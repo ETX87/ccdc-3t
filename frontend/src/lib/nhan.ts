@@ -125,6 +125,8 @@ const LOI: Record<string, string> = {
   DANG_CHO_CHUYEN_CONG_TY: t("Tài sản đang nằm trong phiếu chuyển công ty chờ duyệt."),
   CHUA_KE_TOAN_DUYET: t("Phiếu chuyển công ty chưa được Kế toán duyệt."),
   DANG_GIU_TS_CONG_TY_CU: t("Nhân viên còn giữ tài sản của công ty cũ - thu hồi hoặc điều chuyển hết trước khi đổi công ty."),
+  CON_KHO_QL_CONG_TY_CU: t("Nhân viên còn kho QL ở công ty bị bỏ - đổi người phụ trách / loại kho đó trước."),
+  CONG_TY_NOT_FOUND: t("Công ty không tồn tại hoặc đã ngừng."),
   MA_CONG_TY_TRUNG: t("Mã công ty đã tồn tại."),
   KHONG_TAT_CONG_TY_MAC_DINH: t("Không thể ngừng công ty mặc định."),
   KHONG_TAT_KHO_HE_THONG: t("Không thể ngừng kho mua hàng / kho HCNS cuối cùng của công ty."),

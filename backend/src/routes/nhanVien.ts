@@ -8,13 +8,31 @@ import { docTrang, layTrang } from "../lib/phanTrang";
 import { LoiGop, lapKeHoach, lenhThucHien, type GiuEmail, type YeuCau } from "../lib/gopNhanVien";
 import { coCongTy, congTyLoc, congTyTao, laHcns } from "../lib/quyen";
 import type { AppUser } from "../types";
+import { congTyCuaNv, lenhTaoKhoQl, NV_THUOC_CT } from "../lib/nvCongTy";
 
-/** Ho so ton tai + nguoi dung la HCNS/Admin cong ty cua ho so (da phap nhan). */
+/** Ho so ton tai + nguoi dung la HCNS/Admin 1 trong cac cong ty cua ho so (da phap nhan, nhan vien kiem nhiem). */
 async function nvQuanTri(db: D1Database, user: AppUser, maNv: string) {
-  const r = await db.prepare("SELECT cong_ty_id FROM nhan_vien WHERE ma_nv = ?").bind(maNv).first<{ cong_ty_id: number }>();
-  if (!r) return { error: "NOT_FOUND" as const, status: 404 as const };
-  if (!laHcns(user, r.cong_ty_id)) return { error: "FORBIDDEN" as const, status: 403 as const };
-  return { congTyId: r.cong_ty_id };
+  const cts = await congTyCuaNv(db, maNv);
+  if (!cts.length) return { error: "NOT_FOUND" as const, status: 404 as const };
+  if (!cts.some((ct) => laHcns(user, ct))) return { error: "FORBIDDEN" as const, status: 403 as const };
+  return { congTyId: cts[0], congTyPhu: cts.slice(1) };
+}
+
+/** Danh sach cong ty kiem nhiem tu body: so nguyen, bo trung, bo cong ty chinh. */
+function docCongTyPhu(v: unknown, chinh: number): number[] | null {
+  if (v === undefined) return null;
+  if (!Array.isArray(v)) return [];
+  return [...new Set(v.map(Number).filter((x) => Number.isInteger(x) && x > 0 && x !== chinh))];
+}
+
+/** Lenh ghi lai cong ty kiem nhiem (xoa het roi chen lai) + tao kho QL o cong ty moi neu can (cho NV va QL cua NV). */
+function lenhCongTyPhu(db: D1Database, maNv: string, phu: number[], quanLy: string | null) {
+  const now = nowVN();
+  const s = [db.prepare("DELETE FROM nhan_vien_cong_ty WHERE ma_nv = ?").bind(maNv)];
+  for (const ct of phu) s.push(db.prepare("INSERT INTO nhan_vien_cong_ty (ma_nv, cong_ty_id, created_at) VALUES (?, ?, ?)").bind(maNv, ct, now));
+  s.push(lenhTaoKhoQl(db, maNv, now));
+  if (quanLy) s.push(lenhTaoKhoQl(db, quanLy, now));
+  return s;
 }
 
 // Bo dau + viet thuong de so khop ten tieng Viet (khong phan biet hoa/thuong, dau).
@@ -39,7 +57,8 @@ function dkTrangThai(tt: string | undefined) {
 nhanVien.get("/", async (c) => {
   const q = (k: string) => c.req.query(k)?.trim() || undefined;
   // Nhan vien cac cong ty dang xem; ?cong_ty_id= cho o chon nguoi nhan theo cong ty cua kho trong form.
-  const conditions = [dkTrangThai(q("trang_thai")), "n.cong_ty_id IN (SELECT value FROM json_each(?))"];
+  // Nhan vien kiem nhiem (nhan_vien_cong_ty) hien o MOI cong ty ho thuoc ve.
+  const conditions = [dkTrangThai(q("trang_thai")), NV_THUOC_CT("n.ma_nv")];
   const binds: unknown[] = [JSON.stringify(congTyLoc(c.get("user"), q("cong_ty_id")))];
   const search = q("search");
   if (search) {
@@ -70,6 +89,7 @@ nhanVien.get("/", async (c) => {
 
   const sql = `SELECT n.ma_nv, n.ten_nv, n.bo_phan, n.chuc_vu, n.sdt, n.email_dang_nhap, n.dang_lam_viec, n.ma_etx,
             n.quan_ly_id, ql.ten_nv AS quan_ly_ten, n.cong_ty_id,
+            (SELECT json_group_array(x.cong_ty_id) FROM nhan_vien_cong_ty x WHERE x.ma_nv = n.ma_nv) AS cong_ty_phu,
             (SELECT COUNT(*) FROM nhan_vien x WHERE x.quan_ly_id = n.ma_nv AND x.dang_lam_viec = 1) AS so_cap_duoi,
             (SELECT COUNT(*) FROM ccdc c WHERE c.nguoi_dang_giu = n.ma_nv AND c.vo_hieu_hoa = 0
                AND c.trang_thai_hien_tai NOT IN ('Da thanh ly', 'Da tieu huy')) AS so_ts_dang_giu,
@@ -88,7 +108,7 @@ nhanVien.get("/", async (c) => {
 // tai ca danh sach ve trinh duyet de dem).
 nhanVien.get("/thong-ke", async (c) => {
   // Cong ty dang xem: chen thang danh sach id (so nguyen tu loadUser, khong phai du lieu client).
-  const dk = `${dkTrangThai(c.req.query("trang_thai"))} AND n.cong_ty_id IN (${c.get("user").cong_ty_xem.map(Number).join(",") || "0"})`;
+  const dk = `${dkTrangThai(c.req.query("trang_thai"))} AND n.ma_nv IN (SELECT ma_nv FROM v_nv_cong_ty WHERE cong_ty_id IN (${c.get("user").cong_ty_xem.map(Number).join(",") || "0"}))`;
   const [tk, bp] = await c.env.DB.batch([
     c.env.DB.prepare(
       `SELECT COUNT(*) AS tong,
@@ -152,8 +172,9 @@ nhanVien.get("/etx", requireRole("Admin", "HCNS"), async (c) => {
 nhanVien.get("/:ma_nv", async (c) => {
   const row = await c.env.DB.prepare("SELECT * FROM nhan_vien WHERE ma_nv = ?").bind(c.req.param("ma_nv")).first<{ cong_ty_id: number }>();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
-  if (!coCongTy(c.get("user"), row.cong_ty_id)) return c.json({ error: "FORBIDDEN" }, 403);
-  return c.json({ row });
+  const cts = await congTyCuaNv(c.env.DB, c.req.param("ma_nv"));
+  if (!cts.some((ct) => coCongTy(c.get("user"), ct))) return c.json({ error: "FORBIDDEN" }, 403);
+  return c.json({ row: { ...row, cong_ty_phu: cts.slice(1) } });
 });
 
 interface Body {
@@ -166,17 +187,22 @@ interface Body {
   ghi_chu?: string | null;
   quan_ly_id?: string | null;
   cong_ty_id?: number;
+  /** Cong ty kiem nhiem (ngoai cong ty chinh). Vang mat = giu nguyen. */
+  cong_ty_phu?: number[];
 }
 
-// Gan quan ly truc tiep -> dam bao QL do co kho QL rieng (chuoi kho ... -> KHO QL -> NV). Idempotent.
-function taoKhoQl(db: D1Database, qlMaNv: string) {
-  return db
-    .prepare(
-      `INSERT INTO kho (ten_kho, loai, nhan_vien_id, cong_ty_id, created_at, updated_at)
-       SELECT 'Kho QL - ' || ten_nv, 'Quan ly', ma_nv, cong_ty_id, ?, ? FROM nhan_vien WHERE ma_nv = ?
-       ON CONFLICT(nhan_vien_id) DO NOTHING`,
-    )
-    .bind(nowVN(), nowVN(), qlMaNv);
+// Gan quan ly truc tiep -> dam bao QL do co kho QL rieng o moi cong ty can (chuoi kho ... -> KHO QL -> NV). Idempotent.
+const taoKhoQl = (db: D1Database, qlMaNv: string) => lenhTaoKhoQl(db, qlMaNv, nowVN());
+
+/** Kiem quyen + hop le danh sach cong ty kiem nhiem: phai la HCNS/Admin cua moi cong ty THEM / BOT. */
+async function kiemTraCongTyPhu(db: D1Database, user: AppUser, cu: number[], moi: number[]): Promise<string | null> {
+  const doi = [...moi.filter((x) => !cu.includes(x)), ...cu.filter((x) => !moi.includes(x))];
+  if (doi.some((ct) => !laHcns(user, ct))) return "FORBIDDEN";
+  if (moi.length) {
+    const r = await db.prepare("SELECT COUNT(*) AS n FROM cong_ty WHERE bat_tat = 1 AND id IN (SELECT value FROM json_each(?))").bind(JSON.stringify(moi)).first<{ n: number }>();
+    if ((r?.n ?? 0) !== moi.length) return "CONG_TY_NOT_FOUND";
+  }
+  return null;
 }
 
 // email_dang_nhap co FK users(email) - bao loi ro rang thay vi de FK loi 500. 1 tai khoan chi gan 1 ho so
@@ -211,6 +237,9 @@ nhanVien.post("/", requireRole("Admin", "HCNS"), async (c) => {
   if (loiQl) return c.json({ error: loiQl }, 400);
   const loiEmail = await kiemTraEmail(c.env.DB, body.email_dang_nhap, body.ma_nv.trim());
   if (loiEmail) return c.json({ error: loiEmail }, 400);
+  const phu = docCongTyPhu(body.cong_ty_phu, congTyId) ?? [];
+  const loiPhu = await kiemTraCongTyPhu(c.env.DB, c.get("user"), [], phu);
+  if (loiPhu) return c.json({ error: loiPhu }, loiPhu === "FORBIDDEN" ? 403 : 400);
 
   const stmts = [
     c.env.DB.prepare(
@@ -231,6 +260,7 @@ nhanVien.post("/", requireRole("Admin", "HCNS"), async (c) => {
     ),
   ];
   if (body.quan_ly_id) stmts.push(taoKhoQl(c.env.DB, body.quan_ly_id));
+  if (phu.length) stmts.push(...lenhCongTyPhu(c.env.DB, body.ma_nv.trim(), phu, body.quan_ly_id || null));
   await c.env.DB.batch(stmts);
 
   return c.json({ ok: true, ma_nv: body.ma_nv.trim() });
@@ -243,16 +273,23 @@ nhanVien.put("/:ma_nv", requireRole("Admin", "HCNS"), async (c) => {
   const user = c.get("user");
   const qt = await nvQuanTri(c.env.DB, user, maNv ?? "");
   if ("error" in qt) return c.json({ error: qt.error }, qt.status);
-  // Doi cong ty: phai co quyen ca cong ty moi, va khong con giu TS cua cong ty cu (tai san moi cong ty doc lap -
-  // thu hoi hoac chuyen cong ty TS truoc).
+  // Doi cong ty chinh / kiem nhiem: phai co quyen moi cong ty them / bot; khong con giu TS cua cong ty bi bo (tai san
+  // moi cong ty doc lap - thu hoi hoac chuyen cong ty TS truoc) va khong con kho QL o cong ty bi bo.
   const congTyMoi = body.cong_ty_id != null ? Number(body.cong_ty_id) : qt.congTyId;
-  if (congTyMoi !== qt.congTyId) {
-    if (!laHcns(user, congTyMoi)) return c.json({ error: "FORBIDDEN" }, 403);
-    const giu = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM ccdc WHERE nguoi_dang_giu = ? AND vo_hieu_hoa = 0 AND cong_ty_id != ?")
-      .bind(maNv, congTyMoi)
-      .first<{ n: number }>();
-    if ((giu?.n ?? 0) > 0) return c.json({ error: "DANG_GIU_TS_CONG_TY_CU", so_luong: giu?.n }, 400);
-  }
+  if (congTyMoi !== qt.congTyId && (!laHcns(user, congTyMoi) || !laHcns(user, qt.congTyId))) return c.json({ error: "FORBIDDEN" }, 403);
+  const phuMoi = docCongTyPhu(body.cong_ty_phu, congTyMoi) ?? qt.congTyPhu.filter((x) => x !== congTyMoi);
+  const loiPhu = await kiemTraCongTyPhu(c.env.DB, user, qt.congTyPhu, phuMoi);
+  if (loiPhu) return c.json({ error: loiPhu }, loiPhu === "FORBIDDEN" ? 403 : 400);
+  const tapMoi = JSON.stringify([congTyMoi, ...phuMoi]);
+  const [giu, khoBo] = await c.env.DB.batch<{ n: number }>([
+    c.env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM ccdc WHERE nguoi_dang_giu = ? AND vo_hieu_hoa = 0 AND cong_ty_id NOT IN (SELECT value FROM json_each(?))",
+    ).bind(maNv, tapMoi),
+    c.env.DB.prepare("SELECT COUNT(*) AS n FROM kho WHERE nhan_vien_id = ? AND cong_ty_id NOT IN (SELECT value FROM json_each(?))").bind(maNv, tapMoi),
+  ]);
+  const nGiu = giu.results[0]?.n ?? 0;
+  if (nGiu > 0) return c.json({ error: "DANG_GIU_TS_CONG_TY_CU", so_luong: nGiu }, 400);
+  if ((khoBo.results[0]?.n ?? 0) > 0) return c.json({ error: "CON_KHO_QL_CONG_TY_CU" }, 400);
   const loiQl = await kiemTraQuanLy(c.env.DB, maNv ?? "", body.quan_ly_id);
   if (loiQl) return c.json({ error: loiQl }, 400);
   const loiEmail = await kiemTraEmail(c.env.DB, body.email_dang_nhap, maNv);
@@ -279,6 +316,8 @@ nhanVien.put("/:ma_nv", requireRole("Admin", "HCNS"), async (c) => {
     ),
   ];
   if (body.quan_ly_id) stmts.push(taoKhoQl(c.env.DB, body.quan_ly_id));
+  const ql = body.quan_ly_id === undefined ? ((await c.env.DB.prepare("SELECT quan_ly_id FROM nhan_vien WHERE ma_nv = ?").bind(maNv).first<{ quan_ly_id: string | null }>())?.quan_ly_id ?? null) : body.quan_ly_id || null;
+  stmts.push(...lenhCongTyPhu(c.env.DB, maNv ?? "", phuMoi, ql));
   const [result] = await c.env.DB.batch(stmts);
   if ((result.meta.changes ?? 0) === 0) return c.json({ error: "NOT_FOUND" }, 404);
   return c.json({ ok: true });

@@ -25,9 +25,7 @@ interface KeHoach {
   dich: { ma_nv: string; ten_nv: string } | null;
   ketQua: { ten_nv: string; ma_etx: string | null; email_dang_nhap: string | null; dang_lam_viec: number };
   chuyen: { nhan: string; so: number }[];
-  khoNguon: { id: number; ten_kho: string; ton: number } | null;
-  khoDich: { id: number; ten_kho: string } | null;
-  gopKho: boolean;
+  kho: { nguon: { id: number; ten_kho: string; ton: number }; dich: { id: number; ten_kho: string } | null }[];
   xungDotEmail: { nguon: string; dich: string } | null;
   canhBao: string[];
 }
@@ -197,11 +195,11 @@ export function DoiMaNhanVienModal({ nv, onClose, onXong }: { nv: { ma_nv: strin
                   {tS(c.nhan)}: <b>{fmtSo(c.so)}</b>
                 </li>
               ))}
-              {keHoach.khoNguon && (
-                <li>
-                  Kho QL “{keHoach.khoNguon.ten_kho}{t("” (tồn tiêu hao")} {fmtSo(keHoach.khoNguon.ton)}): {keHoach.gopKho ? t("gộp vào “{ten_kho}”", { ten_kho: keHoach.khoDich?.ten_kho }) : t("chuyển chủ sang hồ sơ đích")}
+              {keHoach.kho.map((x) => (
+                <li key={x.nguon.id}>
+                  Kho QL “{x.nguon.ten_kho}{t("” (tồn tiêu hao")} {fmtSo(x.nguon.ton)}): {x.dich ? t("gộp vào “{ten_kho}”", { ten_kho: x.dich.ten_kho }) : t("chuyển chủ sang hồ sơ đích")}
                 </li>
-              )}
+              ))}
             </ul>
           ) : (
             !keHoach.taiCho && <div className="small muted">{t("Hồ sơ này không có tài sản / phiếu nào cần chuyển.")}</div>

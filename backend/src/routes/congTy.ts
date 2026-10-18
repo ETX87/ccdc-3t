@@ -17,7 +17,7 @@ congTy.get("/", async (c) => {
   const { results } = await c.env.DB.prepare(
     `SELECT ct.id, ct.ma, ct.ten, ct.mst, ct.dia_chi, ct.mac_dinh, ct.bat_tat,
             (SELECT COUNT(*) FROM kho k WHERE k.cong_ty_id = ct.id AND k.loai NOT IN ('Mua hang', 'Tieu hao')) AS so_kho,
-            (SELECT COUNT(*) FROM nhan_vien nv WHERE nv.cong_ty_id = ct.id AND nv.dang_lam_viec = 1) AS so_nv,
+            (SELECT COUNT(*) FROM nhan_vien nv JOIN v_nv_cong_ty m ON m.ma_nv = nv.ma_nv WHERE m.cong_ty_id = ct.id AND nv.dang_lam_viec = 1) AS so_nv,
             (SELECT COUNT(*) FROM ccdc x WHERE x.cong_ty_id = ct.id AND x.vo_hieu_hoa = 0) AS so_ts
      FROM cong_ty ct
      WHERE ? = 1 OR ct.id IN (SELECT value FROM json_each(?))

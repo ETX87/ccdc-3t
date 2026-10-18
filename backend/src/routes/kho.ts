@@ -6,6 +6,7 @@ import { requireRole } from "../middleware/requireRole";
 import { formatVNFromMs, nowVN } from "../lib/vnTime";
 import { getKho, khoPhuTrach, laHcns, LOAI_DOI_DUOC, type LoaiKho } from "../lib/quyen";
 import { layPhamViXemTon } from "../lib/phamVi";
+import { nvThuocCongTy } from "../lib/nvCongTy";
 
 // Danh muc kho (chuoi KHO MUA -> HCNS -> MIEN -> QL) + gan thu kho. Kho QL thuong duoc tao tu dong
 // khi gan quan ly truc tiep cho nhan vien (routes/nhanVien.ts), van tao tay duoc o day.
@@ -180,7 +181,9 @@ kho.post("/", requireRole("Admin", "HCNS"), async (c) => {
   if (!congTyId) return c.json({ error: "CHON_CONG_TY" }, 400);
   if (!laHcns(user, congTyId)) return c.json({ error: "FORBIDDEN" }, 403);
   if (body.loai === "Quan ly") {
-    const dup = await c.env.DB.prepare("SELECT id FROM kho WHERE nhan_vien_id = ?").bind(body.nhan_vien_id).first();
+    // 1 kho QL / nguoi / CONG TY (nhan vien kiem nhiem co kho QL rieng o tung cong ty).
+    if (!(await nvThuocCongTy(c.env.DB, body.nhan_vien_id!, congTyId))) return c.json({ error: "NHAN_VIEN_KHAC_CONG_TY" }, 400);
+    const dup = await c.env.DB.prepare("SELECT id FROM kho WHERE nhan_vien_id = ? AND cong_ty_id = ?").bind(body.nhan_vien_id, congTyId).first();
     if (dup) return c.json({ error: "QL_DA_CO_KHO" }, 409);
   }
   const row = await c.env.DB.prepare(
@@ -213,7 +216,7 @@ kho.put("/:id", requireRole("Admin", "HCNS"), async (c) => {
 
 // Doi loai kho Mien <-> Trung chuyen <-> QL (vd kho QL phat cho MOI nhan vien, khong chi nhom). Giu nguyen id, ton, lich su
 // va nhan_vien_id (nguoi phu trach - van la thu kho mac nhien; giu de dong bo ETX / gan quan ly khong tu tao
-// lai "Kho QL - ..." moi nho ON CONFLICT(nhan_vien_id)). Chi anh huong quy tac cua phieu lap SAU khi doi.
+// lai "Kho QL - ..." moi nho ON CONFLICT(nhan_vien_id, cong_ty_id)). Chi anh huong quy tac cua phieu lap SAU khi doi.
 // Kho chua co nguoi phu trach -> sang kho QL phai chon 1 nhan vien (cung cong ty, chua co kho rieng).
 kho.post("/:id/doi-loai", requireRole("Admin", "HCNS"), async (c) => {
   const id = Number(c.req.param("id"));
@@ -228,10 +231,12 @@ kho.post("/:id/doi-loai", requireRole("Admin", "HCNS"), async (c) => {
   if (body.loai === "Quan ly" && !nv) {
     const chon = body.nhan_vien_id?.trim();
     if (!chon) return c.json({ error: "MISSING_NHAN_VIEN" }, 400);
-    const r = await c.env.DB.prepare("SELECT cong_ty_id FROM nhan_vien WHERE ma_nv = ? AND dang_lam_viec = 1").bind(chon).first<{ cong_ty_id: number }>();
+    const r = await c.env.DB.prepare("SELECT 1 FROM nhan_vien WHERE ma_nv = ? AND dang_lam_viec = 1").bind(chon).first();
     if (!r) return c.json({ error: "NHAN_VIEN_NOT_FOUND" }, 404);
-    if (r.cong_ty_id !== k.cong_ty_id) return c.json({ error: "NHAN_VIEN_KHAC_CONG_TY" }, 400);
-    if (await c.env.DB.prepare("SELECT id FROM kho WHERE nhan_vien_id = ?").bind(chon).first()) return c.json({ error: "QL_DA_CO_KHO" }, 409);
+    if (!(await nvThuocCongTy(c.env.DB, chon, k.cong_ty_id))) return c.json({ error: "NHAN_VIEN_KHAC_CONG_TY" }, 400);
+    if (await c.env.DB.prepare("SELECT id FROM kho WHERE nhan_vien_id = ? AND cong_ty_id = ?").bind(chon, k.cong_ty_id).first()) {
+      return c.json({ error: "QL_DA_CO_KHO" }, 409);
+    }
     nv = chon;
   }
   const ten = body.ten_kho?.trim() || k.ten_kho;

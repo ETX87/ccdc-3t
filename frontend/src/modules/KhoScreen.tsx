@@ -22,6 +22,7 @@ import { KhoTag } from "../components/NoiBat";
 import { ChonLoc } from "../components/ChonLoc";
 import { ChonKyNxt, kyMacDinh, khoangKyNxt, nhanKy, NxtKhoModal, SoPhatSinh, type DongNxtKho, type Ky } from "../components/NhapXuatTon";
 import { exportRowsToExcel } from "../lib/exportExcel";
+import { TongTheoCongTyKho } from "../components/TongTheoCongTy";
 
 const LOAI_DOI: LoaiKho[] = ["Mien", "Trung chuyen", "Quan ly"];
 
@@ -68,6 +69,8 @@ export function KhoScreen() {
   const [loaiLoc, setLoaiLoc] = useState("");
   const [tim, setTim] = useState("");
   const [anKhoTrong, setAnKhoTrong] = useState(true);
+  // Loc bang kho theo 1 cong ty (bam dong cong ty o "Kho tong tat ca cong ty").
+  const [ctLoc, setCtLoc] = useState<number | null>(null);
   // Nhap - xuat - ton tieu hao theo ky (ngay / thang / nam) - tai rieng, doi ky khong tai lai tong hop.
   const [ky, setKy] = useState<Ky>(() => kyMacDinh("thang"));
   const [nxt, setNxt] = useState<Map<number, DongNxtKho> | null>(null);
@@ -130,10 +133,11 @@ export function KhoScreen() {
   const hienThi = rows.filter(
     (k) =>
       (!loaiLoc || k.loai === loaiLoc) &&
+      (ctLoc == null || k.cong_ty_id === ctLoc) &&
       (!tim.trim() || k.ten_kho.toLowerCase().includes(tim.trim().toLowerCase())) &&
       (!anKhoTrong || khoConSoLieu(k) || k.loai !== "Quan ly"),
   );
-  const tKho = useTrangKhach(hienThi, [loaiLoc, tim, anKhoTrong]);
+  const tKho = useTrangKhach(hienThi, [loaiLoc, tim, anKhoTrong, ctLoc]);
   const tongNxt = hienThi.reduce(
     (a, k) => {
       const n = nxt?.get(k.id);
@@ -267,12 +271,26 @@ export function KhoScreen() {
         />
       </div>
 
+      {tab === "ton" && (user?.cong_ty.length ?? 0) > 1 && nxt && (
+        <TongTheoCongTyKho
+          congTy={user?.cong_ty ?? []}
+          rows={rows.map((k) => ({ ...k, nxt: nxt.get(k.id) ?? null }))}
+          dangChon={ctLoc}
+          onChon={setCtLoc}
+          nhanKy={nhanKy(ky)}
+        />
+      )}
       {tab === "ton" ? (
         <div className="content-card task-card-full">
           <div className="card-header">
             <div className="card-title-wrap">
               <Store size={18} className="card-title-icon text-teal" />
               <h2 className="card-title">{t("Tồn theo kho")}</h2>
+              {ctLoc != null && (
+                <button type="button" className="nb-chip nb-blue" onClick={() => setCtLoc(null)} title={t("Bỏ lọc công ty")}>
+                  {maCongTy(user, ctLoc)} ✕
+                </button>
+              )}
             </div>
             <button type="button" className="btn btn-outline btn-sm" onClick={xuatExcelNxt} disabled={!nxt || !hienThi.length}>
               {t("Xuất Excel")}

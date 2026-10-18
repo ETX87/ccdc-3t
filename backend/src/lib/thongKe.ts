@@ -67,9 +67,12 @@ export async function chupSoLieu(db: D1Database, ngay: string): Promise<void> {
     .prepare("SELECT id, loai, nhan_vien_id, cong_ty_id FROM kho WHERE bat_tat = 1 AND loai NOT IN ('Mua hang', 'Tieu hao')")
     .all<{ id: number; loai: string; nhan_vien_id: string | null; cong_ty_id: number }>();
   const { results: congTys } = await db.prepare("SELECT id FROM cong_ty").all<{ id: number }>();
+  // Cap duoi + cong ty (ke ca kiem nhiem): kho QL cong ty X chi tinh cap duoi thuoc X.
   const { results: capDuoi } = await db
-    .prepare("SELECT ma_nv, quan_ly_id FROM nhan_vien WHERE quan_ly_id IS NOT NULL AND dang_lam_viec = 1")
-    .all<{ ma_nv: string; quan_ly_id: string }>();
+    .prepare(
+      "SELECT n.ma_nv, n.quan_ly_id, m.cong_ty_id FROM nhan_vien n JOIN v_nv_cong_ty m ON m.ma_nv = n.ma_nv WHERE n.quan_ly_id IS NOT NULL AND n.dang_lam_viec = 1",
+    )
+    .all<{ ma_nv: string; quan_ly_id: string; cong_ty_id: number }>();
 
   const phamVis: { key: string; pv: PhamVi }[] = [{ key: "all", pv: { toanBo: true, khoIds: [], nhomMaNv: [], xemTongHop: true } }];
   for (const ct of congTys) {
@@ -79,9 +82,9 @@ export async function chupSoLieu(db: D1Database, ngay: string): Promise<void> {
   for (const k of khos) {
     const nhom =
       k.loai === "Quan ly" && k.nhan_vien_id
-        ? [k.nhan_vien_id, ...capDuoi.filter((r) => r.quan_ly_id === k.nhan_vien_id).map((r) => r.ma_nv)]
+        ? [k.nhan_vien_id, ...capDuoi.filter((r) => r.quan_ly_id === k.nhan_vien_id && r.cong_ty_id === k.cong_ty_id).map((r) => r.ma_nv)]
         : [];
-    phamVis.push({ key: `kho:${k.id}`, pv: { toanBo: false, khoIds: [k.id], nhomMaNv: nhom, xemTongHop: true } });
+    phamVis.push({ key: `kho:${k.id}`, pv: { toanBo: false, khoIds: [k.id], nhomMaNv: nhom, xemTongHop: true, congTyNhom: [k.cong_ty_id] } });
   }
 
   const upserts: D1PreparedStatement[] = [];

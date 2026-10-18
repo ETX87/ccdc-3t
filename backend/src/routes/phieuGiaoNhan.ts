@@ -4,6 +4,7 @@ import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { nowVN } from "../lib/vnTime";
 import { laKhoTon, laKhoPhatChung, coCongTy, getKho, khoPhuTrach, laBenNhan, laHcns, laNguoiLap, laKeToan, laThuKho, trongNhom } from "../lib/quyen";
+import { nvThuocCongTy } from "../lib/nvCongTy";
 import { sinhMaPhieu } from "../lib/maPhieu";
 import { layPhamVi } from "../lib/phamVi";
 
@@ -135,10 +136,9 @@ async function nvTonTai(db: D1Database, maNv: string | null | undefined) {
   return !!(await db.prepare("SELECT 1 AS ok FROM nhan_vien WHERE ma_nv = ? AND dang_lam_viec = 1").bind(maNv).first());
 }
 
-async function congTyNv(db: D1Database, maNv: string | null | undefined): Promise<number | null> {
-  if (!maNv) return null;
-  return (await db.prepare("SELECT cong_ty_id FROM nhan_vien WHERE ma_nv = ?").bind(maNv).first<{ cong_ty_id: number }>())?.cong_ty_id ?? null;
-}
+/** Nhan vien thuoc cong ty (ke ca kiem nhiem - lib/nvCongTy.ts). */
+const nvThuoc = (db: D1Database, maNv: string | null | undefined, congTyId: number | null) =>
+  !maNv || congTyId == null ? Promise.resolve(false) : nvThuocCongTy(db, maNv, congTyId);
 
 // Giao nhan TAI SAN CO DINH (hieu luc ngay, ben nhan xac nhan sau - co che giu nguyen tu Phase 1).
 // Quyen (ke hoach Giai doan 1.5 muc 1), kiem tra o server - khong tin client:
@@ -170,7 +170,7 @@ phieuGiaoNhan.post("/", async (c) => {
     congTyId = tu.cong_ty_id;
     if (loai === "Cap phat") {
       if (!(await nvTonTai(db, body.nhan_vien_id))) return c.json({ error: "NHAN_VIEN_NOT_FOUND" }, 400);
-      if ((await congTyNv(db, body.nhan_vien_id)) !== tu.cong_ty_id) return c.json({ error: "NHAN_VIEN_KHAC_CONG_TY" }, 400);
+      if (!(await nvThuoc(db, body.nhan_vien_id, tu.cong_ty_id))) return c.json({ error: "NHAN_VIEN_KHAC_CONG_TY" }, 400);
       if (tu.loai === "Quan ly" && !(await trongNhom(db, tu.nhan_vien_id!, body.nhan_vien_id!))) {
         return c.json({ error: "NGOAI_NHOM_QUAN_LY" }, 403);
       }
@@ -196,8 +196,13 @@ phieuGiaoNhan.post("/", async (c) => {
   } else if (loai === "Dieu chuyen") {
     if (!body.nhan_vien_id || !(await nvTonTai(db, body.nhan_vien_nhan_moi_id))) return c.json({ error: "MISSING_NHAN_VIEN_NHAN_MOI" }, 400);
     if (body.nhan_vien_id === body.nhan_vien_nhan_moi_id) return c.json({ error: "TRUNG_NGUOI" }, 400);
-    congTyId = await congTyNv(db, body.nhan_vien_nhan_moi_id);
-    if (congTyId == null || (await congTyNv(db, body.nhan_vien_id)) !== congTyId) return c.json({ error: "NHAN_VIEN_KHAC_CONG_TY" }, 400);
+    // Cong ty = cong ty cua tai san (nhan vien kiem nhiem giu TS nhieu cong ty); 2 nguoi deu phai thuoc cong ty do.
+    congTyId =
+      (await db.prepare("SELECT cong_ty_id FROM ccdc WHERE id = ?").bind(body.items[0].ccdc_id).first<{ cong_ty_id: number }>())?.cong_ty_id ?? null;
+    if (congTyId == null) return c.json({ error: "CCDC_NOT_FOUND" }, 400);
+    if (!(await nvThuoc(db, body.nhan_vien_id, congTyId)) || !(await nvThuoc(db, body.nhan_vien_nhan_moi_id, congTyId))) {
+      return c.json({ error: "NHAN_VIEN_KHAC_CONG_TY" }, 400);
+    }
     const ctDc = congTyId;
     const toanQuyen = laHcns(user, ctDc) || (await khoPhuTrach(db, user)).some((k) => laKhoPhatChung(k.loai) && k.cong_ty_id === ctDc);
     if (!toanQuyen) {

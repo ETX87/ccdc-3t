@@ -44,6 +44,11 @@ INTO x SELECT ... FROM x_bak; DROP TABLE x_bak;`. KHÔNG dùng kiểu `CREATE x_
 `RENAME x_new TO x` — DROP bảng cha làm tăng bộ đếm FK trì hoãn, RENAME không giảm lại → COMMIT lỗi
 `FOREIGN KEY constraint failed`, D1 rollback cả migration (đã gặp thật với 0006).
 
+**Nạp bản export production vào local**: `wrangler d1 execute --local --file <export.sql>` LỖI `no such table:
+main.users` (chạy ~13 phút rồi bỏ cả file, DB local vẫn rỗng - đã gặp thật 2026-10-18). Cách đúng: dựng SQLite bằng Python
+(`sqlite3.executescript("BEGIN;" + sql + "COMMIT;")`, < 1 giây) rồi chép đè file `.sqlite` trong
+`<persist>/v3/d1/miniflare-D1DatabaseObject/` (xoá `-shm`/`-wal`), sau đó `migrations apply --local` các migration mới.
+
 **Không `taskkill` được `workerd` mồ côi** khi dừng `wrangler dev` bằng TaskStop — `workerd.exe` con
 vẫn giữ file SQLite trong `.wrangler/state` (không mv/xoá được). Muốn test trên DB sạch thì dùng
 `--persist-to` thư mục khác (vd `../.wrangler/state_import_test2`) + `--port` khác, không động vào
@@ -119,6 +124,16 @@ state đang dùng.
   trong ETX (đang bị xếp 3T) đã CHUYỂN sang NSKX (giữ mã NS-xxx); người không có trên ETX dùng mã T… / `NSKX-TAM-xxx`
   (mã tạm, có thể trùng người 3T cùng tên → HCNS gộp tay). Kho NSKX: Văn phòng Hà Nội, Kho sửa chữa Hồ Chí Minh, Kho 3T,
   Kho cấp phát vật phẩm (Miền) + Kho tiêu hao. ETX vẫn tạo nhân sự MỚI vào công ty mặc định 3T → HCNS đổi tay.
+- **Nhân viên kiêm nhiệm nhiều công ty** (2026-10-18, migration 0019): `nhan_vien.cong_ty_id` = công ty CHÍNH,
+  `nhan_vien_cong_ty` = công ty kiêm nhiệm (ô "Công ty kiêm nhiệm" ở form Nhân viên, `PUT /nhan-vien/:ma {cong_ty_phu}`).
+  Kiểm "NV thuộc công ty X" LUÔN qua view `v_nv_cong_ty` / `lib/nvCongTy.ts` (`nvThuocCongTy`, `NV_THUOC_CT`,
+  `congTyCuaNv`) — KHÔNG so `nhan_vien.cong_ty_id` trực tiếp. Kho QL = 1 kho / người / CÔNG TY (`UNIQUE(nhan_vien_id,
+  cong_ty_id)`, upsert `ON CONFLICT(nhan_vien_id, cong_ty_id)`); `lenhTaoKhoQl()` tạo kho QL ở mọi công ty QL có cấp dưới
+  thuộc công ty đó (kho công ty kiêm nhiệm tên "Kho QL - <tên> (<MÃ>)"). Phạm vi nhóm QL tách theo công ty
+  (`PhamVi.congTyNhom` lọc TS nhóm theo `ccdc.cong_ty_id`). Gộp hồ sơ 2 công ty khác nhau được phép = 1 người kiêm nhiệm
+  (kho QL gộp theo từng công ty). Bỏ công ty kiêm nhiệm bị chặn khi còn giữ TS / còn kho QL ở công ty đó.
+  "Kho tổng tất cả công ty" = BÁO CÁO GỘP (`components/TongTheoCongTy.tsx`: khối đầu tab Tồn theo kho, Tài sản của tôi),
+  không phải kho thật.
 - Báo cáo so sánh: `GET /bao-cao/theo-cong-ty` (tab "Theo công ty", Admin/KT/HCNS xem ≥2 công ty).
 
 ## Kho tiêu hao, sửa / gửi lại / điều chỉnh phiếu tiêu hao (2026-10-09, migration 0015)

@@ -1,4 +1,5 @@
 import { nowVN } from "./vnTime";
+import { lenhTaoKhoQl } from "./nvCongTy";
 
 // Doi ma / gop ho so nhan vien AN TOAN voi ton kho (user chot 2026-10-01: "1 nhan su chi co 1 tai khoan, du
 // phong doi ma tu ma sai sang ma chuan ma khong anh huong ton kho thuc te, cho phep doi ma ETX chuan, doi ten").
@@ -24,7 +25,7 @@ export const COT_NHAN_VIEN: [string, string][] = [
   ["kiem_ke_ct", "nguoi_dang_giu_thuc_te"],
   ["phieu_xu_ly_ts_ct", "nguoi_giu_truoc"],
 ];
-// + nhan_vien.quan_ly_id, kho.nhan_vien_id (xu ly rieng ben duoi).
+// + nhan_vien.quan_ly_id, kho.nhan_vien_id, nhan_vien_cong_ty (xu ly rieng ben duoi).
 export const COT_KHO: [string, string][] = [
   ["ccdc", "kho_id"],
   ["phieu_giao_nhan", "tu_kho_id"],
@@ -69,6 +70,12 @@ interface EtxRow {
 interface KhoRow {
   id: number;
   ten_kho: string;
+  cong_ty_id: number;
+}
+/** Kho QL cua nguon (1 kho / cong ty) va kho cua dich CUNG cong ty (co -> gop kho, khong -> chuyen chu). */
+interface KhoGop {
+  nguon: KhoRow & { ton: number };
+  dich: KhoRow | null;
 }
 
 export type YeuCau = { loai: "gop"; dich: string } | { loai: "doi-ma"; maMoi: string } | { loai: "gan-etx"; maEtx: string };
@@ -83,9 +90,9 @@ export interface KeHoach {
   etx: EtxRow | null;
   ketQua: { ten_nv: string; ma_etx: string | null; email_dang_nhap: string | null; dang_lam_viec: number };
   chuyen: { nhan: string; so: number }[];
-  khoNguon: (KhoRow & { ton: number }) | null;
-  khoDich: KhoRow | null;
-  gopKho: boolean;
+  kho: KhoGop[];
+  /** Cong ty cua nguon ma dich chua thuoc - sau khi gop dich KIEM NHIEM them (nhan_vien_cong_ty). */
+  congTyThem: number[];
   xungDotEmail: { nguon: string; dich: string } | null;
   canhBao: string[];
 }
@@ -100,7 +107,12 @@ export class LoiGop extends Error {
 }
 
 const docNv = (db: D1Database, ma: string) => db.prepare(`SELECT ${COT_NV_SELECT} FROM nhan_vien WHERE ma_nv = ?`).bind(ma).first<NvRow>();
-const docKho = (db: D1Database, ma: string) => db.prepare("SELECT id, ten_kho FROM kho WHERE nhan_vien_id = ?").bind(ma).first<KhoRow>();
+const docKhos = async (db: D1Database, ma: string) =>
+  (await db.prepare("SELECT id, ten_kho, cong_ty_id FROM kho WHERE nhan_vien_id = ? ORDER BY id").bind(ma).all<KhoRow>()).results;
+const congTyCua = async (db: D1Database, ma: string) =>
+  (await db.prepare("SELECT cong_ty_id FROM v_nv_cong_ty WHERE ma_nv = ?").bind(ma).all<{ cong_ty_id: number }>()).results.map((r) => r.cong_ty_id);
+/** Chuoi id kho QL cua 1 ho so (chot batch_guard). */
+const SQL_DS_KHO = "(SELECT group_concat(id) FROM (SELECT id FROM kho WHERE nhan_vien_id = ? ORDER BY id))";
 
 export async function lapKeHoach(db: D1Database, maNguon: string, yc: YeuCau, giu: GiuEmail = "dich"): Promise<KeHoach> {
   const nguon = await docNv(db, maNguon);
@@ -143,9 +155,13 @@ export async function lapKeHoach(db: D1Database, maNguon: string, yc: YeuCau, gi
     maDich = dich.ma_nv;
   }
 
-  // Da phap nhan: 2 ho so thuoc 2 cong ty khac nhau -> khong gop (tai san / kho moi cong ty doc lap) - doi cong ty
-  // cho 1 ho so truoc (sua nhan vien) roi moi gop.
-  if (dich && dich.cong_ty_id !== nguon.cong_ty_id) throw new LoiGop("KHAC_CONG_TY");
+  // Da phap nhan (migration 0019): 2 ho so khac cong ty = 1 nguoi kiem nhiem -> gop duoc; ho so dich giu cong ty chinh,
+  // THEM cac cong ty cua nguon (nhan_vien_cong_ty). Tai san / kho moi cong ty van doc lap (kho QL gop theo tung cong ty).
+  let congTyThem: number[] = [];
+  if (dich) {
+    const ctDich = await congTyCua(db, dich.ma_nv);
+    congTyThem = (await congTyCua(db, nguon.ma_nv)).filter((x) => !ctDich.includes(x));
+  }
 
   // Hai ho so gan 2 ma ETX khac nhau = 2 nguoi that khac nhau -> khong gop (tru gan-etx: ma cua nguon la ma sai).
   if (dich && yc.loai !== "gan-etx" && nguon.ma_etx && dich.ma_etx && nguon.ma_etx !== dich.ma_etx) {
@@ -172,9 +188,7 @@ export async function lapKeHoach(db: D1Database, maNguon: string, yc: YeuCau, gi
 
   // So dong se chuyen (xem truoc).
   const chuyen: KeHoach["chuyen"] = [];
-  let khoNguon: KeHoach["khoNguon"] = null;
-  let khoDich: KhoRow | null = null;
-  let gopKho = false;
+  const kho: KhoGop[] = [];
   if (!taiCho) {
     const cot = [...COT_NHAN_VIEN, ["nhan_vien", "quan_ly_id"] as [string, string]];
     const dem = await db
@@ -185,18 +199,24 @@ export async function lapKeHoach(db: D1Database, maNguon: string, yc: YeuCau, gi
       const so = dem?.[`c${i}`] ?? 0;
       if (so) chuyen.push({ nhan: NHAN[`${b}.${c}`] ?? `${b}.${c}`, so });
     });
-    const kN = await docKho(db, nguon.ma_nv);
-    khoDich = dich ? await docKho(db, dich.ma_nv) : null;
-    if (kN) {
+    const khoDichs = dich ? await docKhos(db, dich.ma_nv) : [];
+    for (const kN of await docKhos(db, nguon.ma_nv)) {
       const t = await db.prepare("SELECT COALESCE(SUM(ton), 0) AS ton FROM v_ton_kho WHERE kho_id = ?").bind(kN.id).first<{ ton: number }>();
-      khoNguon = { ...kN, ton: t?.ton ?? 0 };
-      gopKho = !!khoDich;
-      if (gopKho) canhBao.push(`Gộp kho "${kN.ten_kho}" vào "${khoDich!.ten_kho}" - tồn 2 kho cộng lại, tổng tồn không đổi.`);
+      const kD = khoDichs.find((x) => x.cong_ty_id === kN.cong_ty_id) ?? null;
+      kho.push({ nguon: { ...kN, ton: t?.ton ?? 0 }, dich: kD });
+      if (kD) canhBao.push(`Gộp kho "${kN.ten_kho}" vào "${kD.ten_kho}" - tồn 2 kho cộng lại, tổng tồn không đổi.`);
     }
+  }
+  if (congTyThem.length) {
+    const { results: ma } = await db
+      .prepare("SELECT ma FROM cong_ty WHERE id IN (SELECT value FROM json_each(?)) ORDER BY id")
+      .bind(JSON.stringify(congTyThem))
+      .all<{ ma: string }>();
+    canhBao.push(`Hồ sơ đích sẽ thuộc thêm công ty ${ma.map((r) => r.ma).join(", ")} (kiêm nhiệm).`);
   }
   if (!ketQua.dang_lam_viec) canhBao.push("Hồ sơ sau khi xử lý ở trạng thái NGHỈ VIỆC.");
 
-  return { thaoTac, nguon, dich, maDich, taiCho, etx, ketQua, chuyen, khoNguon, khoDich, gopKho, xungDotEmail, canhBao };
+  return { thaoTac, nguon, dich, maDich, taiCho, etx, ketQua, chuyen, kho, congTyThem, xungDotEmail, canhBao };
 }
 
 export function lenhThucHien(db: D1Database, k: KeHoach, nguoi: string): D1PreparedStatement[] {
@@ -212,8 +232,9 @@ export function lenhThucHien(db: D1Database, k: KeHoach, nguoi: string): D1Prepa
   else if (!k.taiCho) guard("NOT EXISTS (SELECT 1 FROM nhan_vien WHERE ma_nv = ?)", k.maDich);
   if (k.etx && !k.dich) guard("NOT EXISTS (SELECT 1 FROM nhan_vien WHERE ma_etx = ?)", k.etx.ma_nhan_su);
   if (!k.taiCho) {
-    guard("(SELECT id FROM kho WHERE nhan_vien_id = ?) IS ?", n.ma_nv, k.khoNguon?.id ?? null);
-    if (k.dich) guard("(SELECT id FROM kho WHERE nhan_vien_id = ?) IS ?", k.dich.ma_nv, k.khoDich?.id ?? null);
+    guard(`${SQL_DS_KHO} IS ?`, n.ma_nv, k.kho.map((x) => x.nguon.id).join(",") || null);
+    // Kho dich CUNG cong ty voi tung kho nguon (kho dich o cong ty khac khong lien quan).
+    if (k.dich) for (const x of k.kho) guard("(SELECT id FROM kho WHERE nhan_vien_id = ? AND cong_ty_id = ?) IS ?", k.dich.ma_nv, x.nguon.cong_ty_id, x.dich?.id ?? null);
   }
 
   if (k.taiCho) {
@@ -241,21 +262,29 @@ export function lenhThucHien(db: D1Database, k: KeHoach, nguoi: string): D1Prepa
     // 3. Chuyen moi tham chieu nhan vien.
     for (const [b, c] of COT_NHAN_VIEN) s.push(db.prepare(`UPDATE ${b} SET ${c} = ? WHERE ${c} = ?`).bind(d, n.ma_nv));
     s.push(db.prepare("UPDATE nhan_vien SET quan_ly_id = ? WHERE quan_ly_id = ? AND ma_nv != ?").bind(d, n.ma_nv, d));
-    // 4. Kho QL.
-    if (k.khoNguon && k.gopKho && k.khoDich) {
-      const a = k.khoNguon.id;
-      const b2 = k.khoDich.id;
-      for (const [b, c] of COT_KHO) s.push(db.prepare(`UPDATE ${b} SET ${c} = ? WHERE ${c} = ?`).bind(b2, a));
-      s.push(db.prepare("INSERT OR IGNORE INTO kho_thu_kho (kho_id, email, created_at) SELECT ?, email, created_at FROM kho_thu_kho WHERE kho_id = ?").bind(b2, a));
-      s.push(db.prepare("DELETE FROM kho_thu_kho WHERE kho_id = ?").bind(a));
-      s.push(db.prepare("DELETE FROM kho WHERE id = ?").bind(a));
-    } else if (k.khoNguon) {
-      s.push(
-        db
-          .prepare("UPDATE kho SET nhan_vien_id = ?, ten_kho = CASE WHEN ten_kho = 'Kho QL - ' || ? THEN 'Kho QL - ' || ? ELSE ten_kho END, updated_at = ? WHERE id = ?")
-          .bind(d, n.ten_nv, k.ketQua.ten_nv, now, k.khoNguon.id),
-      );
+    // 4. Kho QL - tung cong ty: dich co kho cung cong ty -> gop kho; khong -> chuyen chu sang dich (doi ten
+    //    "Kho QL - <ten cu>[ (MA)]" -> "Kho QL - <ten moi>[ (MA)]").
+    for (const x of k.kho) {
+      const a = x.nguon.id;
+      if (x.dich) {
+        const b2 = x.dich.id;
+        for (const [b, c] of COT_KHO) s.push(db.prepare(`UPDATE ${b} SET ${c} = ? WHERE ${c} = ?`).bind(b2, a));
+        s.push(db.prepare("INSERT OR IGNORE INTO kho_thu_kho (kho_id, email, created_at) SELECT ?, email, created_at FROM kho_thu_kho WHERE kho_id = ?").bind(b2, a));
+        s.push(db.prepare("DELETE FROM kho_thu_kho WHERE kho_id = ?").bind(a));
+        s.push(db.prepare("DELETE FROM kho WHERE id = ?").bind(a));
+      } else {
+        const cu = `Kho QL - ${n.ten_nv}`;
+        const ten = x.nguon.ten_kho === cu || x.nguon.ten_kho.startsWith(`${cu} (`) ? `Kho QL - ${k.ketQua.ten_nv}${x.nguon.ten_kho.slice(cu.length)}` : x.nguon.ten_kho;
+        s.push(db.prepare("UPDATE kho SET nhan_vien_id = ?, ten_kho = ?, updated_at = ? WHERE id = ?").bind(d, ten, now, a));
+      }
     }
+    // 4b. Cong ty kiem nhiem: doi ma (tao ho so moi) -> chep nguyen; gop -> dich them cong ty chinh + kiem nhiem cua nguon.
+    if (!k.dich) {
+      s.push(db.prepare("INSERT INTO nhan_vien_cong_ty (ma_nv, cong_ty_id, created_at) SELECT ?, cong_ty_id, created_at FROM nhan_vien_cong_ty WHERE ma_nv = ?").bind(d, n.ma_nv));
+    } else {
+      for (const ct of k.congTyThem) s.push(db.prepare("INSERT OR IGNORE INTO nhan_vien_cong_ty (ma_nv, cong_ty_id, created_at) VALUES (?, ?, ?)").bind(d, ct, now));
+    }
+    s.push(db.prepare("DELETE FROM nhan_vien_cong_ty WHERE ma_nv = ?").bind(n.ma_nv));
     // 5. Cap nhat ho so dich: bu cot trong tu nguon, ket qua ten / ETX / email / trang thai / quan ly.
     const qlDich = k.dich ? (k.dich.quan_ly_id === n.ma_nv ? n.quan_ly_id : (k.dich.quan_ly_id ?? n.quan_ly_id)) : n.quan_ly_id;
     s.push(
@@ -286,6 +315,8 @@ export function lenhThucHien(db: D1Database, k: KeHoach, nguoi: string): D1Prepa
     );
     // 6. Xoa ho so nguon.
     s.push(db.prepare("DELETE FROM nhan_vien WHERE ma_nv = ?").bind(n.ma_nv));
+    // 6b. Ho so dich (nay kiem nhiem them cong ty / nhan them cap duoi) -> kho QL o cong ty con thieu.
+    s.push(lenhTaoKhoQl(db, d, now));
   }
 
   // 7. Nhat ky.
@@ -300,7 +331,7 @@ export function lenhThucHien(db: D1Database, k: KeHoach, nguoi: string): D1Prepa
         n.ten_nv,
         k.maDich,
         k.ketQua.ma_etx,
-        JSON.stringify({ chuyen: k.chuyen, gopKho: k.gopKho ? { tu: k.khoNguon, vao: k.khoDich } : null, maEtxCu: n.ma_etx, emailCu: n.email_dang_nhap, canhBao: k.canhBao }),
+        JSON.stringify({ chuyen: k.chuyen, kho: k.kho, congTyThem: k.congTyThem, maEtxCu: n.ma_etx, emailCu: n.email_dang_nhap, canhBao: k.canhBao }),
         nguoi,
         now,
       ),

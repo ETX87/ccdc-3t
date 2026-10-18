@@ -389,7 +389,7 @@ baoCao.get("/theo-cong-ty", async (c) => {
                JOIN vt_tieu_hao v ON v.id = t.vt_id WHERE k.cong_ty_id = ct.id AND t.ton > 0) AS gt_tieu_hao,
             (SELECT COUNT(*) FROM v_ton_kho t JOIN kho k ON k.id = t.kho_id WHERE k.cong_ty_id = ct.id AND t.ton < 0) AS ton_am,
             (SELECT COUNT(*) FROM kho k WHERE k.cong_ty_id = ct.id AND k.bat_tat = 1 AND k.loai NOT IN ('Mua hang', 'Tieu hao')) AS so_kho,
-            (SELECT COUNT(*) FROM nhan_vien nv WHERE nv.cong_ty_id = ct.id AND nv.dang_lam_viec = 1) AS so_nv,
+            (SELECT COUNT(*) FROM nhan_vien nv JOIN v_nv_cong_ty m ON m.ma_nv = nv.ma_nv WHERE m.cong_ty_id = ct.id AND nv.dang_lam_viec = 1) AS so_nv,
             (SELECT COUNT(*) FROM phieu_chuyen_kho p JOIN kho k ON k.id = p.tu_kho_id WHERE k.cong_ty_id = ct.id AND p.trang_thai = 'Cho ke toan duyet')
               + (SELECT COUNT(*) FROM phieu_giao_nhan g JOIN kho k ON k.id = g.tu_kho_id WHERE k.cong_ty_id = ct.id AND g.trang_thai_duyet = 'Cho ke toan duyet') AS cho_kt
      FROM cong_ty ct WHERE ct.id IN (SELECT value FROM json_each(?)) ORDER BY ct.id`,

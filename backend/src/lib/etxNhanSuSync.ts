@@ -2,6 +2,7 @@ import type { Env } from "../types";
 import { fetchEtxNhanSuAll, type EtxNhanSuItem } from "./etxNhanSuClient";
 import { nowVN } from "./vnTime";
 import { tuDongTaiKhoanTuEtx } from "./etxTuDongTaiKhoan";
+import { lenhTaoKhoQl } from "./nvCongTy";
 
 // Dong bo danh ba nhan_vien tu ETX (PULL 1 chieu, full-refresh + DIFF - chi ghi dong thuc su khac,
 // giong linh-kien-app lib/etxNhanSuSync.ts). Chay qua cron hang ngay (index.ts scheduled()) hoac
@@ -146,17 +147,8 @@ export async function runEtxNhanSuSync(env: Env, db: D1Database): Promise<EtxSyn
     }
     if (qlMaNv && it.trangThaiLamViec === "on") quanLyCoCapDuoi.add(qlMaNv);
   }
-  for (const ql of quanLyCoCapDuoi) {
-    qlWrites.push(
-      db
-        .prepare(
-          `INSERT INTO kho (ten_kho, loai, nhan_vien_id, cong_ty_id, created_at, updated_at)
-           SELECT 'Kho QL - ' || ten_nv, 'Quan ly', ma_nv, cong_ty_id, ?, ? FROM nhan_vien WHERE ma_nv = ?
-           ON CONFLICT(nhan_vien_id) DO NOTHING`,
-        )
-        .bind(now, now, ql),
-    );
-  }
+  // Kho QL o moi cong ty QL co cap duoi (nhan vien kiem nhiem - lib/nvCongTy.ts).
+  for (const ql of quanLyCoCapDuoi) qlWrites.push(lenhTaoKhoQl(db, ql, now));
   await runInChunks(db, qlWrites);
   await runInChunks(db, lockToggles);
 

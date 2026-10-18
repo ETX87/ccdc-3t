@@ -91,6 +91,7 @@ export const CHUOI_SERVER = [
   "Bỏ mã ETX cũ {ma} của hồ sơ này (mã sai).",
   "Hai hồ sơ gắn 2 tài khoản khác nhau - giữ {email}, tài khoản {email2} sẽ không còn gắn hồ sơ nào.",
   'Gộp kho "{a}" vào "{b}" - tồn 2 kho cộng lại, tổng tồn không đổi.',
+  "Hồ sơ đích sẽ thuộc thêm công ty {a} (kiêm nhiệm).",
   "Hồ sơ sau khi xử lý ở trạng thái NGHỈ VIỆC.",
   // Nhat ky phieu (ghi_chu do server ghi)
   "Nhân viên xác nhận đã nhận",

@@ -53,6 +53,8 @@ export function TonTheoKho({ tim, onDangTai }: { tim: string; onDangTai?: (b: bo
   const [theKho, setTheKho] = useState<{ kho: Kho; vt: Vt } | null>(null);
   const [cacKho, setCacKho] = useState<Vt | null>(null);
   const [loi, setLoi] = useState<string | null>(null);
+  // Mac dinh chi vat tu con ton (khac 0) o it nhat 1 kho; tich -> ca vat tu het hang (tim mat hang ton <= 0).
+  const [caHetHang, setCaHetHang] = useState(false);
 
   const load = useCallback(async () => {
     onDangTai?.(true);
@@ -95,10 +97,10 @@ export function TonTheoKho({ tim, onDangTai }: { tim: string; onDangTai?: (b: bo
   const q = boDau(tim.trim());
   const dong = useMemo(
     () =>
-      (data?.vt ?? []).filter((v) => tongVt.has(v.id)).filter((v) => !q || boDau(v.id).includes(q) || boDau(v.ten_vt).includes(q) || boDau(v.ten_nhom ?? "").includes(q)),
-    [data, tongVt, q],
+      (data?.vt ?? []).filter((v) => caHetHang || tongVt.has(v.id)).filter((v) => !q || boDau(v.id).includes(q) || boDau(v.ten_vt).includes(q) || boDau(v.ten_nhom ?? "").includes(q)),
+    [data, tongVt, q, caHetHang],
   );
-  const trang = useTrangKhach(dong, [q, khoCot.map((k) => k.id).join(",")]);
+  const trang = useTrangKhach(dong, [q, khoCot.map((k) => k.id).join(","), caHetHang]);
   const idCot = useMemo(() => new Set(khoCot.map((k) => k.id)), [khoCot]);
   const khoKhac = (vtId: string) => {
     let tong = 0;
@@ -161,6 +163,10 @@ export function TonTheoKho({ tim, onDangTai }: { tim: string; onDangTai?: (b: bo
         <button type="button" className="btn btn-outline btn-sm" onClick={xuatExcel} disabled={!dong.length}>
           <Download size={13} /> {t("Xuất Excel")}
         </button>
+        <label className="check-label" title={t("Hiện cả vật tư đang hết hàng / tồn âm ở mọi kho trong danh mục")}>
+          <input type="checkbox" checked={caHetHang} onChange={(e) => setCaHetHang(e.target.checked)} />
+          {t("Gồm cả tồn ≤ 0")}
+        </label>
         <span className="muted small">{t("Bấm vào 1 ô để xem thẻ kho; cột \"Kho khác\" = tồn ở các kho đang không hiển thị.")}</span>
       </div>
       {chonCot && data && (

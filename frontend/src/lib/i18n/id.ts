@@ -1530,4 +1530,6 @@ export const ID: Record<string, string> = {
   "TSCĐ đang giữ": "Aset tetap dipegang",
   "Tài sản của tôi theo công ty": "Aset saya per perusahaan",
   "{n} phiếu": "{n} dokumen",
+  "Gồm cả tồn ≤ 0": "Termasuk stok ≤ 0",
+  "Hiện cả vật tư đang hết hàng / tồn âm ở mọi kho trong danh mục": "Tampilkan juga barang yang habis / stok minus di semua gudang dalam katalog",
 };

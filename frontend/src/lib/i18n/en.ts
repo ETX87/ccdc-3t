@@ -1530,4 +1530,6 @@ export const EN: Record<string, string> = {
   "TSCĐ đang giữ": "Fixed assets held",
   "Tài sản của tôi theo công ty": "My assets by company",
   "{n} phiếu": "{n} slips",
+  "Gồm cả tồn ≤ 0": "Include stock ≤ 0",
+  "Hiện cả vật tư đang hết hàng / tồn âm ở mọi kho trong danh mục": "Show items that are out of stock / negative in every warehouse of the catalog",
 };

@@ -1532,4 +1532,9 @@ export const ID: Record<string, string> = {
   "{n} phiếu": "{n} dokumen",
   "Gồm cả tồn ≤ 0": "Termasuk stok ≤ 0",
   "Hiện cả vật tư đang hết hàng / tồn âm ở mọi kho trong danh mục": "Tampilkan juga barang yang habis / stok minus di semua gudang dalam katalog",
+  "Vui lòng nhập tên vật tư.": "Silakan isi nama barang.",
+  "Đã thêm {ten_vt} - mã {ma}.": "Berhasil menambah {ten_vt} - kode {ma}.",
+  "Mã vật tư (tự sinh)": "Kode barang (otomatis)",
+  "Hệ thống tự cấp mã khi lưu (theo công ty, tăng dần).": "Sistem memberi kode saat disimpan (per perusahaan, berurutan).",
+  "Tự sinh khi lưu": "Dibuat saat disimpan",
 };

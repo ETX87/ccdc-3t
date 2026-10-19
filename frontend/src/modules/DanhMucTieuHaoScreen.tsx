@@ -100,6 +100,17 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
     };
   }, [rows]);
 
+  // Ma du kien cho vat tu moi (server cap ma that luc luu).
+  const [maTiep, setMaTiep] = useState("");
+  useEffect(() => {
+    if (!showForm || editingId) return;
+    setMaTiep("");
+    api
+      .get<{ ma: string }>(`/vt-tieu-hao/ma-tiep-theo?cong_ty_id=${form.cong_ty_id ?? ""}`)
+      .then((r) => setMaTiep(r.ma))
+      .catch(() => setMaTiep(t("Tự sinh khi lưu")));
+  }, [showForm, editingId, form.cong_ty_id]);
+
   function openAdd() {
     setEditingId(null);
     setForm(emptyForm(ctTao.macDinh));
@@ -121,8 +132,8 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
   }
 
   async function submitForm() {
-    if (!form.ten_vt.trim() || (!editingId && !form.id.trim())) {
-      setError(t("Vui lòng nhập đủ mã và tên vật tư."));
+    if (!form.ten_vt.trim()) {
+      setError(t("Vui lòng nhập tên vật tư."));
       return;
     }
     setSaving(true);
@@ -136,10 +147,11 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       cong_ty_id: form.cong_ty_id,
     };
     try {
+      // Them moi: server tu sinh ma vat tu (TS<ma cong ty>-000001...), tra ve ma that da cap.
+      const r = editingId ? null : await api.post<{ id: string }>("/vt-tieu-hao", body);
       if (editingId) await api.put(`/vt-tieu-hao/${encodeURIComponent(editingId)}`, body);
-      else await api.post("/vt-tieu-hao", body);
       setShowForm(false);
-      setMsg(editingId ? t("Đã cập nhật {ten_vt}.", { ten_vt: body.ten_vt }) : t("Đã thêm {ten_vt}.", { ten_vt: body.ten_vt }));
+      setMsg(editingId ? t("Đã cập nhật {ten_vt}.", { ten_vt: body.ten_vt }) : t("Đã thêm {ten_vt} - mã {ma}.", { ten_vt: body.ten_vt, ma: r?.id ?? "" }));
       baoThayDoi();
     } catch (e) {
       setError(thongBaoLoi(e, t("Không lưu được - vui lòng thử lại.")));
@@ -318,8 +330,9 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
               <TruongCongTy value={form.cong_ty_id} ds={ctTao.ds} onChange={(id) => setForm({ ...form, cong_ty_id: id, nhom_id: "" })} />
             )}
             <div className="field-group">
-              <label className="field-label">{t("Mã vật tư *")}</label>
-              <input type="text" value={form.id} disabled={!!editingId} onChange={(e) => setForm({ ...form, id: e.target.value })} />
+              <label className="field-label">{editingId ? t("Mã vật tư") : t("Mã vật tư (tự sinh)")}</label>
+              <input type="text" value={editingId ? form.id : maTiep} disabled readOnly />
+              {!editingId && <div className="field-hint">{t("Hệ thống tự cấp mã khi lưu (theo công ty, tăng dần).")}</div>}
             </div>
             <div className="field-group">
               <label className="field-label">{t("Tên vật tư *")}</label>

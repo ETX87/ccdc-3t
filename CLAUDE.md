@@ -157,6 +157,9 @@ state đang dùng.
   tra tên kho / vật tư (bỏ dấu) / mã NV, kiểm quyền bằng CHÍNH `kiemTraTao` của lập tay + tồn cộng dồn cả file; có lỗi thì
   không tạo phiếu nào, tạo thì mọi phiếu trong 1 `db.batch` (dùng chung `lenhTaoPhieu`). Tiêu đề cột nhận mọi ngôn ngữ
   (`moiNgonNgu()` trong i18n.ts — script kiểm i18n coi như `t()`).
+- **Mã vật tư tự sinh** (2026-10-19, `POST /vt-tieu-hao` bỏ qua `id` client gửi): `TS<mã công ty>-` + 6 chữ số, số tiếp
+  = max mã cùng dạng trong danh mục (TS3T-000344, TSNSKX-000273), sinh ngay trong câu INSERT (`RETURNING id`); form hiện
+  trước mã dự kiến qua `GET /vt-tieu-hao/ma-tiep-theo?cong_ty_id=`. Mã cũ khác dạng (hash, tên) giữ nguyên.
 - Tồn theo kho: `GET /bao-cao/ton-theo-kho` (ma trận, cột kho người xem chọn - localStorage `ccdc_cot_kho_ton`) +
   thẻ kho `GET /bao-cao/the-kho?kho_id&vt_id` (`components/TonTheoKho.tsx`, `TheKho.tsx`).
 - Nút Back: mỗi `navigate()` = 1 `history.pushState` (App.tsx), popup chi tiết cũng chiếm 1 bước (Back đóng popup);

@@ -1532,4 +1532,9 @@ export const EN: Record<string, string> = {
   "{n} phiếu": "{n} slips",
   "Gồm cả tồn ≤ 0": "Include stock ≤ 0",
   "Hiện cả vật tư đang hết hàng / tồn âm ở mọi kho trong danh mục": "Show items that are out of stock / negative in every warehouse of the catalog",
+  "Vui lòng nhập tên vật tư.": "Please enter the item name.",
+  "Đã thêm {ten_vt} - mã {ma}.": "Added {ten_vt} - code {ma}.",
+  "Mã vật tư (tự sinh)": "Item code (auto-generated)",
+  "Hệ thống tự cấp mã khi lưu (theo công ty, tăng dần).": "The system assigns the code when saving (per company, sequential).",
+  "Tự sinh khi lưu": "Generated on save",
 };

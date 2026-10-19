@@ -1538,4 +1538,7 @@ export const EN: Record<string, string> = {
   "Hệ thống tự cấp mã khi lưu (theo công ty, tăng dần).": "The system assigns the code when saving (per company, sequential).",
   "Tự sinh khi lưu": "Generated on save",
   "Tại chính kho này (không chuyển đi)": "In this same warehouse (not moved)",
+  "Tên tài sản là bắt buộc.": "Asset name is required.",
+  "Mã tài sản (tự sinh)": "Asset code (auto-generated)",
+  "Tự cấp khi lưu: trùng tên tài sản đã có thì nối tiếp số chiếc cùng dòng hàng, tên mới thì mở dòng hàng mới.": "Assigned on save: same name as an existing asset continues that item line's unit number; a new name starts a new item line.",
 };

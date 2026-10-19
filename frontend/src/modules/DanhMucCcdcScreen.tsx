@@ -231,6 +231,20 @@ export function DanhMucCcdcScreen() {
   const hienThi = rows ?? [];
 
   // ---- Form them / sua ----
+  // Ma du kien cho tai san moi (server cap ma that luc luu): trung ten TS da co -> chiec tiep theo cung dong hang.
+  const [maTiep, setMaTiep] = useState("");
+  useEffect(() => {
+    if (!showForm || editingId) return;
+    const h = setTimeout(() => {
+      const qs = new URLSearchParams({ cong_ty_id: String(form.cong_ty_id ?? ""), ten: form.ten_ccdc.trim() });
+      api
+        .get<{ ma: string }>(`/ccdc/ma-tiep-theo?${qs}`)
+        .then((r) => setMaTiep(r.ma))
+        .catch(() => setMaTiep(t("Tự sinh khi lưu")));
+    }, 350);
+    return () => clearTimeout(h);
+  }, [showForm, editingId, form.cong_ty_id, form.ten_ccdc]);
+
   function openAdd() {
     setEditingId(null);
     setForm(emptyForm(ctTao.macDinh));
@@ -260,8 +274,8 @@ export function DanhMucCcdcScreen() {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.id.trim() || !form.ten_ccdc.trim()) {
-      setFormLoi(t("Mã và tên tài sản là bắt buộc."));
+    if (!form.ten_ccdc.trim()) {
+      setFormLoi(t("Tên tài sản là bắt buộc."));
       return;
     }
     setSaving(true);
@@ -286,10 +300,10 @@ export function DanhMucCcdcScreen() {
         await api.put(`/ccdc/${encodeURIComponent(editingId)}`, payload);
         setMsg(t("Đã cập nhật tài sản {editingId}.", { editingId }));
       } else {
-        const r = await api.post<{ phieu_id: string }>("/ccdc", payload);
+        const r = await api.post<{ id: string; phieu_id: string }>("/ccdc", payload);
         const loiTep = r?.phieu_id && tep.length ? await taiLenTepCho("xu_ly", r.phieu_id, tep) : 0;
         setMsg(
-          t("Đã tạo tài sản {id} - phiếu nhập đang chờ Kế toán duyệt, duyệt xong tài sản vào kho HCNS.", { id: payload.id }) +
+          t("Đã tạo tài sản {id} - phiếu nhập đang chờ Kế toán duyệt, duyệt xong tài sản vào kho HCNS.", { id: r?.id ?? "" }) +
             (loiTep ? t(" {loiTep} tệp đính kèm chưa tải được - mở tài sản để tải lại.", { loiTep }) : ""),
         );
       }
@@ -625,8 +639,9 @@ export function DanhMucCcdcScreen() {
                 <TruongCongTy value={form.cong_ty_id} ds={ctTao.ds} onChange={(id) => setForm({ ...form, cong_ty_id: id, nhom_id: "" })} />
               )}
               <div className="field-group">
-                <label className="field-label">{t("Mã tài sản *")}</label>
-                <input type="text" value={form.id} disabled={editingId !== null} onChange={(e) => setForm({ ...form, id: e.target.value })} placeholder="vd TS3T-001200" required />
+                <label className="field-label">{editingId ? t("Mã tài sản") : t("Mã tài sản (tự sinh)")}</label>
+                <input type="text" value={editingId ? form.id : maTiep} disabled readOnly />
+                {!editingId && <div className="field-hint">{t("Tự cấp khi lưu: trùng tên tài sản đã có thì nối tiếp số chiếc cùng dòng hàng, tên mới thì mở dòng hàng mới.")}</div>}
               </div>
               <div className="field-group">
                 <label className="field-label">{t("Tên tài sản *")}</label>

@@ -1538,4 +1538,7 @@ export const ID: Record<string, string> = {
   "Hệ thống tự cấp mã khi lưu (theo công ty, tăng dần).": "Sistem memberi kode saat disimpan (per perusahaan, berurutan).",
   "Tự sinh khi lưu": "Dibuat saat disimpan",
   "Tại chính kho này (không chuyển đi)": "Di gudang ini sendiri (tidak dipindahkan)",
+  "Tên tài sản là bắt buộc.": "Nama aset wajib diisi.",
+  "Mã tài sản (tự sinh)": "Kode aset (otomatis)",
+  "Tự cấp khi lưu: trùng tên tài sản đã có thì nối tiếp số chiếc cùng dòng hàng, tên mới thì mở dòng hàng mới.": "Diberikan saat disimpan: nama sama dengan aset yang ada melanjutkan nomor unit pada lini barang tersebut; nama baru membuka lini barang baru.",
 };

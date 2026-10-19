@@ -160,6 +160,11 @@ state đang dùng.
 - **Mã vật tư tự sinh** (2026-10-19, `POST /vt-tieu-hao` bỏ qua `id` client gửi): `TS<mã công ty>-` + 6 chữ số, số tiếp
   = max mã cùng dạng trong danh mục (TS3T-000344, TSNSKX-000273), sinh ngay trong câu INSERT (`RETURNING id`); form hiện
   trước mã dự kiến qua `GET /vt-tieu-hao/ma-tiep-theo?cong_ty_id=`. Mã cũ khác dạng (hash, tên) giữ nguyên.
+- **Mã TSCĐ tự sinh** (2026-10-19, `POST /ccdc` bỏ qua `id`, `sinhMaTaiSan` trong `routes/ccdc.ts`): `TS<mã công ty>-<dòng
+  hàng 6 số>-<chiếc 3 số>`. Trùng tên (trim, không phân biệt hoa/thường, GIỮ dấu) với TS cùng công ty → chiếc kế tiếp của
+  dòng hàng đó (Điều hòa → TS3T-000013-024); tên mới → dòng hàng mới, `-001`. Trùng khoá khi 2 người tạo cùng lúc → sinh
+  lại. Preview `GET /ccdc/ma-tiep-theo?cong_ty_id&ten=` (khai báo TRƯỚC `GET /:id`). D1 báo "GLOB pattern too complex"
+  với mẫu dài (≥ ~9 nhóm `[0-9]`) → lọc tiền tố bằng `substr` rồi kiểm dạng ở JS.
 - Tồn theo kho: `GET /bao-cao/ton-theo-kho` (ma trận, cột kho người xem chọn - localStorage `ccdc_cot_kho_ton`) +
   thẻ kho `GET /bao-cao/the-kho?kho_id&vt_id` (`components/TonTheoKho.tsx`, `TheKho.tsx`).
 - Nút Back: mỗi `navigate()` = 1 `history.pushState` (App.tsx), popup chi tiết cũng chiếm 1 bước (Back đóng popup);

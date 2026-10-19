@@ -93,6 +93,41 @@ ccdc.get("/thong-ke", async (c) => {
   return c.json({ theo_trang_thai: results, bao_hong_cho_duyet: cho?.n ?? 0 });
 });
 
+// Ma tai san TU SINH (2026-10-19, user yeu cau) theo dang dang dung: TS<ma cong ty>-<dong hang 6 so>-<chiec 3 so>
+// (vd TS3T-000013-001..023 = cung "Dieu hoa"). Trung TEN (khong phan biet hoa/thuong, GIU dau) voi TS da co cung cong
+// ty -> noi tiep dong hang do (chiec ke tiep); ten moi -> dong hang moi (max + 1), chiec 001. Ma cu khac dang giu nguyen.
+const chuanTen = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+async function sinhMaTaiSan(db: D1Database, congTyId: number, ten: string): Promise<string> {
+  const ct = await db.prepare("SELECT ma FROM cong_ty WHERE id = ?").bind(congTyId).first<{ ma: string }>();
+  const tienTo = `TS${(ct?.ma ?? String(congTyId)).toUpperCase()}-`;
+  // Tien to rieng tung cong ty -> dong hang / so thu tu chi tinh trong cong ty do. Loc dang ma o JS (D1 bao "GLOB
+  // pattern too complex" voi mau 9 nhom [0-9]).
+  const dangMa = /^\d{6}-\d{3}$/;
+  const { results: tatCa } = await db
+    .prepare(`SELECT id, ten_ccdc FROM ccdc WHERE substr(id, 1, length(?1)) = ?1`)
+    .bind(tienTo)
+    .all<{ id: string; ten_ccdc: string }>();
+  const results = tatCa.filter((r) => dangMa.test(r.id.slice(tienTo.length)));
+  const dong = (id: string) => Number(id.slice(tienTo.length, tienTo.length + 6));
+  const chiec = (id: string) => Number(id.slice(tienTo.length + 7));
+  const pad = (n: number, d: number) => String(n).padStart(d, "0");
+  const can = chuanTen(ten);
+  const cungTen = can ? results.filter((r) => chuanTen(r.ten_ccdc) === can) : [];
+  if (cungTen.length) {
+    const d = Math.max(...cungTen.map((r) => dong(r.id)));
+    const so = Math.max(0, ...results.filter((r) => dong(r.id) === d).map((r) => chiec(r.id)));
+    if (so < 999) return `${tienTo}${pad(d, 6)}-${pad(so + 1, 3)}`;
+  }
+  return `${tienTo}${pad(Math.max(0, ...results.map((r) => dong(r.id))) + 1, 6)}-001`;
+}
+
+// GET /ma-tiep-theo?cong_ty_id=&ten= - ma du kien hien o form; ma that cap luc luu (co the khac neu ai vua tao).
+ccdc.get("/ma-tiep-theo", requireRole("Admin", "HCNS"), async (c) => {
+  const congTyId = congTyTao(c.get("user"), c.req.query("cong_ty_id"));
+  if (!congTyId) return c.json({ error: "CHON_CONG_TY" }, 400);
+  return c.json({ ma: await sinhMaTaiSan(c.env.DB, congTyId, c.req.query("ten") ?? "") });
+});
+
 ccdc.get("/:id", async (c) => {
   const id = c.req.param("id");
   const row = await c.env.DB.prepare(
@@ -170,10 +205,7 @@ async function tsQuanTri(db: D1Database, user: Parameters<typeof laHcns>[0], id:
 ccdc.post("/", requireRole("Admin", "HCNS"), async (c) => {
   const user = c.get("user");
   const body = await c.req.json<Body>().catch(() => null);
-  if (!body?.id?.trim() || !body?.ten_ccdc?.trim()) return c.json({ error: "MISSING_FIELDS" }, 400);
-
-  const existing = await c.env.DB.prepare("SELECT id FROM ccdc WHERE id = ?").bind(body.id.trim()).first();
-  if (existing) return c.json({ error: "ID_EXISTS" }, 409);
+  if (!body?.ten_ccdc?.trim()) return c.json({ error: "MISSING_FIELDS" }, 400);
   const congTyId = congTyTao(user, body.cong_ty_id);
   if (!congTyId || !laHcns(user, congTyId)) return c.json({ error: "CHON_CONG_TY" }, 400);
   if (!(await nhomHopLe(c.env.DB, body.nhom_id, congTyId))) return c.json({ error: "NHOM_KHAC_CONG_TY" }, 400);
@@ -181,43 +213,51 @@ ccdc.post("/", requireRole("Admin", "HCNS"), async (c) => {
   // TS moi = hang nhap tu kho mua -> 'Cho duyet nhap' + tu sinh phieu Nhap mua cho Ke toan duyet
   // (quyet dinh user 2026-09-23). Ke toan duyet xong TS moi vao kho HCNS.
   const ngay = nowVN();
-  const phieuId = crypto.randomUUID();
   const db = c.env.DB;
-  await db.batch([
-    db.prepare(
-    `INSERT INTO ccdc (id, ten_ccdc, nhom_id, don_vi_tinh, so_seri, ngay_mua, nguyen_gia,
-                        nha_cung_cap, han_bao_hanh, tinh_trang, anh_url, ghi_chu, nguoi_tao, cong_ty_id, trang_thai_hien_tai, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Cho duyet nhap', datetime('now', '+7 hours'), datetime('now', '+7 hours'))`,
-  )
-    .bind(
-      body.id.trim(),
-      body.ten_ccdc.trim(),
-      body.nhom_id ?? null,
-      body.don_vi_tinh ?? null,
-      body.so_seri ?? null,
-      body.ngay_mua ?? null,
-      body.nguyen_gia ?? null,
-      body.nha_cung_cap ?? null,
-      body.han_bao_hanh ?? null,
-      body.tinh_trang ?? "Tot",
-      body.anh_url ?? null,
-      body.ghi_chu ?? null,
-      user.email,
-      congTyId,
-    ),
-    db
-      .prepare(`INSERT INTO phieu_xu_ly_ts (id, loai, ly_do, ngay_de_xuat, nguoi_de_xuat, created_at) VALUES (?, 'Nhap mua', ?, ?, ?, ?)`)
-      .bind(phieuId, body.nha_cung_cap ? `Nhập mua từ ${body.nha_cung_cap}` : "Nhập mua", ngay, user.email, ngay),
-    db
-      .prepare(`INSERT INTO phieu_xu_ly_ts_ct (phieu_id, ccdc_id, trang_thai_truoc) VALUES (?, ?, 'Cho duyet nhap')`)
-      .bind(phieuId, body.id.trim()),
-    db
-      .prepare(`INSERT INTO phieu_xu_ly_ts_log (phieu_id, trang_thai, nguoi_xu_ly, ngay_xu_ly) VALUES (?, 'Cho ke toan duyet', ?, ?)`)
-      .bind(phieuId, user.email, ngay),
-    ...sinhMaPhieu(db, "phieu_xu_ly_ts", phieuId, "NT", ngay),
-  ]);
-
-  return c.json({ ok: true, id: body.id.trim(), phieu_id: phieuId });
+  // Ma sinh truoc roi ghi; 2 nguoi tao cung luc -> trung khoa chinh -> sinh lai ma (toi da 3 lan).
+  for (let lan = 0; ; lan++) {
+    const maTs = await sinhMaTaiSan(db, congTyId, body.ten_ccdc);
+    const phieuId = crypto.randomUUID();
+    try {
+      await db.batch([
+        db
+          .prepare(
+            `INSERT INTO ccdc (id, ten_ccdc, nhom_id, don_vi_tinh, so_seri, ngay_mua, nguyen_gia,
+                               nha_cung_cap, han_bao_hanh, tinh_trang, anh_url, ghi_chu, nguoi_tao, cong_ty_id, trang_thai_hien_tai, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Cho duyet nhap', datetime('now', '+7 hours'), datetime('now', '+7 hours'))`,
+          )
+          .bind(
+            maTs,
+            body.ten_ccdc.trim(),
+            body.nhom_id ?? null,
+            body.don_vi_tinh ?? null,
+            body.so_seri ?? null,
+            body.ngay_mua ?? null,
+            body.nguyen_gia ?? null,
+            body.nha_cung_cap ?? null,
+            body.han_bao_hanh ?? null,
+            body.tinh_trang ?? "Tot",
+            body.anh_url ?? null,
+            body.ghi_chu ?? null,
+            user.email,
+            congTyId,
+          ),
+        db
+          .prepare(`INSERT INTO phieu_xu_ly_ts (id, loai, ly_do, ngay_de_xuat, nguoi_de_xuat, created_at) VALUES (?, 'Nhap mua', ?, ?, ?, ?)`)
+          .bind(phieuId, body.nha_cung_cap ? `Nhập mua từ ${body.nha_cung_cap}` : "Nhập mua", ngay, user.email, ngay),
+        db
+          .prepare(`INSERT INTO phieu_xu_ly_ts_ct (phieu_id, ccdc_id, trang_thai_truoc) VALUES (?, ?, 'Cho duyet nhap')`)
+          .bind(phieuId, maTs),
+        db
+          .prepare(`INSERT INTO phieu_xu_ly_ts_log (phieu_id, trang_thai, nguoi_xu_ly, ngay_xu_ly) VALUES (?, 'Cho ke toan duyet', ?, ?)`)
+          .bind(phieuId, user.email, ngay),
+        ...sinhMaPhieu(db, "phieu_xu_ly_ts", phieuId, "NT", ngay),
+      ]);
+      return c.json({ ok: true, id: maTs, phieu_id: phieuId });
+    } catch (e) {
+      if (!String(e).includes("UNIQUE constraint failed") || lan >= 2) throw e;
+    }
+  }
 });
 
 ccdc.put("/:id", requireRole("Admin", "HCNS"), async (c) => {

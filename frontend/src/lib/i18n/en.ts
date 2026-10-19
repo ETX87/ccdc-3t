@@ -1537,4 +1537,5 @@ export const EN: Record<string, string> = {
   "Mã vật tư (tự sinh)": "Item code (auto-generated)",
   "Hệ thống tự cấp mã khi lưu (theo công ty, tăng dần).": "The system assigns the code when saving (per company, sequential).",
   "Tự sinh khi lưu": "Generated on save",
+  "Tại chính kho này (không chuyển đi)": "In this same warehouse (not moved)",
 };

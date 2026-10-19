@@ -1537,4 +1537,5 @@ export const ID: Record<string, string> = {
   "Mã vật tư (tự sinh)": "Kode barang (otomatis)",
   "Hệ thống tự cấp mã khi lưu (theo công ty, tăng dần).": "Sistem memberi kode saat disimpan (per perusahaan, berurutan).",
   "Tự sinh khi lưu": "Dibuat saat disimpan",
+  "Tại chính kho này (không chuyển đi)": "Di gudang ini sendiri (tidak dipindahkan)",
 };

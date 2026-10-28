@@ -1,6 +1,6 @@
 import { t } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ChevronDown, Edit, FolderTree, Package, Plus, Search, Tag, Trash2 } from "lucide-react";
+import { ChevronDown, Edit, FolderPlus, FolderTree, Package, Plus, Search, Tag, Trash2 } from "lucide-react";
 import { api } from "../api/client";
 import { Modal } from "../components/Modal";
 import { PageHeader } from "../components/PageHeader";
@@ -14,6 +14,7 @@ import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 import { TruongCongTy } from "../components/ChonCongTy";
 import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
 import { ChonLoc } from "../components/ChonLoc";
+import { QuanLyNhomModal } from "../components/QuanLyNhomModal";
 
 interface NhomCcdc {
   id: number;
@@ -46,6 +47,9 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
   const nhieuCt = hienCongTy(user);
 
   const [nhoms, setNhoms] = useState<NhomCcdc[]>([]);
+  // Moi nhom (ca nhom da tat) cho popup Quan ly nhom - nhom dung chung voi TSCD.
+  const [nhomAll, setNhomAll] = useState<NhomCcdc[]>([]);
+  const [showNhom, setShowNhom] = useState(false);
   const [rows, setRows] = useState<VtRow[] | null>(null);
   const [tim, setTim] = useState("");
   const [nhomLoc, setNhomLoc] = useState("");
@@ -67,6 +71,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       const [v, n] = await Promise.all([api.get<{ rows: VtRow[] }>("/vt-tieu-hao"), api.get<{ rows: NhomCcdc[] }>("/nhom-ccdc")]);
       setRows(v.rows);
       setNhoms(n.rows.filter((x) => x.bat_tat));
+      setNhomAll(n.rows);
       setCapNhatLuc(new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 19).replace("T", " "));
     } catch (e) {
       setLoi(thongBaoLoi(e, t("Không tải được danh mục vật tư.")));
@@ -178,9 +183,14 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
         filters={tabs}
         actions={
           canEdit && (
-            <button className="btn btn-primary" onClick={openAdd}>
-              <Plus size={15} /> {t("Thêm vật tư")}
-            </button>
+            <>
+              <button className="btn btn-outline" onClick={() => setShowNhom(true)}>
+                <FolderPlus size={14} /> {t("Quản lý nhóm")}
+              </button>
+              <button className="btn btn-primary" onClick={openAdd}>
+                <Plus size={15} /> {t("Thêm vật tư")}
+              </button>
+            </>
           )
         }
         capNhatLuc={capNhatLuc}
@@ -386,6 +396,17 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
             </button>
           </div>
         </Modal>
+      )}
+      {showNhom && (
+        <QuanLyNhomModal
+          title={t("Quản lý nhóm vật tư")}
+          nhoms={nhomAll}
+          ctTao={ctTao}
+          nhieuCt={nhieuCt}
+          maCt={(id) => maCongTy(user, id)}
+          onClose={() => setShowNhom(false)}
+          onDoi={loadRows}
+        />
       )}
     </div>
   );

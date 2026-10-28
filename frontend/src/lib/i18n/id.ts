@@ -1553,4 +1553,6 @@ export const ID: Record<string, string> = {
   "{ten} ({ma}) thuộc công ty {ct_nv}, khác công ty {ct} của tài sản.": "{ten} ({ma}) milik perusahaan {ct_nv}, berbeda dengan perusahaan aset {ct}.",
   "Đồng ý thì {ten} được tự động thêm vào danh sách nhân sự công ty {ct} (kiêm nhiệm, vẫn giữ công ty hiện tại) để nhận tài sản. Hệ thống ghi lại người thêm.": "Jika setuju, {ten} otomatis ditambahkan ke daftar karyawan perusahaan {ct} (rangkap, tetap di perusahaan saat ini) untuk menerima aset. Sistem mencatat siapa yang menambahkan.",
   "Đồng ý": "Setuju",
+  "Danh sách nhóm dùng chung cho tài sản cố định và vật tư tiêu hao của từng công ty.": "Daftar grup dipakai bersama untuk aset tetap dan barang habis pakai di tiap perusahaan.",
+  "Quản lý nhóm vật tư": "Kelola grup barang",
 };

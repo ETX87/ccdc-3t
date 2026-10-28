@@ -1553,4 +1553,6 @@ export const EN: Record<string, string> = {
   "{ten} ({ma}) thuộc công ty {ct_nv}, khác công ty {ct} của tài sản.": "{ten} ({ma}) belongs to company {ct_nv}, not the asset's company {ct}.",
   "Đồng ý thì {ten} được tự động thêm vào danh sách nhân sự công ty {ct} (kiêm nhiệm, vẫn giữ công ty hiện tại) để nhận tài sản. Hệ thống ghi lại người thêm.": "If you agree, {ten} is automatically added to the staff list of company {ct} (concurrent, keeping their current company) to receive the asset. The system records who added them.",
   "Đồng ý": "Agree",
+  "Danh sách nhóm dùng chung cho tài sản cố định và vật tư tiêu hao của từng công ty.": "The group list is shared by fixed assets and consumables of each company.",
+  "Quản lý nhóm vật tư": "Manage item groups",
 };

@@ -3,8 +3,8 @@ import type { AppUser, Env } from "../types";
 import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { nowVN } from "../lib/vnTime";
-import { coCongTy, getKho, guardTonKhongAm, khoNhanHang, khoPhuTrach, laBenNhan, laCapDuoi, laNguoiLap, laHcns, laKeToan, laKhoTon, laThuKho, tonKho } from "../lib/quyen";
-import { NV_THUOC_CT, nvThuocCongTy } from "../lib/nvCongTy";
+import { coCongTy, duocThemNvVaoCongTy, getKho, guardTonKhongAm, khoNhanHang, khoPhuTrach, laBenNhan, laCapDuoi, laNguoiLap, laHcns, laKeToan, laKhoTon, laThuKho, tonKho } from "../lib/quyen";
+import { NV_THUOC_CT, lenhTaoKhoQl, nvThuocCongTy } from "../lib/nvCongTy";
 import { ghepVatTu } from "../lib/ghepVatTu";
 import { sinhMaPhieu, TIEN_TO_CHUYEN_KHO } from "../lib/maPhieu";
 import { dkPhieuKho, layPhamVi, type PhamVi } from "../lib/phamVi";
@@ -211,14 +211,16 @@ type Loi = { error: string; [k: string]: unknown };
 // Kiem tra nguon/dich + quyen theo loai phieu. Tra ve trang thai khoi tao + cong ty kho nguon, hoac loi.
 // Da phap nhan: moi phieu trong 1 cong ty, RIENG "Chuyen kho" sang kho cong ty khac -> 'Cho ke toan duyet'
 // (KT cong ty nguon duyet moi tru ton - xem /:id/ke-toan-duyet).
-async function kiemTraTao(db: D1Database, user: AppUser, body: CreateBody): Promise<{ trangThai: string; congTyId: number } | Loi> {
-  const r = await kiemTraTaoGoc(db, user, body);
+// `seThemNv` (import Excel): nguoi nhan khac cong ty se duoc them kiem nhiem cong ty kho nguon trong CUNG batch -> bo qua
+// kiem "NV thuoc cong ty kho" (quyen them da kiem rieng bang duocThemNvVaoCongTy).
+async function kiemTraTao(db: D1Database, user: AppUser, body: CreateBody, seThemNv = false): Promise<{ trangThai: string; congTyId: number } | Loi> {
+  const r = await kiemTraTaoGoc(db, user, body, seThemNv);
   if ("error" in r) return r;
   const tu = (await getKho(db, Number(body.tu_kho_id)))!;
   return { trangThai: r.trangThai, congTyId: tu.cong_ty_id };
 }
 
-async function kiemTraTaoGoc(db: D1Database, user: AppUser, body: CreateBody): Promise<{ trangThai: string } | Loi> {
+async function kiemTraTaoGoc(db: D1Database, user: AppUser, body: CreateBody, seThemNv = false): Promise<{ trangThai: string } | Loi> {
   const tu = await getKho(db, Number(body.tu_kho_id));
   if (!tu || !tu.bat_tat) return { error: "TU_KHO_NOT_FOUND" };
   if (!(await laThuKho(db, user, tu.id))) return { error: "KHONG_PHU_TRACH_KHO_NGUON" };
@@ -262,7 +264,7 @@ async function kiemTraTaoGoc(db: D1Database, user: AppUser, body: CreateBody): P
     const nv = await db.prepare("SELECT ma_nv FROM nhan_vien WHERE ma_nv = ? AND dang_lam_viec = 1").bind(body.den_nhan_vien_id).first();
     if (!nv) return { error: "NHAN_VIEN_NOT_FOUND" };
     // Nhan vien kiem nhiem nhieu cong ty nhan duoc tu kho cua MOI cong ty ho thuoc ve.
-    if (!(await nvThuocCongTy(db, body.den_nhan_vien_id!, tu.cong_ty_id))) return { error: "NHAN_VIEN_KHAC_CONG_TY" };
+    if (!seThemNv && !(await nvThuocCongTy(db, body.den_nhan_vien_id!, tu.cong_ty_id))) return { error: "NHAN_VIEN_KHAC_CONG_TY" };
   }
   if (tu.loai === "Quan ly") {
     // QL chi phat cho cap duoi truc tiep cua chu kho (hoac chinh QL) - ten tu do khong kiem chung
@@ -421,17 +423,31 @@ phieuChuyenKho.post("/import", async (c) => {
 
   // Danh muc tra cuu: kho moi cong ty tai khoan duoc phep (kho dich co the khac cong ty), vat tu + NV cac cong ty do.
   const congTy = JSON.stringify(user.cong_ty_ids);
-  const [{ results: khos }, { results: vts }, { results: nvs }] = await db.batch([
+  const [{ results: khos }, { results: vts }, { results: nvs }, { results: cts }] = await db.batch([
     db.prepare(`SELECT id, ten_kho, loai, nhan_vien_id, bat_tat, cong_ty_id FROM kho WHERE bat_tat = 1`),
     db.prepare(
       `SELECT id, ten_vt, don_vi_tinh, cong_ty_id FROM vt_tieu_hao WHERE vo_hieu_hoa = 0 AND cong_ty_id IN (SELECT value FROM json_each(?))`,
     ).bind(congTy),
-    db.prepare(`SELECT ma_nv, ten_nv, cong_ty_id FROM nhan_vien WHERE dang_lam_viec = 1 AND ${NV_THUOC_CT("ma_nv")}`).bind(congTy),
+    // Moi nhan vien dang lam viec (ca cong ty khac - 2026-10-28: ma NV cong ty khac -> tu them kiem nhiem cong ty kho).
+    db.prepare(
+      `SELECT n.ma_nv, n.ten_nv, n.quan_ly_id, (SELECT group_concat(v.cong_ty_id) FROM v_nv_cong_ty v WHERE v.ma_nv = n.ma_nv) AS cts
+       FROM nhan_vien n WHERE n.dang_lam_viec = 1`,
+    ),
+    db.prepare("SELECT id, ma FROM cong_ty"),
   ]) as unknown as [
     { results: { id: number; ten_kho: string; loai: string; cong_ty_id: number }[] },
     { results: { id: string; ten_vt: string; don_vi_tinh: string | null; cong_ty_id: number }[] },
-    { results: { ma_nv: string; ten_nv: string; cong_ty_id: number }[] },
+    { results: { ma_nv: string; ten_nv: string; quan_ly_id: string | null; cts: string | null }[] },
+    { results: { id: number; ma: string }[] },
   ];
+  const maCt = new Map(cts.map((x) => [x.id, x.ma]));
+  // Quyen them NV vao nhan su cong ty (theo cong ty kho nguon) - tinh 1 lan / cong ty.
+  const dsKhoPt = await khoPhuTrach(db, user);
+  const quyenThem = new Map<number, boolean>();
+  const duocThem = async (ct: number) => {
+    if (!quyenThem.has(ct)) quyenThem.set(ct, await duocThemNvVaoCongTy(db, user, ct, dsKhoPt));
+    return quyenThem.get(ct)!;
+  };
   const tenKho = new Map(khos.map((k) => [k.id, k.ten_kho]));
 
   // Kho: theo ma (id) hoac ten (bo dau). Trung ten -> uu tien cong ty `uuTien` (cong ty kho nguon / dang xem), con
@@ -457,6 +473,8 @@ phieuChuyenKho.post("/import", async (c) => {
     body: CreateBody & { loai: Loai; tu_kho_id: number; items: CreateItem[] };
     congTyId: number;
     den: string;
+    /** Nguoi nhan khac cong ty kho -> them kiem nhiem cong ty kho khi tao. */
+    themNv: { ma_nv: string; ten_nv: string; quan_ly_id: string | null } | null;
   };
   const nhoms = new Map<string, Nhom>();
 
@@ -475,6 +493,7 @@ phieuChuyenKho.post("/import", async (c) => {
     let loai: Loai = "Cap phat NV";
     let denKho: number | null = null;
     let denNv: string | null = null;
+    let themNv: Nhom["themNv"] = null;
     let tuDo: string | null = null;
     let den = "";
     if (Number(coKho) + Number(coNv) + Number(coTuDo) !== 1) {
@@ -491,9 +510,12 @@ phieuChuyenKho.post("/import", async (c) => {
       const ma = gv(d.ma_nv).toUpperCase();
       const nv = nvs.find((n) => n.ma_nv.toUpperCase() === ma);
       if (!nv) loi.push({ dong: d.dong, ma: "NHAN_VIEN_NOT_FOUND", gia_tri: gv(d.ma_nv) });
-      else {
+      else if (ctNguon && !(nv.cts ?? "").split(",").map(Number).includes(ctNguon) && !(await duocThem(ctNguon))) {
+        loi.push({ dong: d.dong, ma: "NHAN_VIEN_KHAC_CONG_TY", gia_tri: gv(d.ma_nv) });
+      } else {
         denNv = nv.ma_nv;
         den = `${nv.ten_nv} (${nv.ma_nv})`;
+        if (ctNguon && !(nv.cts ?? "").split(",").map(Number).includes(ctNguon)) themNv = { ma_nv: nv.ma_nv, ten_nv: nv.ten_nv, quan_ly_id: nv.quan_ly_id };
       }
     } else {
       tuDo = gv(d.nguoi_nhan);
@@ -527,6 +549,7 @@ phieuChuyenKho.post("/import", async (c) => {
         dong: [],
         congTyId: ctNguon,
         den,
+        themNv,
         body: {
           loai,
           tu_kho_id: khoTu.id,
@@ -554,12 +577,13 @@ phieuChuyenKho.post("/import", async (c) => {
     tu_kho: string;
     den: string;
     trang_thai: string | null;
+    them_kiem_nhiem: { ma_nv: string; ten_nv: string; cong_ty: string } | null;
     items: { vt_id: string; ten_vt: string; don_vi_tinh: string | null; so_luong: number; don_gia: number | null; ton: number }[];
   }[] = [];
   const trangThai = new Map<string, string>();
   const canXuat = new Map<string, number>();
   for (const n of nhoms.values()) {
-    const kt = await kiemTraTao(db, user, n.body);
+    const kt = await kiemTraTao(db, user, n.body, !!n.themNv);
     if ("error" in kt) for (const dg of n.dong) loi.push({ dong: dg, ma: kt.error });
     else trangThai.set(n.khoa, kt.trangThai);
     for (const it of n.body.items) {
@@ -593,6 +617,7 @@ phieuChuyenKho.post("/import", async (c) => {
       tu_kho: tenKho.get(n.body.tu_kho_id) ?? String(n.body.tu_kho_id),
       den: n.den,
       trang_thai: trangThai.get(n.khoa) ?? null,
+      them_kiem_nhiem: n.themNv ? { ma_nv: n.themNv.ma_nv, ten_nv: n.themNv.ten_nv, cong_ty: maCt.get(n.congTyId) ?? String(n.congTyId) } : null,
       items: n.body.items.map((it) => ({
         vt_id: it.vt_id,
         ten_vt: vtMap.get(it.vt_id)?.ten_vt ?? it.vt_id,
@@ -612,6 +637,20 @@ phieuChuyenKho.post("/import", async (c) => {
   const ngay = nowVN();
   const ids: string[] = [];
   const stmts: D1PreparedStatement[] = [];
+  // Nguoi nhan khac cong ty -> them kiem nhiem cong ty kho nguon (ghi nguoi them) + kho QL neu can, TRUOC cac phieu,
+  // cung batch: phieu loi thi khong ai bi them.
+  const daThem = new Set<string>();
+  for (const n of nhoms.values()) {
+    if (!n.themNv || daThem.has(`${n.themNv.ma_nv}|${n.congTyId}`)) continue;
+    daThem.add(`${n.themNv.ma_nv}|${n.congTyId}`);
+    stmts.push(
+      db
+        .prepare("INSERT OR IGNORE INTO nhan_vien_cong_ty (ma_nv, cong_ty_id, created_at, nguoi_them) VALUES (?, ?, ?, ?)")
+        .bind(n.themNv.ma_nv, n.congTyId, ngay, user.email),
+      lenhTaoKhoQl(db, n.themNv.ma_nv, ngay),
+    );
+    if (n.themNv.quan_ly_id) stmts.push(lenhTaoKhoQl(db, n.themNv.quan_ly_id, ngay));
+  }
   for (const n of nhoms.values()) {
     const g = lenhTaoPhieu(db, user, { ...n.body, ghi_chu: n.body.ghi_chu ?? "Import Excel" }, trangThai.get(n.khoa)!, ngay);
     ids.push(g.id);
@@ -632,7 +671,7 @@ phieuChuyenKho.post("/import", async (c) => {
     .prepare(`SELECT id, ma_phieu FROM phieu_chuyen_kho WHERE id IN (SELECT value FROM json_each(?)) ORDER BY ma_phieu`)
     .bind(JSON.stringify(ids))
     .all<{ id: string; ma_phieu: string }>();
-  return c.json({ ok: true, so_phieu: ids.length, phieu: tao });
+  return c.json({ ok: true, so_phieu: ids.length, phieu: tao, so_nv_them: daThem.size });
 });
 
 // ------------------------------------------------------------------ Sua / huy phieu cho KT duyet

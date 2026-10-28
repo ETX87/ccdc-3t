@@ -1555,4 +1555,7 @@ export const ID: Record<string, string> = {
   "Đồng ý": "Setuju",
   "Danh sách nhóm dùng chung cho tài sản cố định và vật tư tiêu hao của từng công ty.": "Daftar grup dipakai bersama untuk aset tetap dan barang habis pakai di tiap perusahaan.",
   "Quản lý nhóm vật tư": "Kelola grup barang",
+  "Đã thêm {n} nhân viên công ty khác vào nhân sự công ty của kho (kiêm nhiệm).": "{n} karyawan dari perusahaan lain ditambahkan ke karyawan perusahaan gudang (rangkap).",
+  "{n} người nhận thuộc công ty khác - khi tạo phiếu sẽ tự thêm vào nhân sự công ty của kho xuất (kiêm nhiệm, ghi người thêm): {ds}": "{n} penerima milik perusahaan lain - saat slip dibuat akan otomatis ditambahkan ke karyawan perusahaan gudang asal (rangkap, mencatat penambah): {ds}",
+  "Khác công ty - sẽ thêm kiêm nhiệm công ty {ct}": "Perusahaan lain - akan ditambahkan rangkap di {ct}",
 };

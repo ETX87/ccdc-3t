@@ -32,6 +32,8 @@ interface PhieuXem {
   tu_kho: string;
   den: string;
   trang_thai: string | null;
+  /** Nguoi nhan khac cong ty kho -> se them kiem nhiem cong ty kho khi tao phieu. */
+  them_kiem_nhiem: { ma_nv: string; ten_nv: string; cong_ty: string } | null;
   items: { vt_id: string; ten_vt: string; don_vi_tinh: string | null; so_luong: number; ton: number }[];
 }
 interface KetQuaXem {
@@ -171,13 +173,20 @@ export function NhapExcelPhieuCk({ khoNguon, khoKhac, vts, onClose, onXong }: { 
         setXem(await api.post<KetQuaXem>("/phieu-chuyen-kho/import", { dong: ds, thuc_hien: false }));
         return;
       }
-      const r = await api.post<{ ok?: boolean; so_phieu?: number; phieu?: { ma_phieu: string }[] } & Partial<KetQuaXem>>("/phieu-chuyen-kho/import", { dong: ds, thuc_hien: true });
+      const r = await api.post<{ ok?: boolean; so_phieu?: number; so_nv_them?: number; phieu?: { ma_phieu: string }[] } & Partial<KetQuaXem>>("/phieu-chuyen-kho/import", {
+        dong: ds,
+        thuc_hien: true,
+      });
       if (!r.ok) {
         // Du lieu doi giua luc xem truoc va luc tao (vd ton vua bi xuat) -> hien lai danh sach loi moi.
         setXem(r as KetQuaXem);
         return setLoi(t("Dữ liệu đã thay đổi so với lúc xem trước - kiểm tra lại các lỗi bên dưới."));
       }
-      onXong(t("Đã tạo {n} phiếu từ file {file}.", { n: r.so_phieu ?? 0, file: tenFile }), (r.phieu ?? []).map((p) => p.ma_phieu));
+      const msgTao = t("Đã tạo {n} phiếu từ file {file}.", { n: r.so_phieu ?? 0, file: tenFile });
+      onXong(
+        r.so_nv_them ? `${msgTao} ${t("Đã thêm {n} nhân viên công ty khác vào nhân sự công ty của kho (kiêm nhiệm).", { n: r.so_nv_them })}` : msgTao,
+        (r.phieu ?? []).map((p) => p.ma_phieu),
+      );
     } catch (e) {
       setLoi(thongBaoLoi(e));
     } finally {
@@ -186,6 +195,8 @@ export function NhapExcelPhieuCk({ khoNguon, khoKhac, vts, onClose, onXong }: { 
   }
 
   const soLoi = xem?.loi.length ?? 0;
+  // Nguoi nhan khac cong ty se duoc them kiem nhiem (dem theo nguoi + cong ty).
+  const nvThem = [...new Map((xem?.phieu ?? []).filter((p) => p.them_kiem_nhiem).map((p) => [`${p.them_kiem_nhiem!.ma_nv}|${p.them_kiem_nhiem!.cong_ty}`, p.them_kiem_nhiem!])).values()];
   return (
     <Modal size="lg" title={t("Nhập phiếu tiêu hao từ Excel")} onClose={onClose}>
       <div className="field-hint" style={{ marginBottom: 10 }}>
@@ -219,6 +230,14 @@ export function NhapExcelPhieuCk({ khoNguon, khoKhac, vts, onClose, onXong }: { 
                 })
               : t("{so_dong} dòng → {so_phieu} phiếu, không có lỗi.", { so_dong: xem.so_dong, so_phieu: xem.phieu.length })}
           </div>
+          {nvThem.length > 0 && (
+            <div className="alert alert-warning">
+              {t("{n} người nhận thuộc công ty khác - khi tạo phiếu sẽ tự thêm vào nhân sự công ty của kho xuất (kiêm nhiệm, ghi người thêm): {ds}", {
+                n: nvThem.length,
+                ds: nvThem.map((x) => `${x.ten_nv} (${x.ma_nv}) → ${x.cong_ty}`).join(", "),
+              })}
+            </div>
+          )}
 
           {soLoi > 0 && (
             <div className="task-table-wrapper" style={{ maxHeight: 220, overflow: "auto", marginBottom: 12 }}>
@@ -266,7 +285,12 @@ export function NhapExcelPhieuCk({ khoNguon, khoKhac, vts, onClose, onXong }: { 
                       <td data-label={t("Từ")}>
                         <KhoTag ten={p.tu_kho} />
                       </td>
-                      <td data-label={t("Đến")}>{p.den}</td>
+                      <td data-label={t("Đến")}>
+                        {p.den}
+                        {p.them_kiem_nhiem && (
+                          <div className="small text-orange">{t("Khác công ty - sẽ thêm kiêm nhiệm công ty {ct}", { ct: p.them_kiem_nhiem.cong_ty })}</div>
+                        )}
+                      </td>
                       <td data-label={t("Hàng")}>
                         {p.items.map((it) => (
                           <div key={it.vt_id} className="small">

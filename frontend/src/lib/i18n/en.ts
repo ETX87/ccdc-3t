@@ -1555,4 +1555,7 @@ export const EN: Record<string, string> = {
   "Đồng ý": "Agree",
   "Danh sách nhóm dùng chung cho tài sản cố định và vật tư tiêu hao của từng công ty.": "The group list is shared by fixed assets and consumables of each company.",
   "Quản lý nhóm vật tư": "Manage item groups",
+  "Đã thêm {n} nhân viên công ty khác vào nhân sự công ty của kho (kiêm nhiệm).": "Added {n} staff from other companies to the warehouse company's staff (concurrent).",
+  "{n} người nhận thuộc công ty khác - khi tạo phiếu sẽ tự thêm vào nhân sự công ty của kho xuất (kiêm nhiệm, ghi người thêm): {ds}": "{n} recipients belong to another company - creating the slips will automatically add them to the source warehouse company's staff (concurrent, recording who added them): {ds}",
+  "Khác công ty - sẽ thêm kiêm nhiệm công ty {ct}": "Other company - will be added as concurrent in {ct}",
 };

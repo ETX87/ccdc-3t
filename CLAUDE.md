@@ -138,6 +138,12 @@ state đang dùng.
   kiem-nhiem`, cùng quyền PUT: HCNS cả 2 phía) / "Xem ở công ty X". Admin/HCNS/KT thấy mọi công ty, người khác chỉ công ty
   tài khoản được phép. `/nhan-vien?gon=1` trả `cong_ty_ids` (chính + kiêm nhiệm) — ô chọn NV trong form lọc bằng
   `nvThuocCt()` (lib/nhan.ts), KHÔNG so `cong_ty_id` (trước đó NV kiêm nhiệm không hiện trong ô chọn).
+  **Chọn NV khác công ty khi chuyển giao tài sản** (2026-10-28, migration 0020): quyền thêm NV vào nhân sự công ty C =
+  `duocThemNvVaoCongTy()` (quyen.ts): HCNS/Admin của C HOẶC thủ kho / người phụ trách kho HCNS·Miền·Trung chuyển·QL của C
+  (KHÔNG cần quyền ở công ty gốc của NV). Ô chọn người nhận (Cấp phát NV tiêu hao, Cấp phát + Điều chuyển TSCĐ) luôn hiện
+  khối "Nhân viên ở công ty khác" → nút "Chọn" → popup `XacNhanNvKhacCongTy` (đặt ở FORM, không trong dropdown) → đồng ý
+  = `them-kiem-nhiem` rồi chọn luôn. `nhan_vien_cong_ty.nguoi_them` ghi người thêm; `lenhCongTyPhu` chỉ xoá công ty bị bỏ +
+  `INSERT OR IGNORE` (giữ dòng cũ). Kho QL vẫn chỉ cấp cho nhóm của chủ kho (`trongNhom` ở phiếu).
   "Kho tổng tất cả công ty" = BÁO CÁO GỘP (`components/TongTheoCongTy.tsx`: khối đầu tab Tồn theo kho, Tài sản của tôi),
   không phải kho thật.
 - Báo cáo so sánh: `GET /bao-cao/theo-cong-ty` (tab "Theo công ty", Admin/KT/HCNS xem ≥2 công ty).

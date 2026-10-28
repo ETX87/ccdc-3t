@@ -17,7 +17,7 @@ import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { LOAI_GIAO_NHAN, LOAI_KHO, isHcns, laKhoPhatChung, laKhoTon, nvThuocCt, thongBaoLoi } from "../lib/nhan";
-import { GoiYNvCongTyKhac } from "../components/GoiYNvCongTyKhac";
+import { GoiYNvCongTyKhac, XacNhanNvKhacCongTy, type GoiY } from "../components/GoiYNvCongTyKhac";
 import type { LoaiKho } from "../types";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 import { LoaiChip, NgayCho } from "../components/NoiBat";
@@ -349,6 +349,8 @@ function LapPhieuModal({
   const [nhanViens, setNhanViens] = useState<NhanVienRow[]>([]);
   // Tang de tai lai danh sach nhan vien (vd vua them kiem nhiem tu goi y "co o cong ty khac").
   const [taiNv, setTaiNv] = useState(0);
+  // Chon nhan vien khac cong ty -> popup xac nhan; `o` = o chon dang dung (nguoi nhan / nguoi nhan moi).
+  const [nvKhac, setNvKhac] = useState<{ nv: GoiY; ct: { id: number; ma: string }; o: "nhan" | "moi" } | null>(null);
   const [khoAll, setKhoAll] = useState<KhoRow[]>([]);
   const [ccdcs, setCcdcs] = useState<CcdcRow[] | null>(null);
   const [loai, setLoai] = useState<Loai>(loaiCoTheChon[0]);
@@ -490,7 +492,11 @@ function LapPhieuModal({
                 setSelected(new Set());
               }}
               placeholder={t("Tìm nhân viên...")}
-              khiRong={(q) => <GoiYNvCongTyKhac gon search={q} congTyId={congTyLoai} onDaThem={() => setTaiNv((x) => x + 1)} />}
+              khiRong={(q) =>
+                loai === "Cap phat" ? (
+                  <GoiYNvCongTyKhac gon search={q} congTyId={congTyLoai} onDaThem={() => setTaiNv((x) => x + 1)} onChon={(nv, ct) => setNvKhac({ nv, ct, o: "nhan" })} />
+                ) : null
+              }
             />
           </div>
         )}
@@ -502,7 +508,9 @@ function LapPhieuModal({
               value={nhanVienMoiId}
               onChange={setNhanVienMoiId}
               placeholder={t("Tìm nhân viên...")}
-              khiRong={(q) => <GoiYNvCongTyKhac gon search={q} congTyId={ctNguoiGiu} onDaThem={() => setTaiNv((x) => x + 1)} />}
+              khiRong={(q) => (
+                <GoiYNvCongTyKhac gon search={q} congTyId={ctNguoiGiu} onDaThem={() => setTaiNv((x) => x + 1)} onChon={(nv, ct) => setNvKhac({ nv, ct, o: "moi" })} />
+              )}
             />
           </div>
         )}
@@ -591,6 +599,21 @@ function LapPhieuModal({
           {saving ? t("Đang lưu...") : t("Tạo phiếu ({size} TS)", { size: selected.size })}
         </button>
       </div>
+      {nvKhac && (
+        <XacNhanNvKhacCongTy
+          nv={nvKhac.nv}
+          ct={nvKhac.ct}
+          onClose={() => setNvKhac(null)}
+          onXong={(ma) => {
+            if (nvKhac.o === "nhan") {
+              setNhanVienId(ma);
+              setSelected(new Set());
+            } else setNhanVienMoiId(ma);
+            setNvKhac(null);
+            setTaiNv((x) => x + 1);
+          }}
+        />
+      )}
     </Modal>
   );
 }

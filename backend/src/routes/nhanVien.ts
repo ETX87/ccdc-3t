@@ -6,7 +6,7 @@ import { requireRole } from "../middleware/requireRole";
 import { nowVN } from "../lib/vnTime";
 import { docTrang, layTrang } from "../lib/phanTrang";
 import { LoiGop, lapKeHoach, lenhThucHien, type GiuEmail, type YeuCau } from "../lib/gopNhanVien";
-import { coCongTy, congTyLoc, congTyTao, laHcns } from "../lib/quyen";
+import { coCongTy, congTyLoc, congTyTao, duocThemNvVaoCongTy, khoPhuTrach, laHcns } from "../lib/quyen";
 import type { AppUser } from "../types";
 import { congTyCuaNv, lenhTaoKhoQl, NV_THUOC_CT } from "../lib/nvCongTy";
 
@@ -25,11 +25,18 @@ function docCongTyPhu(v: unknown, chinh: number): number[] | null {
   return [...new Set(v.map(Number).filter((x) => Number.isInteger(x) && x > 0 && x !== chinh))];
 }
 
-/** Lenh ghi lai cong ty kiem nhiem (xoa het roi chen lai) + tao kho QL o cong ty moi neu can (cho NV va QL cua NV). */
-function lenhCongTyPhu(db: D1Database, maNv: string, phu: number[], quanLy: string | null) {
+/**
+ * Lenh ghi lai cong ty kiem nhiem (bo cong ty khong con, them cong ty moi - giu nguyen dong cu kem nguoi them) + tao kho
+ * QL o cong ty moi neu can (cho NV va QL cua NV).
+ */
+function lenhCongTyPhu(db: D1Database, maNv: string, phu: number[], quanLy: string | null, nguoiThem: string) {
   const now = nowVN();
-  const s = [db.prepare("DELETE FROM nhan_vien_cong_ty WHERE ma_nv = ?").bind(maNv)];
-  for (const ct of phu) s.push(db.prepare("INSERT INTO nhan_vien_cong_ty (ma_nv, cong_ty_id, created_at) VALUES (?, ?, ?)").bind(maNv, ct, now));
+  const s = [db.prepare("DELETE FROM nhan_vien_cong_ty WHERE ma_nv = ? AND cong_ty_id NOT IN (SELECT value FROM json_each(?))").bind(maNv, JSON.stringify(phu))];
+  for (const ct of phu) {
+    s.push(
+      db.prepare("INSERT OR IGNORE INTO nhan_vien_cong_ty (ma_nv, cong_ty_id, created_at, nguoi_them) VALUES (?, ?, ?, ?)").bind(maNv, ct, now, nguoiThem),
+    );
+  }
   s.push(lenhTaoKhoQl(db, maNv, now));
   if (quanLy) s.push(lenhTaoKhoQl(db, quanLy, now));
   return s;
@@ -183,7 +190,11 @@ nhanVien.get("/cong-ty-khac", async (c) => {
   const tuKhoa = boDau(c.req.query("search") ?? "");
   if (tuKhoa.length < 2) return c.json({ rows: [] });
   const dangTim = congTyLoc(user, c.req.query("cong_ty_id"));
-  const toanBo = user.vai_tro === "Admin" || user.vai_tro === "HCNS" || user.vai_tro === "Ke toan";
+  // Cong ty dang tim ma nguoi dung them nhan vien vao duoc (HCNS / thu kho HCNS-Mien-Trung chuyen-QL) -> thay moi cong ty.
+  const dsKho = await khoPhuTrach(c.env.DB, user);
+  const quyenThem: number[] = [];
+  for (const ct of dangTim) if (await duocThemNvVaoCongTy(c.env.DB, user, ct, dsKho)) quyenThem.push(ct);
+  const toanBo = user.vai_tro === "Admin" || user.vai_tro === "HCNS" || user.vai_tro === "Ke toan" || quyenThem.length > 0;
   const [nvs, cts] = await c.env.DB.batch([
     c.env.DB.prepare(
       `SELECT n.ma_nv, n.ten_nv, n.bo_phan, n.chuc_vu, n.email_dang_nhap, n.dang_lam_viec, n.cong_ty_id,
@@ -203,7 +214,6 @@ nhanVien.get("/cong-ty-khac", async (c) => {
     .sort((a, b) => b.dang_lam_viec - a.dang_lam_viec || Number(!boDau(a.ten_nv).startsWith(tuKhoa)) - Number(!boDau(b.ten_nv).startsWith(tuKhoa)))
     .slice(0, 8)
     .map((n) => {
-      const quanTri = n.ds.some((ct) => laHcns(user, ct));
       return {
         ma_nv: n.ma_nv,
         ten_nv: n.ten_nv,
@@ -212,7 +222,7 @@ nhanVien.get("/cong-ty-khac", async (c) => {
         dang_lam_viec: n.dang_lam_viec,
         cong_ty: n.ds.map((id) => ({ id, ma: ctMap.get(id)?.ma ?? String(id), ten: ctMap.get(id)?.ten ?? "", chinh: id === n.cong_ty_id })),
         xem_duoc: n.ds.filter((ct) => user.cong_ty_ids.includes(ct)),
-        them_duoc: n.dang_lam_viec && quanTri ? dangTim.filter((ct) => laHcns(user, ct)).map((id) => ({ id, ma: ctMap.get(id)?.ma ?? String(id) })) : [],
+        them_duoc: n.dang_lam_viec ? quyenThem.map((id) => ({ id, ma: ctMap.get(id)?.ma ?? String(id) })) : [],
       };
     });
   return c.json({ rows });
@@ -309,7 +319,7 @@ nhanVien.post("/", requireRole("Admin", "HCNS"), async (c) => {
     ),
   ];
   if (body.quan_ly_id) stmts.push(taoKhoQl(c.env.DB, body.quan_ly_id));
-  if (phu.length) stmts.push(...lenhCongTyPhu(c.env.DB, body.ma_nv.trim(), phu, body.quan_ly_id || null));
+  if (phu.length) stmts.push(...lenhCongTyPhu(c.env.DB, body.ma_nv.trim(), phu, body.quan_ly_id || null, c.get("user").email));
   await c.env.DB.batch(stmts);
 
   return c.json({ ok: true, ma_nv: body.ma_nv.trim() });
@@ -366,30 +376,34 @@ nhanVien.put("/:ma_nv", requireRole("Admin", "HCNS"), async (c) => {
   ];
   if (body.quan_ly_id) stmts.push(taoKhoQl(c.env.DB, body.quan_ly_id));
   const ql = body.quan_ly_id === undefined ? ((await c.env.DB.prepare("SELECT quan_ly_id FROM nhan_vien WHERE ma_nv = ?").bind(maNv).first<{ quan_ly_id: string | null }>())?.quan_ly_id ?? null) : body.quan_ly_id || null;
-  stmts.push(...lenhCongTyPhu(c.env.DB, maNv ?? "", phuMoi, ql));
+  stmts.push(...lenhCongTyPhu(c.env.DB, maNv ?? "", phuMoi, ql, user.email));
   const [result] = await c.env.DB.batch(stmts);
   if ((result.meta.changes ?? 0) === 0) return c.json({ error: "NOT_FOUND" }, 404);
   return c.json({ ok: true });
 });
 
-// POST /:ma_nv/them-kiem-nhiem { cong_ty_id } - them 1 cong ty kiem nhiem (nut o goi y "co o cong ty khac"), KHONG ghi
-// de cac truong khac cua ho so nhu PUT. Cung quy tac PUT: HCNS cong ty them + 1 cong ty cua ho so; tao kho QL neu can.
-nhanVien.post("/:ma_nv/them-kiem-nhiem", requireRole("Admin", "HCNS"), async (c) => {
+// POST /:ma_nv/them-kiem-nhiem { cong_ty_id } - them nhan vien (cong ty khac) vao danh sach nhan su cong ty `cong_ty_id`
+// (kiem nhiem) - tu goi y "co o cong ty khac" / khi chon nguoi nhan tai san khac cong ty (popup xac nhan). KHONG ghi de cac
+// truong khac cua ho so nhu PUT. Quyen: duocThemNvVaoCongTy (HCNS/Admin cong ty do, thu kho HCNS/Mien/Trung chuyen/QL cua
+// cong ty do); ghi nguoi them. Tao kho QL neu can.
+nhanVien.post("/:ma_nv/them-kiem-nhiem", async (c) => {
   const maNv = c.req.param("ma_nv") ?? "";
   const body = await c.req.json<{ cong_ty_id?: number }>().catch(() => null);
   const ct = Number(body?.cong_ty_id);
   if (!ct) return c.json({ error: "CHON_CONG_TY" }, 400);
   const user = c.get("user");
-  const qt = await nvQuanTri(c.env.DB, user, maNv);
-  if ("error" in qt) return c.json({ error: qt.error }, qt.status);
-  if (ct === qt.congTyId || qt.congTyPhu.includes(ct)) return c.json({ ok: true, da_co: true });
-  const nv = await c.env.DB.prepare("SELECT dang_lam_viec, quan_ly_id FROM nhan_vien WHERE ma_nv = ?").bind(maNv).first<{ dang_lam_viec: number; quan_ly_id: string | null }>();
+  if (!(await duocThemNvVaoCongTy(c.env.DB, user, ct))) return c.json({ error: "FORBIDDEN" }, 403);
+  const cts = await congTyCuaNv(c.env.DB, maNv);
+  if (!cts.length) return c.json({ error: "NOT_FOUND" }, 404);
+  if (cts.includes(ct)) return c.json({ ok: true, da_co: true });
+  const [nv, cty] = await Promise.all([
+    c.env.DB.prepare("SELECT dang_lam_viec, quan_ly_id FROM nhan_vien WHERE ma_nv = ?").bind(maNv).first<{ dang_lam_viec: number; quan_ly_id: string | null }>(),
+    c.env.DB.prepare("SELECT 1 AS ok FROM cong_ty WHERE id = ? AND bat_tat = 1").bind(ct).first(),
+  ]);
   if (!nv?.dang_lam_viec) return c.json({ error: "HO_SO_DA_NGHI" }, 400);
-  const phuMoi = [...qt.congTyPhu, ct];
-  const loi = await kiemTraCongTyPhu(c.env.DB, user, qt.congTyPhu, phuMoi);
-  if (loi) return c.json({ error: loi }, loi === "FORBIDDEN" ? 403 : 400);
+  if (!cty) return c.json({ error: "CONG_TY_NOT_FOUND" }, 400);
   await c.env.DB.batch([
-    ...lenhCongTyPhu(c.env.DB, maNv, phuMoi, nv.quan_ly_id),
+    ...lenhCongTyPhu(c.env.DB, maNv, [...cts.slice(1), ct], nv.quan_ly_id, user.email),
     c.env.DB.prepare("UPDATE nhan_vien SET updated_at = ? WHERE ma_nv = ?").bind(nowVN(), maNv),
   ]);
   return c.json({ ok: true });

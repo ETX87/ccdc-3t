@@ -20,7 +20,7 @@ export function SearchSelect({
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  /** Noi dung them khi go >= 2 ky tu ma khong co lua chon nao (vd goi y nhan vien o cong ty khac). */
+  /** Noi dung them cuoi danh sach khi go >= 2 ky tu (vd goi y nhan vien o cong ty khac). */
   khiRong?: (query: string) => ReactNode;
 }) {
   const [query, setQuery] = useState("");
@@ -58,14 +58,13 @@ export function SearchSelect({
             background: "#fff",
             border: "1px solid var(--color-border)",
             borderRadius: 6,
-            maxHeight: 220,
+            maxHeight: khiRong ? 320 : 220,
             overflow: "auto",
             zIndex: 10,
             boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
           }}
         >
           {filtered.length === 0 && <div style={{ padding: 8, fontSize: 13, color: "#8393ac" }}>{t("Không tìm thấy")}</div>}
-          {filtered.length === 0 && khiRong && query.trim().length >= 2 && khiRong(query)}
           {filtered.map((o) => (
             <div
               key={o.value}
@@ -78,6 +77,7 @@ export function SearchSelect({
               {o.label}
             </div>
           ))}
+          {khiRong && query.trim().length >= 2 && khiRong(query)}
         </div>
       )}
     </div>

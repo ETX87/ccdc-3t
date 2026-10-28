@@ -85,6 +85,16 @@ export async function khoPhuTrach(db: D1Database, user: AppUser): Promise<KhoRow
   return results;
 }
 
+/**
+ * Duoc them nhan vien (cong ty khac) vao danh sach nhan su cong ty `congTyId` - kiem nhiem (2026-10-28, user yeu cau):
+ * Admin / HCNS cong ty do, hoac thu kho / nguoi phu trach 1 kho HCNS / Mien / Trung chuyen / QL cua cong ty do (de chon
+ * nguoi nhan khi chuyen giao tai san). Kho QL van chi cap cho nhom cua chu kho (kiem o phieu).
+ */
+export async function duocThemNvVaoCongTy(db: D1Database, user: AppUser, congTyId: number, ds?: KhoRow[]): Promise<boolean> {
+  if (laHcns(user, congTyId)) return true;
+  return (ds ?? (await khoPhuTrach(db, user))).some((k) => k.cong_ty_id === congTyId && (laKhoPhatChung(k.loai) || k.loai === "Quan ly"));
+}
+
 export async function laThuKho(db: D1Database, user: AppUser, khoId: number): Promise<boolean> {
   const ds = await khoPhuTrach(db, user);
   return ds.some((k) => k.id === khoId);

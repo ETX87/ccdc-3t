@@ -1547,4 +1547,10 @@ export const EN: Record<string, string> = {
   "Thêm kiêm nhiệm {ct}": "Add as concurrent in {ct}",
   "Xem ở công ty {ct}": "View in company {ct}",
   "Nhờ HCNS thêm kiêm nhiệm công ty này để chọn được.": "Ask HR to add this person as concurrent staff of this company to select them.",
+  "Nhân viên ở công ty khác:": "Staff in other companies:",
+  "Nhờ HCNS / thủ kho thêm nhân viên này vào công ty để chọn được.": "Ask HR / the warehouse keeper to add this person to the company to select them.",
+  "Chọn nhân viên khác công ty": "Select staff from another company",
+  "{ten} ({ma}) thuộc công ty {ct_nv}, khác công ty {ct} của tài sản.": "{ten} ({ma}) belongs to company {ct_nv}, not the asset's company {ct}.",
+  "Đồng ý thì {ten} được tự động thêm vào danh sách nhân sự công ty {ct} (kiêm nhiệm, vẫn giữ công ty hiện tại) để nhận tài sản. Hệ thống ghi lại người thêm.": "If you agree, {ten} is automatically added to the staff list of company {ct} (concurrent, keeping their current company) to receive the asset. The system records who added them.",
+  "Đồng ý": "Agree",
 };

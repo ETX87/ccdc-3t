@@ -22,7 +22,7 @@ import type { LoaiKho } from "../types";
 import { KhoTag, LoaiChip, NgayCho, NguoiTag, soGioTu, TienTe } from "../components/NoiBat";
 import { ChonLoc } from "../components/ChonLoc";
 import { NhapExcelPhieuCk } from "../components/NhapExcelPhieuCk";
-import { GoiYNvCongTyKhac } from "../components/GoiYNvCongTyKhac";
+import { GoiYNvCongTyKhac, XacNhanNvKhacCongTy, type GoiY } from "../components/GoiYNvCongTyKhac";
 
 interface KhoRow {
   id: number;
@@ -192,6 +192,8 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
   const [formErr, setFormErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  // Chon nguoi nhan khac cong ty -> popup xac nhan them vao nhan su cong ty kho.
+  const [nvKhac, setNvKhac] = useState<{ nv: GoiY; ct: { id: number; ma: string } } | null>(null);
 
   // Bang phieu phan trang o server (moi trang 50 phieu) - doi bo loc thi ve trang 1.
   const [trang, setTrang] = useState(1);
@@ -780,7 +782,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                     value={denNv}
                     onChange={setDenNv}
                     placeholder={t("Tìm nhân viên...")}
-                    khiRong={(q) => <GoiYNvCongTyKhac gon search={q} congTyId={congTyNguon} onDaThem={taiNv} />}
+                    khiRong={(q) => <GoiYNvCongTyKhac gon search={q} congTyId={congTyNguon} onDaThem={taiNv} onChon={(nv, ct) => setNvKhac({ nv, ct })} />}
                   />
                 )}
                 {dungTuDo && <input type="text" value={tuDo} onChange={(e) => setTuDo(e.target.value)} placeholder={t("Tên KTV/CTV ngoài danh bạ...")} />}
@@ -851,6 +853,18 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
             </button>
           </div>
         </Modal>
+      )}
+      {nvKhac && (
+        <XacNhanNvKhacCongTy
+          nv={nvKhac.nv}
+          ct={nvKhac.ct}
+          onClose={() => setNvKhac(null)}
+          onXong={(ma) => {
+            setNvKhac(null);
+            taiNv();
+            setDenNv(ma);
+          }}
+        />
       )}
       {showImport && (
         <NhapExcelPhieuCk

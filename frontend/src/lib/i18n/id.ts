@@ -1547,4 +1547,10 @@ export const ID: Record<string, string> = {
   "Thêm kiêm nhiệm {ct}": "Tambah rangkap {ct}",
   "Xem ở công ty {ct}": "Lihat di perusahaan {ct}",
   "Nhờ HCNS thêm kiêm nhiệm công ty này để chọn được.": "Minta HCNS menambahkan rangkap di perusahaan ini agar bisa dipilih.",
+  "Nhân viên ở công ty khác:": "Karyawan di perusahaan lain:",
+  "Nhờ HCNS / thủ kho thêm nhân viên này vào công ty để chọn được.": "Minta HCNS / penjaga gudang menambahkan karyawan ini ke perusahaan agar bisa dipilih.",
+  "Chọn nhân viên khác công ty": "Pilih karyawan dari perusahaan lain",
+  "{ten} ({ma}) thuộc công ty {ct_nv}, khác công ty {ct} của tài sản.": "{ten} ({ma}) milik perusahaan {ct_nv}, berbeda dengan perusahaan aset {ct}.",
+  "Đồng ý thì {ten} được tự động thêm vào danh sách nhân sự công ty {ct} (kiêm nhiệm, vẫn giữ công ty hiện tại) để nhận tài sản. Hệ thống ghi lại người thêm.": "Jika setuju, {ten} otomatis ditambahkan ke daftar karyawan perusahaan {ct} (rangkap, tetap di perusahaan saat ini) untuk menerima aset. Sistem mencatat siapa yang menambahkan.",
+  "Đồng ý": "Setuju",
 };

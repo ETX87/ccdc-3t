@@ -280,7 +280,7 @@ export function lenhThucHien(db: D1Database, k: KeHoach, nguoi: string): D1Prepa
     }
     // 4b. Cong ty kiem nhiem: doi ma (tao ho so moi) -> chep nguyen; gop -> dich them cong ty chinh + kiem nhiem cua nguon.
     if (!k.dich) {
-      s.push(db.prepare("INSERT INTO nhan_vien_cong_ty (ma_nv, cong_ty_id, created_at) SELECT ?, cong_ty_id, created_at FROM nhan_vien_cong_ty WHERE ma_nv = ?").bind(d, n.ma_nv));
+      s.push(db.prepare("INSERT INTO nhan_vien_cong_ty (ma_nv, cong_ty_id, created_at, nguoi_them) SELECT ?, cong_ty_id, created_at, nguoi_them FROM nhan_vien_cong_ty WHERE ma_nv = ?").bind(d, n.ma_nv));
     } else {
       for (const ct of k.congTyThem) s.push(db.prepare("INSERT OR IGNORE INTO nhan_vien_cong_ty (ma_nv, cong_ty_id, created_at) VALUES (?, ?, ?)").bind(d, ct, now));
     }

@@ -12,6 +12,7 @@ import { PhanTrang, useTrangServer } from "../components/PhanTrang";
 import { exportRowsToExcel } from "../lib/exportExcel";
 import { fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { useNav } from "../lib/navigation";
+import { GoiYNvCongTyKhac } from "../components/GoiYNvCongTyKhac";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { thongBaoLoi } from "../lib/nhan";
 import { DoiMaNhanVienModal } from "./DoiMaNhanVienModal";
@@ -458,6 +459,11 @@ export function NhanVienScreen() {
                 <tr>
                   <td colSpan={8} className="task-empty">
                     {t("Không có nhân viên phù hợp.")}
+                    {tuKhoa && (
+                      <div style={{ textAlign: "left", maxWidth: 760, margin: "0 auto" }}>
+                        <GoiYNvCongTyKhac search={tuKhoa} />
+                      </div>
+                    )}
                   </td>
                 </tr>
               )}

@@ -16,7 +16,8 @@ import { useDuLieuChung } from "../lib/duLieuChung";
 import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
-import { LOAI_GIAO_NHAN, LOAI_KHO, isHcns, laKhoPhatChung, laKhoTon, thongBaoLoi } from "../lib/nhan";
+import { LOAI_GIAO_NHAN, LOAI_KHO, isHcns, laKhoPhatChung, laKhoTon, nvThuocCt, thongBaoLoi } from "../lib/nhan";
+import { GoiYNvCongTyKhac } from "../components/GoiYNvCongTyKhac";
 import type { LoaiKho } from "../types";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 import { LoaiChip, NgayCho } from "../components/NoiBat";
@@ -26,6 +27,7 @@ interface NhanVienRow {
   ma_nv: string;
   ten_nv: string;
   cong_ty_id?: number;
+  cong_ty_ids?: number[];
 }
 interface KhoRow {
   id: number;
@@ -345,6 +347,8 @@ function LapPhieuModal({
   const user = auth.status === "authenticated" ? auth.user : null;
   const myKho = useMemo(() => (user?.kho_phu_trach ?? []).filter(laKhoTon), [user]);
   const [nhanViens, setNhanViens] = useState<NhanVienRow[]>([]);
+  // Tang de tai lai danh sach nhan vien (vd vua them kiem nhiem tu goi y "co o cong ty khac").
+  const [taiNv, setTaiNv] = useState(0);
   const [khoAll, setKhoAll] = useState<KhoRow[]>([]);
   const [ccdcs, setCcdcs] = useState<CcdcRow[] | null>(null);
   const [loai, setLoai] = useState<Loai>(loaiCoTheChon[0]);
@@ -377,13 +381,13 @@ function LapPhieuModal({
         setKhoAll(k.rows.filter((x) => x.bat_tat && laKhoTon(x)));
       })
       .catch((e) => setError(thongBaoLoi(e, t("Không tải được dữ liệu."))));
-  }, [toanQuyen, user]);
+  }, [toanQuyen, user, taiNv]);
 
   // Da phap nhan: nhan vien cung cong ty voi kho (cap phat: kho nguon, thu hoi: kho nhan); dieu chuyen: nguoi nhan
   // moi cung cong ty nguoi dang giu.
   const congTyKho = (id: number | "") => myKho.find((k) => k.id === id)?.cong_ty_id ?? khoAll.find((k) => k.id === id)?.cong_ty_id;
   const congTyLoai = loai === "Cap phat" ? congTyKho(tuKho) : loai === "Thu hoi" ? congTyKho(denKho) : undefined;
-  const loc = (ct: number | undefined) => (n: NhanVienRow) => ct == null || n.cong_ty_id == null || n.cong_ty_id === ct;
+  const loc = (ct: number | undefined) => (n: NhanVienRow) => nvThuocCt(n, ct);
   const nvOptions = useMemo(
     () => nhanViens.filter(loc(congTyLoai)).map((n) => ({ value: n.ma_nv, label: `${n.ten_nv} (${n.ma_nv})` })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -486,13 +490,20 @@ function LapPhieuModal({
                 setSelected(new Set());
               }}
               placeholder={t("Tìm nhân viên...")}
+              khiRong={(q) => <GoiYNvCongTyKhac gon search={q} congTyId={congTyLoai} onDaThem={() => setTaiNv((x) => x + 1)} />}
             />
           </div>
         )}
         {loai === "Dieu chuyen" && (
           <div className="field-group">
             <label className="field-label">{t("Nhân viên nhận mới")}</label>
-            <SearchSelect options={nvMoiOptions} value={nhanVienMoiId} onChange={setNhanVienMoiId} placeholder={t("Tìm nhân viên...")} />
+            <SearchSelect
+              options={nvMoiOptions}
+              value={nhanVienMoiId}
+              onChange={setNhanVienMoiId}
+              placeholder={t("Tìm nhân viên...")}
+              khiRong={(q) => <GoiYNvCongTyKhac gon search={q} congTyId={ctNguoiGiu} onDaThem={() => setTaiNv((x) => x + 1)} />}
+            />
           </div>
         )}
         {(loai === "Thu hoi" || loai === "Chuyen kho") && (

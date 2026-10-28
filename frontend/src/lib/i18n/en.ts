@@ -1541,4 +1541,10 @@ export const EN: Record<string, string> = {
   "Tên tài sản là bắt buộc.": "Asset name is required.",
   "Mã tài sản (tự sinh)": "Asset code (auto-generated)",
   "Tự cấp khi lưu: trùng tên tài sản đã có thì nối tiếp số chiếc cùng dòng hàng, tên mới thì mở dòng hàng mới.": "Assigned on save: same name as an existing asset continues that item line's unit number; a new name starts a new item line.",
+  "Đã thêm {ten} kiêm nhiệm công ty {ct}.": "Added {ten} as concurrent staff of company {ct}.",
+  "Không có trong công ty đang xem - tìm thấy ở công ty khác:": "Not in the company being viewed - found in another company:",
+  "{ma} (kiêm nhiệm)": "{ma} (concurrent)",
+  "Thêm kiêm nhiệm {ct}": "Add as concurrent in {ct}",
+  "Xem ở công ty {ct}": "View in company {ct}",
+  "Nhờ HCNS thêm kiêm nhiệm công ty này để chọn được.": "Ask HR to add this person as concurrent staff of this company to select them.",
 };

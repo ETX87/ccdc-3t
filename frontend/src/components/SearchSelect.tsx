@@ -1,5 +1,6 @@
 import { t } from "../lib/i18n";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { boDau } from "./ChonLoc";
 
 export interface SearchSelectOption {
   value: string;
@@ -13,19 +14,23 @@ export function SearchSelect({
   value,
   onChange,
   placeholder,
+  khiRong,
 }: {
   options: SearchSelectOption[];
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  /** Noi dung them khi go >= 2 ky tu ma khong co lua chon nao (vd goi y nhan vien o cong ty khac). */
+  khiRong?: (query: string) => ReactNode;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    // Khong phan biet dau: go "bui duy" ra "Bùi Duy ...".
+    const q = boDau(query.trim());
     if (!q) return options.slice(0, 30);
-    return options.filter((o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q)).slice(0, 30);
+    return options.filter((o) => boDau(o.label).includes(q) || boDau(o.value).includes(q)).slice(0, 30);
   }, [options, query]);
 
   const selected = options.find((o) => o.value === value);
@@ -60,6 +65,7 @@ export function SearchSelect({
           }}
         >
           {filtered.length === 0 && <div style={{ padding: 8, fontSize: 13, color: "#8393ac" }}>{t("Không tìm thấy")}</div>}
+          {filtered.length === 0 && khiRong && query.trim().length >= 2 && khiRong(query)}
           {filtered.map((o) => (
             <div
               key={o.value}

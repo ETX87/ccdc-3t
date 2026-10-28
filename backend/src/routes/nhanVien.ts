@@ -81,10 +81,14 @@ nhanVien.get("/", async (c) => {
   const where = conditions.join(" AND ");
 
   if (q("gon") === "1") {
-    const { results } = await c.env.DB.prepare(`SELECT n.ma_nv, n.ten_nv, n.cong_ty_id FROM nhan_vien n WHERE ${where} ORDER BY n.ten_nv`)
+    // cong_ty_ids = cong ty chinh + kiem nhiem (o chon nguoi nhan trong form loc theo cong ty kho bang danh sach nay).
+    const { results } = await c.env.DB.prepare(
+      `SELECT n.ma_nv, n.ten_nv, n.cong_ty_id, (SELECT group_concat(v.cong_ty_id) FROM v_nv_cong_ty v WHERE v.ma_nv = n.ma_nv) AS cts
+       FROM nhan_vien n WHERE ${where} ORDER BY n.ten_nv`,
+    )
       .bind(...binds)
-      .all();
-    return c.json({ rows: results });
+      .all<{ ma_nv: string; ten_nv: string; cong_ty_id: number; cts: string | null }>();
+    return c.json({ rows: results.map(({ cts, ...n }) => ({ ...n, cong_ty_ids: (cts ?? String(n.cong_ty_id)).split(",").map(Number) })) });
   }
 
   const sql = `SELECT n.ma_nv, n.ten_nv, n.bo_phan, n.chuc_vu, n.sdt, n.email_dang_nhap, n.dang_lam_viec, n.ma_etx,
@@ -166,6 +170,51 @@ nhanVien.get("/etx", requireRole("Admin", "HCNS"), async (c) => {
     .filter((e) => boDau(e.ma_nhan_su) === q || boDau(e.ho_ten).includes(q) || boDau(e.gmail ?? "").includes(q))
     .sort((a, b) => (a.trang_thai_lam_viec === b.trang_thai_lam_viec ? a.ho_ten.localeCompare(b.ho_ten, "vi") : a.trang_thai_lam_viec === "on" ? -1 : 1))
     .slice(0, 20);
+  return c.json({ rows });
+});
+
+// GET /cong-ty-khac?search=&cong_ty_id= - goi y khi tim nhan vien KHONG thay trong cong ty dang xem / cong ty cua form
+// (2026-10-28, user yeu cau): ho so khop o CONG TY KHAC (vd dang xem 3T, nguoi do thuoc NSKX). Khop ma / ten / email bo
+// dau, loc o JS. Admin/HCNS/KT thay moi cong ty (de them kiem nhiem); con lai chi cac cong ty tai khoan duoc phep.
+// Moi dong: cong ty cua ho so, xem_duoc (doi cong ty dang xem sang de thay), them_duoc (cong ty dang tim ma nguoi dung
+// them kiem nhiem duoc - cung quy tac PUT: HCNS ca cong ty them lan 1 cong ty cua ho so).
+nhanVien.get("/cong-ty-khac", async (c) => {
+  const user = c.get("user");
+  const tuKhoa = boDau(c.req.query("search") ?? "");
+  if (tuKhoa.length < 2) return c.json({ rows: [] });
+  const dangTim = congTyLoc(user, c.req.query("cong_ty_id"));
+  const toanBo = user.vai_tro === "Admin" || user.vai_tro === "HCNS" || user.vai_tro === "Ke toan";
+  const [nvs, cts] = await c.env.DB.batch([
+    c.env.DB.prepare(
+      `SELECT n.ma_nv, n.ten_nv, n.bo_phan, n.chuc_vu, n.email_dang_nhap, n.dang_lam_viec, n.cong_ty_id,
+              (SELECT json_group_array(v.cong_ty_id) FROM v_nv_cong_ty v WHERE v.ma_nv = n.ma_nv) AS cts
+       FROM nhan_vien n
+       WHERE NOT EXISTS (SELECT 1 FROM v_nv_cong_ty v WHERE v.ma_nv = n.ma_nv AND v.cong_ty_id IN (SELECT value FROM json_each(?)))`,
+    ).bind(JSON.stringify(dangTim)),
+    c.env.DB.prepare("SELECT id, ma, ten FROM cong_ty"),
+  ]);
+  const ctMap = new Map((cts.results as { id: number; ma: string; ten: string }[]).map((x) => [x.id, x]));
+  type Nv = { ma_nv: string; ten_nv: string; bo_phan: string | null; chuc_vu: string | null; email_dang_nhap: string | null; dang_lam_viec: number; cong_ty_id: number; cts: string };
+  const rows = (nvs.results as Nv[])
+    .map((n) => ({ ...n, ds: (JSON.parse(n.cts || "[]") as number[]).filter(Boolean) }))
+    .filter((n) => toanBo || n.ds.some((ct) => user.cong_ty_ids.includes(ct)))
+    .filter((n) => [n.ma_nv, n.ten_nv, n.email_dang_nhap ?? ""].some((x) => boDau(x).includes(tuKhoa)))
+    // Dang lam viec truoc, ten khop dau chuoi truoc.
+    .sort((a, b) => b.dang_lam_viec - a.dang_lam_viec || Number(!boDau(a.ten_nv).startsWith(tuKhoa)) - Number(!boDau(b.ten_nv).startsWith(tuKhoa)))
+    .slice(0, 8)
+    .map((n) => {
+      const quanTri = n.ds.some((ct) => laHcns(user, ct));
+      return {
+        ma_nv: n.ma_nv,
+        ten_nv: n.ten_nv,
+        bo_phan: n.bo_phan,
+        chuc_vu: n.chuc_vu,
+        dang_lam_viec: n.dang_lam_viec,
+        cong_ty: n.ds.map((id) => ({ id, ma: ctMap.get(id)?.ma ?? String(id), ten: ctMap.get(id)?.ten ?? "", chinh: id === n.cong_ty_id })),
+        xem_duoc: n.ds.filter((ct) => user.cong_ty_ids.includes(ct)),
+        them_duoc: n.dang_lam_viec && quanTri ? dangTim.filter((ct) => laHcns(user, ct)).map((id) => ({ id, ma: ctMap.get(id)?.ma ?? String(id) })) : [],
+      };
+    });
   return c.json({ rows });
 });
 
@@ -320,6 +369,29 @@ nhanVien.put("/:ma_nv", requireRole("Admin", "HCNS"), async (c) => {
   stmts.push(...lenhCongTyPhu(c.env.DB, maNv ?? "", phuMoi, ql));
   const [result] = await c.env.DB.batch(stmts);
   if ((result.meta.changes ?? 0) === 0) return c.json({ error: "NOT_FOUND" }, 404);
+  return c.json({ ok: true });
+});
+
+// POST /:ma_nv/them-kiem-nhiem { cong_ty_id } - them 1 cong ty kiem nhiem (nut o goi y "co o cong ty khac"), KHONG ghi
+// de cac truong khac cua ho so nhu PUT. Cung quy tac PUT: HCNS cong ty them + 1 cong ty cua ho so; tao kho QL neu can.
+nhanVien.post("/:ma_nv/them-kiem-nhiem", requireRole("Admin", "HCNS"), async (c) => {
+  const maNv = c.req.param("ma_nv") ?? "";
+  const body = await c.req.json<{ cong_ty_id?: number }>().catch(() => null);
+  const ct = Number(body?.cong_ty_id);
+  if (!ct) return c.json({ error: "CHON_CONG_TY" }, 400);
+  const user = c.get("user");
+  const qt = await nvQuanTri(c.env.DB, user, maNv);
+  if ("error" in qt) return c.json({ error: qt.error }, qt.status);
+  if (ct === qt.congTyId || qt.congTyPhu.includes(ct)) return c.json({ ok: true, da_co: true });
+  const nv = await c.env.DB.prepare("SELECT dang_lam_viec, quan_ly_id FROM nhan_vien WHERE ma_nv = ?").bind(maNv).first<{ dang_lam_viec: number; quan_ly_id: string | null }>();
+  if (!nv?.dang_lam_viec) return c.json({ error: "HO_SO_DA_NGHI" }, 400);
+  const phuMoi = [...qt.congTyPhu, ct];
+  const loi = await kiemTraCongTyPhu(c.env.DB, user, qt.congTyPhu, phuMoi);
+  if (loi) return c.json({ error: loi }, loi === "FORBIDDEN" ? 403 : 400);
+  await c.env.DB.batch([
+    ...lenhCongTyPhu(c.env.DB, maNv, phuMoi, nv.quan_ly_id),
+    c.env.DB.prepare("UPDATE nhan_vien SET updated_at = ? WHERE ma_nv = ?").bind(nowVN(), maNv),
+  ]);
   return c.json({ ok: true });
 });
 

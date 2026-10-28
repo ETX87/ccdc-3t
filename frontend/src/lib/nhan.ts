@@ -184,3 +184,10 @@ export const TINH_TRANG_KIEM_KE: Record<string, { label: string; tone: Tone }> =
 };
 
 export const TINH_TRANG_TS: Record<string, string> = { Tot: t("Tốt"), "Can bao tri": t("Cần bảo trì"), Hong: t("Hỏng") };
+
+/** Nhan vien thuoc cong ty `ct` (chinh hoac kiem nhiem - cong_ty_ids tu /nhan-vien?gon=1). ct rong = khong loc. */
+export function nvThuocCt(n: { cong_ty_id?: number | null; cong_ty_ids?: number[] }, ct: number | null | undefined): boolean {
+  if (ct == null) return true;
+  if (n.cong_ty_ids?.length) return n.cong_ty_ids.includes(ct);
+  return n.cong_ty_id == null || n.cong_ty_id === ct;
+}

@@ -1541,4 +1541,10 @@ export const ID: Record<string, string> = {
   "Tên tài sản là bắt buộc.": "Nama aset wajib diisi.",
   "Mã tài sản (tự sinh)": "Kode aset (otomatis)",
   "Tự cấp khi lưu: trùng tên tài sản đã có thì nối tiếp số chiếc cùng dòng hàng, tên mới thì mở dòng hàng mới.": "Diberikan saat disimpan: nama sama dengan aset yang ada melanjutkan nomor unit pada lini barang tersebut; nama baru membuka lini barang baru.",
+  "Đã thêm {ten} kiêm nhiệm công ty {ct}.": "{ten} ditambahkan sebagai karyawan rangkap perusahaan {ct}.",
+  "Không có trong công ty đang xem - tìm thấy ở công ty khác:": "Tidak ada di perusahaan yang dilihat - ditemukan di perusahaan lain:",
+  "{ma} (kiêm nhiệm)": "{ma} (rangkap)",
+  "Thêm kiêm nhiệm {ct}": "Tambah rangkap {ct}",
+  "Xem ở công ty {ct}": "Lihat di perusahaan {ct}",
+  "Nhờ HCNS thêm kiêm nhiệm công ty này để chọn được.": "Minta HCNS menambahkan rangkap di perusahaan ini agar bisa dipilih.",
 };

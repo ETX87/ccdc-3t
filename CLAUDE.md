@@ -132,6 +132,12 @@ state đang dùng.
   thuộc công ty đó (kho công ty kiêm nhiệm tên "Kho QL - <tên> (<MÃ>)"). Phạm vi nhóm QL tách theo công ty
   (`PhamVi.congTyNhom` lọc TS nhóm theo `ccdc.cong_ty_id`). Gộp hồ sơ 2 công ty khác nhau được phép = 1 người kiêm nhiệm
   (kho QL gộp theo từng công ty). Bỏ công ty kiêm nhiệm bị chặn khi còn giữ TS / còn kho QL ở công ty đó.
+  **Gợi ý nhân viên ở công ty khác** (2026-10-28, `components/GoiYNvCongTyKhac.tsx` + `GET /nhan-vien/cong-ty-khac?search&
+  cong_ty_id`): tìm không thấy (màn Nhân viên, ô chọn NV của form Cấp phát tiêu hao / Giao nhận TSCĐ qua prop `khiRong`
+  của `SearchSelect`) → hồ sơ khớp (bỏ dấu, lọc JS) ở công ty khác + nút "Thêm kiêm nhiệm" (`POST /nhan-vien/:ma/them-
+  kiem-nhiem`, cùng quyền PUT: HCNS cả 2 phía) / "Xem ở công ty X". Admin/HCNS/KT thấy mọi công ty, người khác chỉ công ty
+  tài khoản được phép. `/nhan-vien?gon=1` trả `cong_ty_ids` (chính + kiêm nhiệm) — ô chọn NV trong form lọc bằng
+  `nvThuocCt()` (lib/nhan.ts), KHÔNG so `cong_ty_id` (trước đó NV kiêm nhiệm không hiện trong ô chọn).
   "Kho tổng tất cả công ty" = BÁO CÁO GỘP (`components/TongTheoCongTy.tsx`: khối đầu tab Tồn theo kho, Tài sản của tôi),
   không phải kho thật.
 - Báo cáo so sánh: `GET /bao-cao/theo-cong-ty` (tab "Theo công ty", Admin/KT/HCNS xem ≥2 công ty).

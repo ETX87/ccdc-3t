@@ -17,11 +17,12 @@ import { exportRowsToExcel } from "../lib/exportExcel";
 import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTriDong, fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
-import { LOAI_KHO, LOAI_PHIEU_CK, TRANG_THAI_CK, isHcns, laKhoPhatChung, laKhoTon, thongBaoLoi } from "../lib/nhan";
+import { LOAI_KHO, LOAI_PHIEU_CK, TRANG_THAI_CK, isHcns, laKhoPhatChung, laKhoTon, nvThuocCt, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
 import { KhoTag, LoaiChip, NgayCho, NguoiTag, soGioTu, TienTe } from "../components/NoiBat";
 import { ChonLoc } from "../components/ChonLoc";
 import { NhapExcelPhieuCk } from "../components/NhapExcelPhieuCk";
+import { GoiYNvCongTyKhac } from "../components/GoiYNvCongTyKhac";
 
 interface KhoRow {
   id: number;
@@ -43,6 +44,7 @@ interface NvRow {
   ma_nv: string;
   ten_nv: string;
   cong_ty_id?: number;
+  cong_ty_ids?: number[];
 }
 interface PhieuRow {
   id: string;
@@ -236,6 +238,10 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
     await Promise.all([loadTrang(), loadPhu()]);
   }, [loadTrang, loadPhu]);
 
+  const taiNv = useCallback(() => {
+    api.get<{ rows: NvRow[] }>("/nhan-vien?gon=1").then((n) => setNvs(n.rows)).catch(() => undefined);
+  }, []);
+
   useEffect(() => {
     Promise.all([
       api.get<{ rows: KhoRow[] }>("/kho"),
@@ -279,7 +285,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
   const chuyenCongTy = loai === "Chuyen kho" && !!denKhoRow && congTyNguon != null && denKhoRow.cong_ty_id !== congTyNguon;
   // Kho QL chi cap cho chinh QL + cap duoi truc tiep; kho HCNS/Mien/Trung chuyen cap cho moi nhan vien CUNG CONG TY kho.
   const nvHopLe = useMemo(() => {
-    const cungCt = (n: NvRow) => n.cong_ty_id == null || n.cong_ty_id === congTyNguon;
+    const cungCt = (n: NvRow) => nvThuocCt(n, congTyNguon);
     if (tuKhoRow?.loai === "Quan ly") {
       const self = nvs.find((n) => n.ma_nv === tuKhoRow.nhan_vien_id);
       return [...(self ? [self] : []), ...capDuoi].filter(cungCt);
@@ -774,6 +780,7 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                     value={denNv}
                     onChange={setDenNv}
                     placeholder={t("Tìm nhân viên...")}
+                    khiRong={(q) => <GoiYNvCongTyKhac gon search={q} congTyId={congTyNguon} onDaThem={taiNv} />}
                   />
                 )}
                 {dungTuDo && <input type="text" value={tuDo} onChange={(e) => setTuDo(e.target.value)} placeholder={t("Tên KTV/CTV ngoài danh bạ...")} />}

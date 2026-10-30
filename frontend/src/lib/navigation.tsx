@@ -18,6 +18,7 @@ export type TabKey =
   | "bao-cao"
   | "tai-khoan"
   | "cong-ty"
+  | "bao-cao-email"
   | "nhan-vien";
 
 export type NavParams = Record<string, string>;

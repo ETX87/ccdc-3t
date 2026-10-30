@@ -1,6 +1,6 @@
 import { t } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Box, ChevronDown, Download, Edit, FolderPlus, Plus, QrCode, Search, Store, Trash2, User } from "lucide-react";
+import { AlertTriangle, ArchiveRestore, Box, ChevronDown, Download, Edit, FolderPlus, Plus, QrCode, Search, Store, Trash2, User } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { Modal } from "../components/Modal";
@@ -23,6 +23,7 @@ import { isHcns, laKhoTon, thongBaoLoi, TINH_TRANG_TS, TRANG_THAI_TS } from "../
 import { TienTe } from "../components/NoiBat";
 import { ChonLoc } from "../components/ChonLoc";
 import { QuanLyNhomModal } from "../components/QuanLyNhomModal";
+import { TonToiThieuTsModal } from "../components/TonToiThieu";
 
 // Danh muc tai san co dinh: KPI + dem theo trang thai lay tu /ccdc/thong-ke (cung bo loc, khong phu thuoc
 // so dong dang hien), bam ma -> popup chi tiet (lich su, QR, bao hong), in tem QR hang loat.
@@ -142,6 +143,8 @@ export function DanhMucCcdcScreen() {
   const [formLoi, setFormLoi] = useState<string | null>(null);
   const [xoa, setXoa] = useState<CcdcRow | null>(null);
   const [showNhom, setShowNhom] = useState(false);
+  // Ton toi thieu theo dong hang (migration 0021).
+  const [showMin, setShowMin] = useState(false);
 
   useEffect(() => {
     const t = window.setTimeout(() => setTuKhoa(search.trim()), 300);
@@ -387,6 +390,9 @@ export function DanhMucCcdcScreen() {
             </button>
             <button className="btn btn-outline" onClick={exportExcel} disabled={!tong}>
               <Download size={14} /> {t("Xuất Excel")}
+            </button>
+            <button className="btn btn-outline" onClick={() => setShowMin(true)}>
+              <ArchiveRestore size={14} /> {t("Tồn tối thiểu")}
             </button>
             {canEdit && (
               <>
@@ -728,6 +734,15 @@ export function DanhMucCcdcScreen() {
         </Modal>
       )}
 
+      {showMin && (
+        <TonToiThieuTsModal
+          canEdit={canEdit}
+          ctTao={ctTao}
+          maCt={(id) => maCongTy(user, id)}
+          onClose={() => setShowMin(false)}
+          onXemTs={(ten) => (setShowMin(false), setSearch(ten), setTuKhoa(ten))}
+        />
+      )}
       {showNhom && <QuanLyNhomModal nhoms={nhoms} ctTao={ctTao} nhieuCt={nhieuCt} maCt={(id) => maCongTy(user, id)} onClose={() => setShowNhom(false)} onDoi={loadNhoms} />}
     </div>
   );

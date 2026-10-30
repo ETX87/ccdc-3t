@@ -13,6 +13,7 @@ import { ViecCanLamScreen } from "./modules/ViecCanLamScreen";
 import { CanhBaoScreen } from "./modules/CanhBaoScreen";
 import { AdminUsersScreen } from "./modules/AdminUsersScreen";
 import { CongTyScreen } from "./modules/CongTyScreen";
+import { BaoCaoEmailScreen } from "./modules/BaoCaoEmailScreen";
 import { DanhMucCcdcScreen } from "./modules/DanhMucCcdcScreen";
 import { NhanVienScreen } from "./modules/NhanVienScreen";
 import { GiaoNhanScreen } from "./modules/GiaoNhanScreen";
@@ -40,6 +41,7 @@ const SCREENS: Record<TabKey, () => JSX.Element | null> = {
   "bao-cao": BaoCaoScreen,
   "tai-khoan": AdminUsersScreen,
   "cong-ty": CongTyScreen,
+  "bao-cao-email": BaoCaoEmailScreen,
   "nhan-vien": NhanVienScreen,
 };
 
@@ -50,13 +52,17 @@ type NavState = { tab: TabKey; params: NavParams; i: number };
 function AuthenticatedApp({ user }: { user: AppUser }) {
   const [nav, setNav] = useState<NavState>(() => {
     const s = (window.history.state as { ccdc?: NavState } | null)?.ccdc;
-    return s && duocMoTab(user, s.tab) ? s : { tab: tabMacDinh(user), params: {}, i: 0 };
+    if (s && duocMoTab(user, s.tab)) return s;
+    // ?mo=<tab>: server chuyen ve sau OAuth (vd ket noi Gmail -> man Bao cao email) - dung 1 lan, xoa khoi URL o
+    // useEffect ben duoi (initializer phai thuan: StrictMode goi 2 lan).
+    const mo = new URLSearchParams(window.location.search).get("mo") as TabKey | null;
+    return { tab: mo && duocMoTab(user, mo) ? mo : tabMacDinh(user), params: {}, i: 0 };
   });
   const navRef = useRef(nav);
   navRef.current = nav;
 
   useEffect(() => {
-    window.history.replaceState({ ...(window.history.state ?? {}), ccdc: navRef.current }, "");
+    window.history.replaceState({ ...(window.history.state ?? {}), ccdc: navRef.current }, "", window.location.pathname);
     const onPop = (e: PopStateEvent) => {
       const s = (e.state as { ccdc?: NavState } | null)?.ccdc;
       if (s) setNav(s);

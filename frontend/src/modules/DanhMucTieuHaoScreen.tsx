@@ -1,6 +1,6 @@
-import { t } from "../lib/i18n";
+import { t, tS } from "../lib/i18n";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ChevronDown, Edit, FolderPlus, FolderTree, Package, Plus, Search, Tag, Trash2 } from "lucide-react";
+import { ArchiveRestore, ChevronDown, Edit, FileSpreadsheet, FolderPlus, FolderTree, Package, Plus, Search, Tag, Trash2 } from "lucide-react";
 import { api } from "../api/client";
 import { Modal } from "../components/Modal";
 import { PageHeader } from "../components/PageHeader";
@@ -15,6 +15,7 @@ import { TruongCongTy } from "../components/ChonCongTy";
 import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
 import { ChonLoc } from "../components/ChonLoc";
 import { QuanLyNhomModal } from "../components/QuanLyNhomModal";
+import { lopDongTon, MucTonBadge, NhapTonToiThieuExcel, type MucTon } from "../components/TonToiThieu";
 
 interface NhomCcdc {
   id: number;
@@ -30,10 +31,18 @@ interface VtRow {
   don_vi_tinh: string | null;
   don_gia_tham_khao: number | null;
   cong_ty_id: number;
+  // Ton toi thieu (migration 0021) + ton tong cong ty / danh gia (server tinh, ?kem_ton=1).
+  ton_toi_thieu: number | null;
+  thoi_gian_dat_hang: string | null;
+  ton: number;
+  muc: MucTon;
+  danh_gia: string;
+  de_xuat: string;
+  thieu: number;
 }
 
 function emptyForm(congTyId: number | null = null) {
-  return { id: "", ten_vt: "", nhom_id: "", don_vi_tinh: "", don_gia_tham_khao: "", cong_ty_id: congTyId };
+  return { id: "", ten_vt: "", nhom_id: "", don_vi_tinh: "", don_gia_tham_khao: "", cong_ty_id: congTyId, ton_toi_thieu: "", thoi_gian_dat_hang: "" };
 }
 
 // Danh muc vat tu tieu hao (ton tinh dong o tab Ton kho, khong luu san). HCNS / Admin them - sua - tat.
@@ -54,6 +63,9 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
   const [tim, setTim] = useState("");
   const [nhomLoc, setNhomLoc] = useState("");
   const [chiThieuGia, setChiThieuGia] = useState(false);
+  // Loc ton toi thieu: "" tat ca | "can" het/duoi/sap | "co" da cai | "chua" chua cai.
+  const [locMin, setLocMin] = useState("");
+  const [showNhapMin, setShowNhapMin] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm());
@@ -68,7 +80,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
   const loadRows = useCallback(async () => {
     setDangTai(true);
     try {
-      const [v, n] = await Promise.all([api.get<{ rows: VtRow[] }>("/vt-tieu-hao"), api.get<{ rows: NhomCcdc[] }>("/nhom-ccdc")]);
+      const [v, n] = await Promise.all([api.get<{ rows: VtRow[] }>("/vt-tieu-hao?kem_ton=1"), api.get<{ rows: NhomCcdc[] }>("/nhom-ccdc")]);
       setRows(v.rows);
       setNhoms(n.rows.filter((x) => x.bat_tat));
       setNhomAll(n.rows);
@@ -90,9 +102,10 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
     (r) =>
       (!tu || r.id.toLowerCase().includes(tu) || r.ten_vt.toLowerCase().includes(tu)) &&
       (!nhomLoc || (nhomLoc === "none" ? r.nhom_id == null : String(r.nhom_id) === nhomLoc)) &&
-      (!chiThieuGia || !r.don_gia_tham_khao),
+      (!chiThieuGia || !r.don_gia_tham_khao) &&
+      (!locMin || (locMin === "can" ? r.muc === "het" || r.muc === "duoi" || r.muc === "sap" : locMin === "co" ? r.muc !== "khong" : r.muc === "khong")),
   );
-  const tVt = useTrangKhach(hienThi, [tu, nhomLoc, chiThieuGia]);
+  const tVt = useTrangKhach(hienThi, [tu, nhomLoc, chiThieuGia, locMin]);
   const tk = useMemo(() => {
     const all = rows ?? [];
     return {
@@ -100,8 +113,9 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       soNhom: new Set(all.map((r) => r.nhom_id).filter((x) => x != null)).size,
       chuaNhom: all.filter((r) => r.nhom_id == null).length,
       thieuGia: all.filter((r) => !r.don_gia_tham_khao).length,
-      nhomLon: [...all.reduce((m, r) => (r.nhom_id != null ? m.set(r.nhom_id, { ten: r.ten_nhom ?? "", n: (m.get(r.nhom_id)?.n ?? 0) + 1 }) : m), new Map<number, { ten: string; n: number }>())]
-        .sort((a, b) => b[1].n - a[1].n)[0],
+      duoiMin: all.filter((r) => r.muc === "het" || r.muc === "duoi").length,
+      sapMin: all.filter((r) => r.muc === "sap").length,
+      coMin: all.filter((r) => r.muc !== "khong").length,
     };
   }, [rows]);
 
@@ -131,6 +145,8 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       don_vi_tinh: row.don_vi_tinh ?? "",
       don_gia_tham_khao: row.don_gia_tham_khao != null ? String(row.don_gia_tham_khao) : "",
       cong_ty_id: row.cong_ty_id,
+      ton_toi_thieu: row.ton_toi_thieu != null ? String(row.ton_toi_thieu) : "",
+      thoi_gian_dat_hang: row.thoi_gian_dat_hang ?? "",
     });
     setError(null);
     setShowForm(true);
@@ -150,6 +166,8 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
       don_vi_tinh: form.don_vi_tinh.trim() || null,
       don_gia_tham_khao: form.don_gia_tham_khao ? Number(form.don_gia_tham_khao) : null,
       cong_ty_id: form.cong_ty_id,
+      ton_toi_thieu: form.ton_toi_thieu === "" ? null : Number(form.ton_toi_thieu),
+      thoi_gian_dat_hang: form.thoi_gian_dat_hang.trim() || null,
     };
     try {
       // Them moi: server tu sinh ma vat tu (TS<ma cong ty>-000001...), tra ve ma that da cap.
@@ -187,6 +205,9 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
               <button className="btn btn-outline" onClick={() => setShowNhom(true)}>
                 <FolderPlus size={14} /> {t("Quản lý nhóm")}
               </button>
+              <button className="btn btn-outline" onClick={() => setShowNhapMin(true)}>
+                <FileSpreadsheet size={14} /> {t("Nhập tồn tối thiểu")}
+              </button>
               <button className="btn btn-primary" onClick={openAdd}>
                 <Plus size={15} /> {t("Thêm vật tư")}
               </button>
@@ -206,7 +227,7 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
           label={t("Vật tư đang dùng")}
           value={fmtSo(tk.tong)}
           trend={<div className="kpi-trend"><span className="trend-sub">{t("Đang hoạt động trong danh mục")}</span></div>}
-          onClick={() => (setNhomLoc(""), setChiThieuGia(false))}
+          onClick={() => (setNhomLoc(""), setChiThieuGia(false), setLocMin(""))}
         />
         <KpiCard
           tone="purple"
@@ -228,13 +249,18 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
           onClick={() => setChiThieuGia(true)}
         />
         <KpiCard
-          tone="blue"
-          icon={<FolderTree size={20} className="text-white" />}
-          watermark={<FolderTree size={52} />}
-          label={t("Nhóm nhiều vật tư nhất")}
-          value={fmtSo(tk.nhomLon?.[1].n ?? 0)}
-          trend={<div className="kpi-trend"><span className="trend-sub">{tk.nhomLon?.[1].ten ?? t("Chưa có nhóm")}</span></div>}
-          onClick={tk.nhomLon ? () => setNhomLoc(String(tk.nhomLon![0])) : undefined}
+          tone={tk.duoiMin ? "red" : tk.sapMin ? "yellow" : "blue"}
+          icon={<ArchiveRestore size={20} className="text-white" />}
+          watermark={<ArchiveRestore size={52} />}
+          label={t("Dưới tồn tối thiểu")}
+          value={fmtSo(tk.duoiMin)}
+          tangLaXau
+          trend={
+            <div className={`kpi-trend ${tk.duoiMin ? "trend-warning" : ""}`}>
+              <span className="trend-sub">{t("{s} sắp chạm · {c} mặt hàng có cài", { s: fmtSo(tk.sapMin), c: fmtSo(tk.coMin) })}</span>
+            </div>
+          }
+          onClick={() => setLocMin("can")}
         />
       </div>
 
@@ -259,6 +285,15 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
             </ChonLoc>
             <ChevronDown size={13} className="dropdown-arrow" />
           </label>
+          <label className="header-dropdown select-dropdown">
+            <ChonLoc value={locMin} onChange={(e) => setLocMin(e.target.value)} aria-label={t("Tồn tối thiểu")}>
+              <option value="">{t("Tồn tối thiểu: tất cả")}</option>
+              <option value="can">{t("Dưới / sắp chạm tối thiểu")}</option>
+              <option value="co">{t("Đã cài tồn tối thiểu")}</option>
+              <option value="chua">{t("Chưa cài tồn tối thiểu")}</option>
+            </ChonLoc>
+            <ChevronDown size={13} className="dropdown-arrow" />
+          </label>
           <label className="check-label">
             <input type="checkbox" checked={chiThieuGia} onChange={(e) => setChiThieuGia(e.target.checked)} />
             {t("Chỉ vật tư chưa có giá")}
@@ -271,31 +306,33 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
           <table className="task-table">
             <thead>
               <tr>
-                <th style={{ width: "15%" }}>{t("Mã")}</th>
+                <th style={{ width: "12%" }}>{t("Mã")}</th>
                 <th>{t("Tên vật tư")}</th>
-                <th style={{ width: "18%" }}>{t("Nhóm")}</th>
-                <th style={{ width: "10%" }}>{t("ĐVT")}</th>
-                <th style={{ width: "13%", textAlign: "right" }}>{t("Giá tham khảo")}</th>
-                <th style={{ width: "16%", textAlign: "right" }}>{t("Thao tác")}</th>
+                <th style={{ width: "13%" }}>{t("Nhóm")}</th>
+                <th style={{ width: "7%" }}>{t("ĐVT")}</th>
+                <th style={{ width: "10%", textAlign: "right" }}>{t("Giá tham khảo")}</th>
+                <th style={{ width: "11%", textAlign: "right" }}>{t("Tồn / Tối thiểu")}</th>
+                <th style={{ width: "14%" }}>{t("Đánh giá")}</th>
+                <th style={{ width: "12%", textAlign: "right" }}>{t("Thao tác")}</th>
               </tr>
             </thead>
             <tbody>
               {rows === null && (
                 <tr>
-                  <td colSpan={6} className="task-empty">
+                  <td colSpan={8} className="task-empty">
                     {t("Đang tải…")}
                   </td>
                 </tr>
               )}
               {rows !== null && hienThi.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="task-empty">
+                  <td colSpan={8} className="task-empty">
                     {t("Không có vật tư khớp bộ lọc.")}
                   </td>
                 </tr>
               )}
               {tVt.dongTrang.map((r) => (
-                <tr key={r.id}>
+                <tr key={r.id} className={lopDongTon(r.muc)}>
                   <td data-label={t("Mã")}>{r.id}</td>
                   <td data-label={t("Tên vật tư")} className="strong">
                     {r.ten_vt}
@@ -307,6 +344,28 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
                   <td data-label={t("ĐVT")}>{r.don_vi_tinh ?? "-"}</td>
                   <td data-label={t("Giá tham khảo")} style={{ textAlign: "right" }}>
                     {r.don_gia_tham_khao != null ? fmtSo(r.don_gia_tham_khao) : <span className="text-orange">{t("Chưa có")}</span>}
+                  </td>
+                  <td data-label={t("Tồn / Tối thiểu")} style={{ textAlign: "right" }}>
+                    <button type="button" className="so-link" onClick={() => navigate("cap-phat", { tab: "ton-kho", q: r.id })}>
+                      {fmtSo(r.ton, 2)}
+                    </button>
+                    {" / "}
+                    {r.ton_toi_thieu != null ? fmtSo(r.ton_toi_thieu, 2) : <span className="muted">-</span>}
+                  </td>
+                  <td data-label={t("Đánh giá")}>
+                    {r.muc === "khong" ? (
+                      <span className="muted small">{t("Chưa cài")}</span>
+                    ) : (
+                      <>
+                        <MucTonBadge muc={r.muc} danhGia={r.danh_gia} />
+                        {r.muc !== "du" && (
+                          <div className="muted small" title={r.thoi_gian_dat_hang ?? undefined}>
+                            {tS(r.de_xuat)}
+                            {r.thieu > 0 ? ` · ${t("thiếu {x}", { x: fmtSo(r.thieu, 2) })}` : ""}
+                          </div>
+                        )}
+                      </>
+                    )}
                   </td>
                   <td data-label={t("Thao tác")} style={{ textAlign: "right" }}>
                     <div className="row-actions">
@@ -369,6 +428,15 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
               <label className="field-label">{t("Giá tham khảo (đ)")}</label>
               <input type="number" min={0} value={form.don_gia_tham_khao} onChange={(e) => setForm({ ...form, don_gia_tham_khao: e.target.value })} />
             </div>
+            <div className="field-group">
+              <label className="field-label">{t("Tồn kho tối thiểu")}</label>
+              <input type="number" min={0} value={form.ton_toi_thieu} placeholder={t("Bỏ trống / 0 = không quy định")} onChange={(e) => setForm({ ...form, ton_toi_thieu: e.target.value })} />
+              <div className="field-hint">{t("So với tổng tồn các kho của công ty. Thấp hơn → cảnh báo + báo cáo email.")}</div>
+            </div>
+            <div className="field-group">
+              <label className="field-label">{t("Thời gian đặt hàng / ghi chú")}</label>
+              <input type="text" maxLength={200} value={form.thoi_gian_dat_hang} placeholder={t("vd: Thời gian đặt hàng 1-2 tuần")} onChange={(e) => setForm({ ...form, thoi_gian_dat_hang: e.target.value })} />
+            </div>
           </div>
           {error && <div className="alert alert-error">{error}</div>}
           <div className="modal-actions">
@@ -396,6 +464,9 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
             </button>
           </div>
         </Modal>
+      )}
+      {showNhapMin && (
+        <NhapTonToiThieuExcel vts={rows ?? []} ctTao={ctTao} onClose={() => setShowNhapMin(false)} onXong={(m) => (setShowNhapMin(false), setMsg(m))} />
       )}
       {showNhom && (
         <QuanLyNhomModal

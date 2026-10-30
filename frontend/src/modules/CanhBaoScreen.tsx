@@ -130,6 +130,7 @@ export function CanhBaoScreen() {
   function moDong(d: CanhBaoChiTiet) {
     if (d.kind === "tai_san") moTaiSan(d.ref);
     else if (d.kind === "vat_tu") navigate("cap-phat", { tab: "ton-kho", q: d.ref });
+    else if (d.kind === "dong_ts") navigate("tai-san", { q: d.ref });
     else moPhieu(d.kind, d.ref);
   }
 

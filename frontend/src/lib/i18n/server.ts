@@ -97,4 +97,18 @@ export const CHUOI_SERVER = [
   "Nhân viên xác nhận đã nhận",
   "[Xác nhận hộ] {ghi_chu}",
   "Sửa theo đề xuất cảnh báo đơn giá bất thường",
+  // Ton toi thieu (lib/tonToiThieu.ts, canh bao dashboard.ts) + bao cao email (routes/baoCaoEmail.ts)
+  "Tồn kho dưới mức tối thiểu",
+  "{n} mặt hàng dưới mức tối thiểu, {m} mặt hàng sắp chạm mức",
+  "Hết hàng",
+  "Dưới mức tối thiểu",
+  "Sắp chạm mức tối thiểu",
+  "Tồn kho đảm bảo",
+  "Đặt hàng gấp",
+  "Cần đặt hàng ngay",
+  "Chuẩn bị đặt hàng",
+  "Chưa cần đặt hàng",
+  "Không quy định tồn kho tối thiểu – theo dõi nhu cầu",
+  "Thứ 5 hằng tuần, 20:00 (giờ VN)",
+  "Chưa có người nhận",
 ];

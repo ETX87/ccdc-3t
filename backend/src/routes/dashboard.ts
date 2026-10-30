@@ -7,6 +7,7 @@ import { requireRole } from "../middleware/requireRole";
 import { dkCotKho, dkPhieuKho, dkTaiSan, layPhamVi, locTheoKho, type PhamVi } from "../lib/phamVi";
 import { chupNeuChuaCo, soLieuDaChup, tinhChiSo } from "../lib/thongKe";
 import { khoNhanHang, khoPhuTrach } from "../lib/quyen";
+import { canXuLy, layTonToiThieu } from "../lib/tonToiThieu";
 
 // Du lieu that cho giao dien 3T Asset Management (ke hoach Giai doan 1.6 muc 3.2): tong quan, viec can
 // lam (+ so do tren menu/chuong), canh bao, tim kiem. MOI truy van loc theo pham vi (lib/phamVi.ts).
@@ -450,8 +451,11 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
 // ======================================================================================
 // Canh bao
 // ======================================================================================
-type LoaiCanhBao = "cho-ban-giao" | "qua-han-duyet" | "ton-am" | "bao-hong-cho-duyet" | "chenh-lech-kiem-ke" | "sap-het-bao-hanh" | "don-gia-bat-thuong";
+type LoaiSql = "cho-ban-giao" | "qua-han-duyet" | "ton-am" | "bao-hong-cho-duyet" | "chenh-lech-kiem-ke" | "sap-het-bao-hanh" | "don-gia-bat-thuong";
+// "duoi-ton-toi-thieu" (2026-10-30) tinh o JS (lib/tonToiThieu.ts - khop dong hang TSCD theo ten), khong phai 1 cau SQL.
+type LoaiCanhBao = LoaiSql | "duoi-ton-toi-thieu";
 const MUC_DO: Record<LoaiCanhBao, "cao" | "trung_binh" | "thap"> = {
+  "duoi-ton-toi-thieu": "cao",
   "cho-ban-giao": "cao",
   "qua-han-duyet": "cao",
   "ton-am": "cao",
@@ -553,15 +557,37 @@ function cauLenhCanhBao(db: D1Database, pv: PhamVi) {
          ORDER BY p.created_at DESC`,
       )
       .bind(...pk.binds),
-  } satisfies Record<LoaiCanhBao, D1PreparedStatement>;
+  } satisfies Record<LoaiSql, D1PreparedStatement>;
+}
+
+/**
+ * Ton toi thieu la chi tieu CONG TY (tong moi kho) -> chi canh bao cho pham vi toan cong ty (Admin / KT / HCNS); thu kho,
+ * QL chi thay 1 phan kho nen so sanh se sai -> khong canh bao. Dong theo dang chung cua canh bao (ma, ten, chi_tiet...).
+ */
+async function canhBaoTonToiThieu(db: D1Database, pv: PhamVi) {
+  const congTyIds = pv.toanBo
+    ? (await db.prepare("SELECT id FROM cong_ty").all<{ id: number }>()).results.map((r) => r.id)
+    : (pv.congTyToan ?? []);
+  const ds = (await layTonToiThieu(db, congTyIds)).filter(canXuLy);
+  return ds.map((d) => ({
+    ma: d.loai === "vat_tu" ? d.ma : null,
+    ten: d.ten,
+    chi_tiet: `${d.danh_gia}: tồn ${d.ton}/${d.ton_toi_thieu}${d.don_vi_tinh ? ` ${d.don_vi_tinh}` : ""}${d.thoi_gian_dat_hang ? ` · ${d.thoi_gian_dat_hang}` : ""}`,
+    thoi_gian: null,
+    kind: d.loai === "vat_tu" ? "vat_tu" : "dong_ts",
+    ref: d.loai === "vat_tu" ? d.ma : d.ten,
+    muc: d.muc,
+  }));
 }
 
 async function layCanhBao(db: D1Database, pv: PhamVi): Promise<CanhBao[]> {
   const lenh = cauLenhCanhBao(db, pv);
-  const loais = Object.keys(lenh) as LoaiCanhBao[];
-  const kq = await db.batch<{ kind: string; ten: string }>(loais.map((l) => lenh[l]));
+  const loaiSql = Object.keys(lenh) as LoaiSql[];
+  const [kqSql, tonMin] = await Promise.all([db.batch<{ kind: string; ten: string; muc?: string }>(loaiSql.map((l) => lenh[l])), canhBaoTonToiThieu(db, pv)]);
+  const loais: LoaiCanhBao[] = [...loaiSql, "duoi-ton-toi-thieu"];
+  const kq = [...kqSql.map((x) => x.results), tonMin];
   const ds: CanhBao[] = loais.map((loai, i) => {
-    const r = kq[i].results;
+    const r = kq[i];
     const n = r.length;
     const dem = (ten: string) => r.filter((x) => x.ten === ten).length;
     const moTa: Record<LoaiCanhBao, string> = {
@@ -572,6 +598,7 @@ async function layCanhBao(db: D1Database, pv: PhamVi): Promise<CanhBao[]> {
       "chenh-lech-kiem-ke": `${n} tài sản chênh lệch ở đợt kiểm kê gần nhất`,
       "sap-het-bao-hanh": `${n} tài sản hết bảo hành trong 30 ngày`,
       "don-gia-bat-thuong": `${n} dòng phiếu có đơn giá lệch quá 5 lần giá tham khảo`,
+      "duoi-ton-toi-thieu": `${r.filter((x) => x.muc === "het" || x.muc === "duoi").length} mặt hàng dưới mức tối thiểu, ${r.filter((x) => x.muc === "sap").length} mặt hàng sắp chạm mức`,
     };
     const tieuDe: Record<LoaiCanhBao, string> = {
       "cho-ban-giao": `Tài sản chờ bàn giao (quá ${QUA_HAN_GIO}h)`,
@@ -581,6 +608,7 @@ async function layCanhBao(db: D1Database, pv: PhamVi): Promise<CanhBao[]> {
       "chenh-lech-kiem-ke": "Chênh lệch kiểm kê",
       "sap-het-bao-hanh": "Tài sản sắp hết bảo hành",
       "don-gia-bat-thuong": "Đơn giá bất thường",
+      "duoi-ton-toi-thieu": "Tồn kho dưới mức tối thiểu",
     };
     return { loai, tieu_de: tieuDe[loai], mo_ta: moTa[loai], so_luong: n, muc_do: MUC_DO[loai] };
   });
@@ -637,8 +665,9 @@ dashboard.get("/canh-bao", async (c) => {
   let chiTiet: unknown[] | null = null;
   if (loai) {
     const lenh = cauLenhCanhBao(db, pv);
-    if (!(loai in lenh)) return c.json({ error: "LOAI_KHONG_HOP_LE" }, 400);
-    chiTiet = (await lenh[loai].all()).results.slice(0, 500);
+    if (loai === "duoi-ton-toi-thieu") chiTiet = (await canhBaoTonToiThieu(db, pv)).slice(0, 500);
+    else if (!(loai in lenh)) return c.json({ error: "LOAI_KHONG_HOP_LE" }, 400);
+    else chiTiet = (await lenh[loai as LoaiSql].all()).results.slice(0, 500);
     if (loai === "don-gia-bat-thuong") chiTiet = await deXuatDonGia(db, chiTiet as DongDonGia[]);
   }
   return c.json({ cap_nhat_luc: nowVN(), nguong_gio: QUA_HAN_GIO, rows: ds, chi_tiet: chiTiet });

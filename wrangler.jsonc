@@ -29,7 +29,8 @@
   // Cron hang ngay 17h UTC = 0h gio VN: chup so lieu tong quan (thong_ke_ngay). Dong bo danh ba "ETX nhan
   // su" + tu tao/duyet tai khoan cung chay HANG NGAY (tu 2026-09-30; ~1 request ETX/lan, trong tran luot
   // goi/ngay cua key).
-  "triggers": { "crons": ["0 17 * * *"] },
+  // "0 13 * * 4" = 20h toi thu 5 gio VN: bao cao email dinh ky (routes/baoCaoEmail.ts, 2026-10-30).
+  "triggers": { "crons": ["0 17 * * *", "0 13 * * 4"] },
 
   "vars": {
     "BOOTSTRAP_ADMIN_EMAIL": "smarttrade.vp@gmail.com",

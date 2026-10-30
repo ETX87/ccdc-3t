@@ -18,6 +18,7 @@ import dashboard from "./routes/dashboard";
 import dinhKem from "./routes/dinhKem";
 import settings from "./routes/settings";
 import congTy from "./routes/congTy";
+import baoCaoEmail, { guiBaoCaoDinhKy } from "./routes/baoCaoEmail";
 import { chupSoLieu } from "./lib/thongKe";
 import { nowVN } from "./lib/vnTime";
 
@@ -53,15 +54,23 @@ app.route("/api/dashboard", dashboard);
 app.route("/api/dinh-kem", dinhKem);
 app.route("/api/settings", settings);
 app.route("/api/cong-ty", congTy);
+app.route("/api/bao-cao-email", baoCaoEmail);
 
 app.get("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
-// Cron (wrangler.jsonc triggers.crons "0 17 * * *" = 0h moi ngay gio VN):
+// Cron (wrangler.jsonc triggers.crons):
+//   "0 17 * * *" = 0h moi ngay gio VN:
 //   - Hang ngay: chup so lieu tong quan (thong_ke_ngay) cho "% so voi ky truoc".
 //   - Dong bo danh ba ETX + tu tao/duyet tai khoan (hang ngay tu 2026-09-30, truoc do chi Chu nhat).
+//   "0 13 * * 4" = 20h toi thu 5 gio VN: gui bao cao email dinh ky (neu Admin bat tu dong).
+const CRON_BAO_CAO = "0 13 * * 4";
 export default {
   fetch: app.fetch,
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    if (controller.cron === CRON_BAO_CAO) {
+      ctx.waitUntil(guiBaoCaoDinhKy(env).catch((e) => console.error("[guiBaoCaoDinhKy]", e)));
+      return;
+    }
     ctx.waitUntil(chupSoLieu(env.DB, nowVN().slice(0, 10)).catch((e) => console.error("[chupSoLieu]", e)));
     // Dong bo ETX + tu tao tai khoan HANG NGAY (0h VN) - truoc 2026-09-30 chi chay Chu nhat.
     ctx.waitUntil(runEtxNhanSuSyncWithState(env, env.DB));

@@ -1,5 +1,5 @@
 import { t, tS } from "../lib/i18n";
-import { AlertTriangle, Clock, ShieldAlert, Store, Tag, TrendingDown, PackageX } from "lucide-react";
+import { AlertTriangle, ArchiveRestore, Clock, ShieldAlert, Store, Tag, TrendingDown, PackageX } from "lucide-react";
 
 // 1 dong canh bao (the Canh bao o Tong quan + danh sach ben trai man Canh bao). Du lieu tu
 // /api/dashboard/canh-bao - so dem that, mo ta that.
@@ -11,7 +11,8 @@ export type LoaiCanhBao =
   | "bao-hong-cho-duyet"
   | "chenh-lech-kiem-ke"
   | "sap-het-bao-hanh"
-  | "don-gia-bat-thuong";
+  | "don-gia-bat-thuong"
+  | "duoi-ton-toi-thieu";
 
 export interface CanhBao {
   loai: LoaiCanhBao;
@@ -26,7 +27,8 @@ export interface CanhBaoChiTiet {
   ten: string;
   chi_tiet: string | null;
   thoi_gian: string | null;
-  kind: "chuyen_kho" | "giao_nhan" | "xu_ly" | "tai_san" | "vat_tu";
+  /** dong_ts: dong hang TSCD duoi ton toi thieu (ref = ten tai san). */
+  kind: "chuyen_kho" | "giao_nhan" | "xu_ly" | "tai_san" | "vat_tu" | "dong_ts";
   ref: string;
   /** Ma rieng cua muc - chi co o loai bo qua duoc (don gia bat thuong, sap het bao hanh). */
   khoa?: string;
@@ -48,6 +50,7 @@ const KIEU: Record<LoaiCanhBao, { icon: typeof Clock; nen: string; mau: string }
   "chenh-lech-kiem-ke": { icon: Store, nen: "bg-amber-light", mau: "text-amber" },
   "sap-het-bao-hanh": { icon: ShieldAlert, nen: "bg-blue-light", mau: "text-blue" },
   "don-gia-bat-thuong": { icon: Tag, nen: "bg-amber-light", mau: "text-amber" },
+  "duoi-ton-toi-thieu": { icon: ArchiveRestore, nen: "bg-red-light", mau: "text-red" },
 };
 
 const BADGE = { cao: "badge-red-count", trung_binh: "badge-amber-count", thap: "badge-blue-count" } as const;

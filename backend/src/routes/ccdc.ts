@@ -4,10 +4,11 @@ import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { requireRole } from "../middleware/requireRole";
 import { nowVN } from "../lib/vnTime";
-import { coCongTy, congTyTao, khoPhuTrach, laHcns, laKhoPhatChung } from "../lib/quyen";
+import { coCongTy, congTyLoc, congTyTao, khoPhuTrach, laHcns, laKhoPhatChung } from "../lib/quyen";
 import { dkTaiSan, layPhamViXemTon } from "../lib/phamVi";
 import { sinhMaPhieu } from "../lib/maPhieu";
 import { docTrang, layTrang } from "../lib/phanTrang";
+import { chuanTen, danhGiaTon, tonTaiSan } from "../lib/tonToiThieu";
 
 const ccdc = new Hono<{ Bindings: Env }>();
 ccdc.use("*", verifySessionMiddleware, loadUser);
@@ -96,7 +97,6 @@ ccdc.get("/thong-ke", async (c) => {
 // Ma tai san TU SINH (2026-10-19, user yeu cau) theo dang dang dung: TS<ma cong ty>-<dong hang 6 so>-<chiec 3 so>
 // (vd TS3T-000013-001..023 = cung "Dieu hoa"). Trung TEN (khong phan biet hoa/thuong, GIU dau) voi TS da co cung cong
 // ty -> noi tiep dong hang do (chiec ke tiep); ten moi -> dong hang moi (max + 1), chiec 001. Ma cu khac dang giu nguyen.
-const chuanTen = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
 async function sinhMaTaiSan(db: D1Database, congTyId: number, ten: string): Promise<string> {
   const ct = await db.prepare("SELECT ma FROM cong_ty WHERE id = ?").bind(congTyId).first<{ ma: string }>();
   const tienTo = `TS${(ct?.ma ?? String(congTyId)).toUpperCase()}-`;
@@ -126,6 +126,71 @@ ccdc.get("/ma-tiep-theo", requireRole("Admin", "HCNS"), async (c) => {
   const congTyId = congTyTao(c.get("user"), c.req.query("cong_ty_id"));
   if (!congTyId) return c.json({ error: "CHON_CONG_TY" }, 400);
   return c.json({ ma: await sinhMaTaiSan(c.env.DB, congTyId, c.req.query("ten") ?? "") });
+});
+
+// ---- Ton toi thieu TSCD theo dong hang (migration 0021) - khai bao TRUOC GET /:id.
+// GET /ton-toi-thieu[?cong_ty_id=] - cac dong hang da cai + ton san sang (Trong kho, khong hong) + danh gia; kem goi_y =
+// cac ten TS dang co (de chon khi them).
+ccdc.get("/ton-toi-thieu", async (c) => {
+  const congTyIds = congTyLoc(c.get("user"), c.req.query("cong_ty_id"));
+  const db = c.env.DB;
+  const [cauHinh, ten] = await db.batch<Record<string, unknown>>([
+    db
+      .prepare(
+        "SELECT id, cong_ty_id, ten_ts, khoa, ton_toi_thieu, thoi_gian_dat_hang, nguoi_cap_nhat, updated_at FROM ts_ton_toi_thieu WHERE cong_ty_id IN (SELECT value FROM json_each(?)) ORDER BY ten_ts",
+      )
+      .bind(JSON.stringify(congTyIds)),
+    db
+      .prepare(
+        `SELECT cong_ty_id, ten_ccdc, COUNT(*) AS tong FROM ccdc WHERE vo_hieu_hoa = 0 AND trang_thai_hien_tai NOT IN ('Da thanh ly', 'Da tieu huy')
+           AND cong_ty_id IN (SELECT value FROM json_each(?)) GROUP BY cong_ty_id, ten_ccdc`,
+      )
+      .bind(JSON.stringify(congTyIds)),
+  ]);
+  const ton = await tonTaiSan(db, congTyIds);
+  // Gop cac bien the hoa/thuong cua cung 1 ten -> 1 goi y (ten hay gap nhat).
+  const goiY = new Map<string, { cong_ty_id: number; ten_ts: string; tong: number }>();
+  for (const r of ten.results as { cong_ty_id: number; ten_ccdc: string; tong: number }[]) {
+    const k = `${r.cong_ty_id}|${chuanTen(r.ten_ccdc)}`;
+    const cu = goiY.get(k);
+    if (!cu) goiY.set(k, { cong_ty_id: r.cong_ty_id, ten_ts: r.ten_ccdc.trim(), tong: r.tong });
+    else cu.tong += r.tong;
+  }
+  return c.json({
+    rows: (cauHinh.results as { id: number; cong_ty_id: number; khoa: string; ton_toi_thieu: number }[]).map((r) => {
+      const sl = ton.get(`${r.cong_ty_id}|${r.khoa}`) ?? 0;
+      return { ...r, ton: sl, tong_ts: goiY.get(`${r.cong_ty_id}|${r.khoa}`)?.tong ?? 0, ...danhGiaTon(sl, r.ton_toi_thieu) };
+    }),
+    goi_y: [...goiY.entries()].map(([k, v]) => ({ ...v, ton: ton.get(k) ?? 0 })).sort((a, b) => a.ten_ts.localeCompare(b.ten_ts, "vi")),
+  });
+});
+
+// PUT /ton-toi-thieu { cong_ty_id, ten_ts, ton_toi_thieu, thoi_gian_dat_hang } - them / sua (khoa = ten chuan hoa).
+ccdc.put("/ton-toi-thieu", requireRole("Admin", "HCNS"), async (c) => {
+  const user = c.get("user");
+  const body = await c.req.json<{ cong_ty_id?: number; ten_ts?: string; ton_toi_thieu?: unknown; thoi_gian_dat_hang?: string | null }>().catch(() => null);
+  const ten = body?.ten_ts?.trim().replace(/\s+/g, " ");
+  const sl = Number(body?.ton_toi_thieu);
+  if (!ten || !Number.isInteger(sl) || sl < 0) return c.json({ error: "MISSING_FIELDS" }, 400);
+  const congTyId = congTyTao(user, body?.cong_ty_id);
+  if (!congTyId || !laHcns(user, congTyId)) return c.json({ error: "CHON_CONG_TY" }, 400);
+  const datHang = body?.thoi_gian_dat_hang?.trim().slice(0, 200) || null;
+  await c.env.DB.prepare(
+    `INSERT INTO ts_ton_toi_thieu (cong_ty_id, ten_ts, khoa, ton_toi_thieu, thoi_gian_dat_hang, nguoi_cap_nhat, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(cong_ty_id, khoa) DO UPDATE SET ten_ts = excluded.ten_ts, ton_toi_thieu = excluded.ton_toi_thieu,
+       thoi_gian_dat_hang = excluded.thoi_gian_dat_hang, nguoi_cap_nhat = excluded.nguoi_cap_nhat, updated_at = excluded.updated_at`,
+  )
+    .bind(congTyId, ten, chuanTen(ten), sl, datHang, user.email, nowVN())
+    .run();
+  return c.json({ ok: true });
+});
+
+ccdc.delete("/ton-toi-thieu/:id", requireRole("Admin", "HCNS"), async (c) => {
+  const r = await c.env.DB.prepare("SELECT cong_ty_id FROM ts_ton_toi_thieu WHERE id = ?").bind(Number(c.req.param("id"))).first<{ cong_ty_id: number }>();
+  if (!r) return c.json({ error: "NOT_FOUND" }, 404);
+  if (!laHcns(c.get("user"), r.cong_ty_id)) return c.json({ error: "FORBIDDEN" }, 403);
+  await c.env.DB.prepare("DELETE FROM ts_ton_toi_thieu WHERE id = ?").bind(Number(c.req.param("id"))).run();
+  return c.json({ ok: true });
 });
 
 ccdc.get("/:id", async (c) => {

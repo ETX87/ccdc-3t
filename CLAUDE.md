@@ -185,6 +185,21 @@ state đang dùng.
 - Nút Back: mỗi `navigate()` = 1 `history.pushState` (App.tsx), popup chi tiết cũng chiếm 1 bước (Back đóng popup);
   `PageHeader` tự hiện "Quay lại" khi có bước trước.
 
+## Tồn kho tối thiểu + báo cáo email định kỳ (2026-10-30, migration 0021)
+
+- **Tồn tối thiểu** so với TỔNG tồn công ty (mọi kho tính tồn + hàng đang chuyển tới kho tính tồn), không theo từng kho
+  — `lib/tonToiThieu.ts` (`danhGiaTon`: hết / dưới / sắp chạm ≤120% / đảm bảo; NULL/0 = không quy định). Vật tư: cột
+  `vt_tieu_hao.ton_toi_thieu` + `thoi_gian_dat_hang` (form + "Nhập tồn tối thiểu" từ Excel mẫu `TỒN KHO TỐI THIỂU.xlsx`,
+  `POST /vt-tieu-hao/ton-toi-thieu/import`, khớp tên bỏ dấu, lọc thêm ĐVT). TSCĐ: bảng `ts_ton_toi_thieu` theo DÒNG HÀNG
+  (cùng tên, `chuanTen` dùng chung với sinh mã TS), tồn = TS "Trong kho" không hỏng (nút "Tồn tối thiểu" ở Danh mục TS).
+  Cảnh báo `duoi-ton-toi-thieu` (tính ở JS, chỉ phạm vi toàn công ty — thủ kho/QL không thấy).
+- **Báo cáo email** (`routes/baoCaoEmail.ts`, màn "Báo cáo email định kỳ", Admin): gửi qua **Gmail API** bằng tài khoản
+  Admin kết nối (`gmail_oauth`, scope `gmail.send`, RIÊNG với Drive). Cron `0 13 * * 4` = 20h tối thứ 5 VN (bật/tắt ở
+  cấu hình). Dữ liệu `lib/baoCaoTuan.ts` → HTML inline-style + Excel phẳng (`lib/xlsx.ts`, tự viết, không thư viện).
+  Production cần: BẬT Gmail API trong Google Cloud project của OAuth Client + thêm redirect URI
+  `https://ccdc.dichvu3t.workers.dev/api/settings/gmail/callback`, rồi Admin bấm "Kết nối Gmail".
+- `?mo=<tab>` trên URL mở thẳng 1 màn (dùng sau OAuth); initializer `useState` phải thuần (StrictMode gọi 2 lần).
+
 ## Giao diện chạy dữ liệu thật (Giai đoạn 1.6, 2026-09-24)
 
 - **Không phần tử trang trí/demo**: mọi số KPI, badge, biểu đồ, nút, link phải lấy từ API thật và bấm

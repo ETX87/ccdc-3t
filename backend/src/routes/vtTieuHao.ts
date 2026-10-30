@@ -4,7 +4,8 @@ import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { requireRole } from "../middleware/requireRole";
 import { nowVN } from "../lib/vnTime";
-import { congTyLoc, congTyTao, laHcns } from "../lib/quyen";
+import { coCongTy, congTyLoc, congTyTao, laHcns } from "../lib/quyen";
+import { layPhamViXemTon } from "../lib/phamVi";
 import { danhGiaTon, tonVatTu } from "../lib/tonToiThieu";
 
 const vtTieuHao = new Hono<{ Bindings: Env }>();
@@ -89,6 +90,166 @@ vtTieuHao.get("/ma-tiep-theo", requireRole("Admin", "HCNS"), async (c) => {
   if (!congTyId) return c.json({ error: "CHON_CONG_TY" }, 400);
   const row = await c.env.DB.prepare(`SELECT ${SO_TIEP("id")} AS ma`).bind(await tienToMa(c.env.DB, congTyId)).first<{ ma: string }>();
   return c.json({ ma: row?.ma });
+});
+
+// GET /:id/chi-tiet - "ho so" 1 vat tu tren 1 man (2026-10-30, user: tim 1 mat hang 1-2 click thay het): thong tin, ton
+// tung kho (ca kho DA HET - co phat sinh nhung ton 0), dang chuyen, gia tri, ton toi thieu, LICH SU moi phiep (nhap mua,
+// chuyen kho, cap phat NV, tieu dung VP, dieu chinh) va nguoi nhan cap phat. Pham vi: Admin/KT/HCNS (va quyen "xem ton")
+// thay ca cong ty; thu kho / QL chi cac phieu + kho minh phu trach. Ton tinh CUNG quy tac v_ton_kho.
+vtTieuHao.get("/:id/chi-tiet", async (c) => {
+  const db = c.env.DB;
+  const user = c.get("user");
+  const id = c.req.param("id");
+  const vt = await db
+    .prepare(
+      `SELECT v.id, v.ten_vt, v.nhom_id, n.ten_nhom, v.don_vi_tinh, v.don_gia_tham_khao, v.cong_ty_id, ct.ma AS cong_ty_ma,
+              v.ton_toi_thieu, v.thoi_gian_dat_hang, v.vo_hieu_hoa, v.created_at
+       FROM vt_tieu_hao v LEFT JOIN nhom_ccdc n ON n.id = v.nhom_id LEFT JOIN cong_ty ct ON ct.id = v.cong_ty_id WHERE v.id = ?`,
+    )
+    .bind(id)
+    .first<{ id: string; cong_ty_id: number; don_gia_tham_khao: number | null; ton_toi_thieu: number | null }>();
+  if (!vt) return c.json({ error: "NOT_FOUND" }, 404);
+  if (!coCongTy(user, vt.cong_ty_id)) return c.json({ error: "FORBIDDEN" }, 403);
+  const pv = await layPhamViXemTon(db, user);
+  if (!pv.xemTongHop && !user.xem_ton) return c.json({ error: "FORBIDDEN" }, 403);
+  const toanCongTy = pv.toanBo || !!pv.congTyToan;
+  const trongPv = (khoId: number | null) => khoId != null && (toanCongTy || pv.khoIds.includes(khoId));
+
+  const [dong, ton] = await db.batch<Record<string, unknown>>([
+    db
+      .prepare(
+        `SELECT p.id AS phieu_id, p.ma_phieu, p.loai, p.trang_thai, p.created_at, p.updated_at, p.nguoi_lap, p.ghi_chu,
+                p.tu_kho_id, kt.ten_kho AS tu_ten, kt.loai AS tu_loai, p.den_kho_id, kd.ten_kho AS den_ten, kd.loai AS den_loai,
+                p.den_nhan_vien_id, nv.ten_nv AS nv_ten, nv.bo_phan AS nv_bo_phan, p.nguoi_nhan_ten_tu_do, p.nha_cung_cap,
+                ct.so_luong, ct.don_gia, ct.thanh_tien, ct.dau, ct.vt_id, ct.vt_id_den
+         FROM phieu_chuyen_kho_ct ct JOIN phieu_chuyen_kho p ON p.id = ct.phieu_id
+         LEFT JOIN kho kt ON kt.id = p.tu_kho_id LEFT JOIN kho kd ON kd.id = p.den_kho_id LEFT JOIN nhan_vien nv ON nv.ma_nv = p.den_nhan_vien_id
+         WHERE ct.vt_id = ?1 OR ct.vt_id_den = ?1
+         ORDER BY p.created_at DESC, p.ma_phieu DESC LIMIT 5000`,
+      )
+      .bind(id),
+    db.prepare("SELECT t.kho_id, t.ton, k.ten_kho, k.loai, k.bat_tat FROM v_ton_kho t JOIN kho k ON k.id = t.kho_id WHERE t.vt_id = ?").bind(id),
+  ]);
+  const S = (v: unknown) => (v == null ? null : String(v));
+  const N = (v: unknown) => Number(v ?? 0) || 0;
+  const giaTk = vt.don_gia_tham_khao ?? 0;
+
+  // ---- lich su (theo pham vi): moi dong = 1 dong phieu, chieu so voi kho minh dang xem do frontend tu loc.
+  const lichSu = dong.results
+    .map((r) => {
+      const vao = r.vt_id_den === id && r.vt_id !== id; // ve nhan cua phieu chuyen sang cong ty khac
+      const ra = r.vt_id === id && r.vt_id_den != null && r.vt_id_den !== id;
+      const loai = String(r.loai);
+      const xuatTieuDung = loai === "Cap phat NV" && r.den_loai === "Tieu hao";
+      const nguoiNhan = S(r.nv_ten) ?? S(r.nguoi_nhan_ten_tu_do);
+      return {
+        phieu_id: String(r.phieu_id),
+        ma_phieu: S(r.ma_phieu),
+        loai,
+        kieu: loai === "Nhap mua" ? "nhap_mua" : loai === "Dieu chinh" ? "dieu_chinh" : xuatTieuDung ? "tieu_dung" : loai === "Cap phat NV" ? "cap_phat" : "chuyen_kho",
+        trang_thai: String(r.trang_thai),
+        ngay: String(r.created_at),
+        nguoi_lap: S(r.nguoi_lap),
+        tu_kho_id: r.tu_kho_id == null ? null : N(r.tu_kho_id),
+        tu: loai === "Nhap mua" ? (S(r.nha_cung_cap) ?? S(r.tu_ten)) : S(r.tu_ten),
+        den_kho_id: r.den_kho_id == null ? null : N(r.den_kho_id),
+        den: S(r.den_ten) ?? nguoiNhan,
+        den_nhan_vien_id: S(r.den_nhan_vien_id),
+        nguoi_nhan: nguoiNhan,
+        bo_phan: S(r.nv_bo_phan),
+        so_luong: N(r.so_luong) * (loai === "Dieu chinh" ? (N(r.dau) < 0 ? -1 : 1) : 1),
+        don_gia: r.don_gia == null ? null : N(r.don_gia),
+        thanh_tien: r.thanh_tien != null ? N(r.thanh_tien) : N(r.so_luong) * (r.don_gia != null ? N(r.don_gia) : giaTk),
+        khac_cong_ty: vao || ra,
+        ghi_chu: S(r.ghi_chu),
+      };
+    })
+    .filter((d) => toanCongTy || trongPv(d.tu_kho_id) || trongPv(d.den_kho_id));
+
+  // ---- ton tung kho (v_ton_kho) + dang chuyen den + phat sinh cuoi / tong nhap-xuat (tu lich su).
+  const HIEU_LUC_NHAP = (tt: string) => tt === "Da nhan";
+  const HIEU_LUC_XUAT = (tt: string) => tt === "Dang chuyen" || tt === "Da nhan" || tt === "Da giao";
+  const theoKho = ton.results
+    .filter((r) => trongPv(N(r.kho_id)))
+    .map((r) => {
+      const k = N(r.kho_id);
+      const cua = lichSu.filter((d) => d.tu_kho_id === k || d.den_kho_id === k);
+      const nhap = cua.filter((d) => d.den_kho_id === k && d.kieu !== "dieu_chinh" && HIEU_LUC_NHAP(d.trang_thai)).reduce((s, d) => s + d.so_luong, 0);
+      const xuat = cua.filter((d) => d.tu_kho_id === k && d.kieu !== "dieu_chinh" && HIEU_LUC_XUAT(d.trang_thai)).reduce((s, d) => s + d.so_luong, 0);
+      const dieuChinh = cua.filter((d) => d.kieu === "dieu_chinh" && d.trang_thai === "Da dieu chinh").reduce((s, d) => s + d.so_luong, 0);
+      const dangChuyenDen = cua.filter((d) => d.den_kho_id === k && d.trang_thai === "Dang chuyen").reduce((s, d) => s + d.so_luong, 0);
+      return {
+        kho_id: k,
+        ten_kho: String(r.ten_kho),
+        loai: String(r.loai),
+        bat_tat: N(r.bat_tat),
+        ton: N(r.ton),
+        gia_tri: Math.max(0, N(r.ton)) * giaTk,
+        dang_chuyen_den: dangChuyenDen,
+        tong_nhap: nhap,
+        tong_xuat: xuat,
+        dieu_chinh: dieuChinh,
+        phat_sinh_cuoi: cua[0]?.ngay ?? null,
+      };
+    })
+    .sort((a, b) => b.ton - a.ton || String(b.phat_sinh_cuoi).localeCompare(String(a.phat_sinh_cuoi)));
+
+  // ---- diem tieu dung VP (kho Tieu hao - khong tinh ton): da xuat vao bao nhieu.
+  const tieuDung = new Map<number, { kho_id: number; ten_kho: string; so_luong: number; gia_tri: number; lan_cuoi: string }>();
+  for (const d of lichSu.filter((x) => x.kieu === "tieu_dung" && x.trang_thai === "Da giao" && x.den_kho_id != null)) {
+    const cu = tieuDung.get(d.den_kho_id!) ?? { kho_id: d.den_kho_id!, ten_kho: d.den ?? "", so_luong: 0, gia_tri: 0, lan_cuoi: d.ngay };
+    cu.so_luong += d.so_luong;
+    cu.gia_tri += d.thanh_tien;
+    if (d.ngay > cu.lan_cuoi) cu.lan_cuoi = d.ngay;
+    tieuDung.set(d.den_kho_id!, cu);
+  }
+
+  // ---- nguoi nhan cap phat NV (khong vao kho)
+  const nguoiNhan = new Map<string, { ma_nv: string | null; ten: string; bo_phan: string | null; so_luong: number; so_lan: number; gia_tri: number; lan_cuoi: string }>();
+  for (const d of lichSu.filter((x) => x.kieu === "cap_phat" && x.trang_thai === "Da giao")) {
+    const key = d.den_nhan_vien_id ?? `~${d.nguoi_nhan ?? ""}`;
+    const cu = nguoiNhan.get(key) ?? { ma_nv: d.den_nhan_vien_id, ten: d.nguoi_nhan ?? "-", bo_phan: d.bo_phan, so_luong: 0, so_lan: 0, gia_tri: 0, lan_cuoi: d.ngay };
+    cu.so_luong += d.so_luong;
+    cu.so_lan++;
+    cu.gia_tri += d.thanh_tien;
+    if (d.ngay > cu.lan_cuoi) cu.lan_cuoi = d.ngay;
+    nguoiNhan.set(key, cu);
+  }
+
+  // ---- tong hop
+  const nhapMua = lichSu.filter((d) => d.kieu === "nhap_mua" && d.trang_thai === "Da nhan");
+  const coGia = nhapMua.filter((d) => d.don_gia != null && d.don_gia > 0);
+  const tongTon = theoKho.reduce((s, k) => s + k.ton, 0);
+  const dangChuyen = lichSu.filter((d) => d.trang_thai === "Dang chuyen").reduce((s, d) => s + d.so_luong, 0);
+  const tong = {
+    ton: tongTon,
+    gia_tri: Math.max(0, tongTon) * giaTk,
+    dang_chuyen: dangChuyen,
+    so_kho_con_hang: theoKho.filter((k) => k.ton > 0).length,
+    so_kho_het: theoKho.filter((k) => k.ton === 0).length,
+    so_kho_am: theoKho.filter((k) => k.ton < 0).length,
+    nhap_mua: { so_luong: nhapMua.reduce((s, d) => s + d.so_luong, 0), gia_tri: nhapMua.reduce((s, d) => s + d.thanh_tien, 0), so_phieu: nhapMua.length },
+    cap_phat_nv: [...nguoiNhan.values()].reduce((s, x) => ({ so_luong: s.so_luong + x.so_luong, gia_tri: s.gia_tri + x.gia_tri, so_nguoi: s.so_nguoi + 1 }), { so_luong: 0, gia_tri: 0, so_nguoi: 0 }),
+    tieu_dung_vp: [...tieuDung.values()].reduce((s, x) => ({ so_luong: s.so_luong + x.so_luong, gia_tri: s.gia_tri + x.gia_tri }), { so_luong: 0, gia_tri: 0 }),
+    gia_nhap_cuoi: coGia[0]?.don_gia ?? null,
+    ngay_nhap_cuoi: nhapMua[0]?.ngay ?? null,
+    gia_nhap_tb: coGia.length ? coGia.reduce((s, d) => s + d.thanh_tien, 0) / coGia.reduce((s, d) => s + d.so_luong, 0) : null,
+    phat_sinh_cuoi: lichSu[0]?.ngay ?? null,
+  };
+  // Ton toi thieu la chi tieu CONG TY -> chi danh gia khi xem toan cong ty (gom hang dang chuyen, nhu lib/tonToiThieu).
+  const toiThieu = toanCongTy ? { ton_toi_thieu: vt.ton_toi_thieu, ...danhGiaTon(tongTon + dangChuyen, vt.ton_toi_thieu) } : null;
+
+  return c.json({
+    vt,
+    pham_vi: toanCongTy ? "cong_ty" : "kho",
+    tong,
+    toi_thieu: toiThieu,
+    theo_kho: theoKho,
+    tieu_dung: [...tieuDung.values()].sort((a, b) => b.so_luong - a.so_luong),
+    nguoi_nhan: [...nguoiNhan.values()].sort((a, b) => b.lan_cuoi.localeCompare(a.lan_cuoi)),
+    lich_su: lichSu,
+    cap_nhat_luc: nowVN(),
+  });
 });
 
 vtTieuHao.post("/", requireRole("Admin", "HCNS"), async (c) => {

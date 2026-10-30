@@ -15,6 +15,7 @@ import { TruongCongTy } from "../components/ChonCongTy";
 import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
 import { ChonLoc } from "../components/ChonLoc";
 import { QuanLyNhomModal } from "../components/QuanLyNhomModal";
+import { useChiTiet } from "../components/ChiTiet";
 import { lopDongTon, MucTonBadge, NhapTonToiThieuExcel, type MucTon } from "../components/TonToiThieu";
 
 interface NhomCcdc {
@@ -49,6 +50,7 @@ function emptyForm(congTyId: number | null = null) {
 export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
   const auth = useAuth();
   const { navigate } = useNav();
+  const { moVatTu } = useChiTiet();
   const canEdit = auth.status === "authenticated" && isHcns(auth.user);
   const user = auth.status === "authenticated" ? auth.user : null;
   // Da phap nhan: danh muc rieng tung cong ty - form chon cong ty khi dang xem nhieu cong ty.
@@ -335,7 +337,9 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
                 <tr key={r.id} className={lopDongTon(r.muc)}>
                   <td data-label={t("Mã")}>{r.id}</td>
                   <td data-label={t("Tên vật tư")} className="strong">
-                    {r.ten_vt}
+                    <button type="button" className="so-link" title={t("Xem tồn từng kho, lịch sử phiếu")} onClick={() => moVatTu(r.id)}>
+                      {r.ten_vt}
+                    </button>
                     {nhieuCt && <span className="muted small"> · {maCongTy(user, r.cong_ty_id)}</span>}
                   </td>
                   <td data-label={t("Nhóm")} className="text-secondary">

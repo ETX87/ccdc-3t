@@ -24,7 +24,7 @@ const TEN_LOAI_PHIEU = (p: KetQua["phieu"][number]) =>
 export function GlobalSearch() {
   const auth = useAuth();
   const { navigate } = useNav();
-  const { moPhieu, moTaiSan } = useChiTiet();
+  const { moPhieu, moTaiSan, moVatTu } = useChiTiet();
   const [q, setQ] = useState("");
   const [kq, setKq] = useState<KetQua | null>(null);
   const [open, setOpen] = useState(false);
@@ -142,7 +142,7 @@ export function GlobalSearch() {
                 ))}
               </div>
             )}
-            {kq && kq.vat_tu.length > 0 && duocMoTab(user, "cap-phat") && (
+            {kq && kq.vat_tu.length > 0 && (duocMoTab(user, "cap-phat") || !!user?.xem_ton) && (
               <div className="search-group">
                 <div className="search-group-title">{t("Vật tư tiêu hao")}</div>
                 {kq.vat_tu.map((v) => (
@@ -152,12 +152,12 @@ export function GlobalSearch() {
                     className="search-item"
                     onClick={() => {
                       dong();
-                      navigate("cap-phat", { tab: "ton-kho", q: v.id });
+                      moVatTu(v.id);
                     }}
                   >
                     <span className="search-item-code">{v.id}</span>
                     <span className="search-item-main">{v.ten}</span>
-                    <span className="search-item-sub">{t("Xem tồn kho")}</span>
+                    <span className="search-item-sub">{t("Tồn kho, lịch sử")}</span>
                   </button>
                 ))}
               </div>

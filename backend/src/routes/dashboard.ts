@@ -777,7 +777,8 @@ dashboard.post("/canh-bao/sua-gia-tham-khao", XU_LY_CANH_BAO, async (c) => {
   return c.json({ ok: true, so_luong: items.length });
 });
 
-// GET /tim-kiem?q= - tai san, vat tu, nhan vien, phieu (theo ma_phieu) trong pham vi, moi nhom <= 6.
+// GET /tim-kiem?q= - tai san, vat tu, nhan vien, phieu (theo ma_phieu) trong pham vi, moi nhom <= 6 (vat tu <= 12, mat hang co
+// phat sinh gan nhat len truoc: ten hay trung tu khoa chung nhu "bang keo").
 dashboard.get("/tim-kiem", async (c) => {
   const db = c.env.DB;
   const user = c.get("user");
@@ -810,7 +811,8 @@ dashboard.get("/tim-kiem", async (c) => {
       .bind(...tkTs.binds, ...ts.binds),
     db
       .prepare(
-        `SELECT id, ten_vt AS ten, don_vi_tinh FROM vt_tieu_hao WHERE vo_hieu_hoa = 0 AND ? = 1 AND cong_ty_id IN (SELECT value FROM json_each(?)) AND ${tkVt.sql} ORDER BY ten_vt LIMIT 6`,
+        `SELECT id, ten_vt AS ten, don_vi_tinh FROM vt_tieu_hao WHERE vo_hieu_hoa = 0 AND ? = 1 AND cong_ty_id IN (SELECT value FROM json_each(?)) AND ${tkVt.sql}
+         ORDER BY (SELECT MAX(p.created_at) FROM phieu_chuyen_kho_ct ct JOIN phieu_chuyen_kho p ON p.id = ct.phieu_id WHERE ct.vt_id = vt_tieu_hao.id) DESC, ten_vt LIMIT 12`,
       )
       .bind(pv.xemTongHop ? 1 : 0, JSON.stringify(user.cong_ty_xem), ...tkVt.binds),
     db

@@ -198,6 +198,10 @@ state đang dùng.
   cấu hình). Dữ liệu `lib/baoCaoTuan.ts` → HTML inline-style + Excel phẳng (`lib/xlsx.ts`, tự viết, không thư viện).
   Production cần: BẬT Gmail API trong Google Cloud project của OAuth Client + thêm redirect URI
   `https://ccdc.dichvu3t.workers.dev/api/settings/gmail/callback`, rồi Admin bấm "Kết nối Gmail".
+- **Hồ sơ vật tư tiêu hao** (`components/ChiTietVatTu.tsx`, `GET /vt-tieu-hao/:id/chi-tiet`, `useChiTiet().moVatTu(id)`):
+  tồn từng kho (cả kho ĐÃ HẾT), giá trị, tồn tối thiểu, lịch sử mọi phiếu (lọc loại / kho, +/− theo kho), người nhận cấp
+  phát. Mở từ tìm kiếm trên cùng, tên vật tư ở Danh mục / Tồn kho / ma trận, cảnh báo. Popup giờ là CHỒNG (mở phiếu từ hồ
+  sơ → Đóng/Back quay về hồ sơ; `history.state.popup` = độ sâu). Tìm kiếm vật tư: ≤12, mặt hàng phát sinh gần nhất trước.
 - `?mo=<tab>` trên URL mở thẳng 1 màn (dùng sau OAuth); initializer `useState` phải thuần (StrictMode gọi 2 lần).
 
 ## Giao diện chạy dữ liệu thật (Giai đoạn 1.6, 2026-09-24)

@@ -27,17 +27,20 @@ import {
 } from "../lib/nhan";
 import type { AppUser } from "../types";
 import { ChonLoc } from "./ChonLoc";
+import { VatTuModal } from "./ChiTietVatTu";
 
 // Popup chi tiet dung chung toan app: mo tu ma phieu / ma tai san o bat ky dau (tim kiem, chuong, bang
 // viec, canh bao, quet QR). Nut thao tac chi hien khi nguoi dung dung vai tro; server van kiem lai.
 
 export type LoaiPhieu = "chuyen_kho" | "giao_nhan" | "xu_ly";
 
-type Dang = { kind: "phieu"; loai: LoaiPhieu; id: string } | { kind: "tai_san"; id: string } | null;
+type Dang = { kind: "phieu"; loai: LoaiPhieu; id: string } | { kind: "tai_san"; id: string } | { kind: "vat_tu"; id: string };
 
 interface ChiTietApi {
   moPhieu: (loai: LoaiPhieu, id: string) => void;
   moTaiSan: (id: string) => void;
+  /** Ho so 1 vat tu tieu hao: ton tung kho, lich su phieu, nguoi nhan (components/ChiTietVatTu.tsx). */
+  moVatTu: (id: string) => void;
 }
 
 const Ctx = createContext<ChiTietApi | null>(null);
@@ -49,32 +52,37 @@ export function useChiTiet() {
 }
 
 export function ChiTietProvider({ children }: { children: ReactNode }) {
-  const [dang, setDang] = useState<Dang>(null);
-  // Popup chiem 1 buoc lich su: nut Back trinh duyet / dien thoai dong popup truoc (khong roi man hinh).
-  const dangRef = useRef<Dang>(null);
-  dangRef.current = dang;
+  // Chong popup: mo popup tu trong popup (vd phieu trong ho so vat tu) -> Back / Dong quay ve popup truoc. Moi popup
+  // chiem 1 buoc lich su (state.popup = do sau) - nut Back trinh duyet / dien thoai dong popup tren cung truoc.
+  const [chong, setChong] = useState<Dang[]>([]);
+  const chongRef = useRef<Dang[]>([]);
+  chongRef.current = chong;
   const mo = useCallback((d: Dang) => {
-    if (!dangRef.current) window.history.pushState({ ...(window.history.state ?? {}), popup: true }, "");
-    setDang(d);
+    window.history.pushState({ ...(window.history.state ?? {}), popup: chongRef.current.length + 1 }, "");
+    setChong((cu) => [...cu, d]);
   }, []);
   const moPhieu = useCallback((loai: LoaiPhieu, id: string) => mo({ kind: "phieu", loai, id }), [mo]);
   const moTaiSan = useCallback((id: string) => mo({ kind: "tai_san", id }), [mo]);
+  const moVatTu = useCallback((id: string) => mo({ kind: "vat_tu", id }), [mo]);
   const dong = useCallback(() => {
-    if ((window.history.state as { popup?: boolean } | null)?.popup) window.history.back();
-    else setDang(null);
+    if ((window.history.state as { popup?: number } | null)?.popup) window.history.back();
+    else setChong((cu) => cu.slice(0, -1));
   }, []);
   useEffect(() => {
     const onPop = (e: PopStateEvent) => {
-      if (!(e.state as { popup?: boolean } | null)?.popup) setDang(null);
+      const doSau = Number((e.state as { popup?: number } | null)?.popup) || 0;
+      setChong((cu) => cu.slice(0, doSau));
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+  const dang = chong[chong.length - 1];
   return (
-    <Ctx.Provider value={{ moPhieu, moTaiSan }}>
+    <Ctx.Provider value={{ moPhieu, moTaiSan, moVatTu }}>
       {children}
-      {dang?.kind === "phieu" && <PhieuModal loai={dang.loai} id={dang.id} onClose={dong} />}
-      {dang?.kind === "tai_san" && <TaiSanModal id={dang.id} onClose={dong} />}
+      {dang?.kind === "phieu" && <PhieuModal key={`p:${dang.id}`} loai={dang.loai} id={dang.id} onClose={dong} />}
+      {dang?.kind === "tai_san" && <TaiSanModal key={`t:${dang.id}`} id={dang.id} onClose={dong} />}
+      {dang?.kind === "vat_tu" && <VatTuModal key={`v:${dang.id}`} id={dang.id} onClose={dong} onMoPhieu={(id) => moPhieu("chuyen_kho", id)} />}
     </Ctx.Provider>
   );
 }

@@ -35,7 +35,7 @@ export function CanhBaoScreen() {
   const coQuyenXuLy = vaiTro === "Admin" || vaiTro === "HCNS" || vaiTro === "Ke toan";
   const { reload: reloadViec } = useDuLieuChung();
   const { params, navigate } = useNav();
-  const { moPhieu, moTaiSan } = useChiTiet();
+  const { moPhieu, moTaiSan, moVatTu } = useChiTiet();
   const [khoId, setKhoId] = useState(params.kho_id ?? "");
   const [loai, setLoai] = useState<LoaiCanhBao | null>((params.loai as LoaiCanhBao) ?? null);
   const [data, setData] = useState<CanhBaoResp | null>(null);
@@ -129,7 +129,7 @@ export function CanhBaoScreen() {
 
   function moDong(d: CanhBaoChiTiet) {
     if (d.kind === "tai_san") moTaiSan(d.ref);
-    else if (d.kind === "vat_tu") navigate("cap-phat", { tab: "ton-kho", q: d.ref });
+    else if (d.kind === "vat_tu") moVatTu(d.ref);
     else if (d.kind === "dong_ts") navigate("tai-san", { q: d.ref });
     else moPhieu(d.kind, d.ref);
   }

@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import { Modal } from "./Modal";
 import { PhanTrang, useTrangKhach } from "./PhanTrang";
 import { TheKhoModal } from "./TheKho";
+import { useChiTiet } from "./ChiTiet";
 import { KhoTag, SoTon } from "./NoiBat";
 import { boDau } from "./ChonLoc";
 import { exportRowsToExcel } from "../lib/exportExcel";
@@ -47,6 +48,7 @@ function docCot(): number[] | null {
 }
 
 export function TonTheoKho({ tim, onDangTai }: { tim: string; onDangTai?: (b: boolean) => void }) {
+  const { moVatTu } = useChiTiet();
   const [data, setData] = useState<DuLieuTon | null>(null);
   const [cot, setCot] = useState<number[] | null>(docCot);
   const [chonCot, setChonCot] = useState(false);
@@ -219,7 +221,9 @@ export function TonTheoKho({ tim, onDangTai }: { tim: string; onDangTai?: (b: bo
               return (
                 <tr key={v.id}>
                   <td data-label={t("Vật tư")}>
-                    <div className="strong">{v.ten_vt}</div>
+                    <button type="button" className="so-link strong" title={t("Xem tồn từng kho, lịch sử phiếu")} onClick={() => moVatTu(v.id)}>
+                      {v.ten_vt}
+                    </button>
                     <div className="muted small">{v.id}</div>
                   </td>
                   <td data-label={t("ĐVT")}>{v.don_vi_tinh ?? "-"}</td>

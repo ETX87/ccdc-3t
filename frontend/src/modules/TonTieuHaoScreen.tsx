@@ -14,6 +14,7 @@ import { LOAI_KHO, laKhoTon, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 import { TonTheoKho, TonVtCacKhoModal } from "../components/TonTheoKho";
+import { useChiTiet } from "../components/ChiTiet";
 import { DieuChinhTonModal, TheKhoModal } from "../components/TheKho";
 import { isHcns } from "../lib/nhan";
 import { SoTon, TienTe } from "../components/NoiBat";
@@ -42,6 +43,7 @@ interface TonRow {
 // toan he thong / moi kho; thu kho chi kho minh phu trach (server kiem lai).
 export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
   const auth = useAuth();
+  const { moVatTu } = useChiTiet();
   const { params, navigate } = useNav();
   const user = auth.status === "authenticated" ? auth.user : null;
   const toanBo = !!user && (laQuanTri(user) || !!user.xem_ton);
@@ -284,7 +286,9 @@ export function TonTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
                 <tr key={r.id} className={r.ton < 0 || (!khoId && (r.so_kho_am ?? 0) > 0) ? "row-canh-bao" : undefined}>
                   <td data-label={t("Mã")}>{r.id}</td>
                   <td data-label={t("Tên vật tư")} className="strong">
-                    {r.ten_vt}
+                    <button type="button" className="so-link" title={t("Xem tồn từng kho, lịch sử phiếu")} onClick={() => moVatTu(r.id)}>
+                      {r.ten_vt}
+                    </button>
                   </td>
                   <td data-label={t("Nhóm")} className="text-secondary">
                     {r.ten_nhom ?? "-"}

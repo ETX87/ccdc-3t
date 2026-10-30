@@ -4,6 +4,7 @@ import type { Env } from "../types";
 import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { requireAdmin } from "../middleware/requireAdmin";
+import { requireRole } from "../middleware/requireRole";
 import { encryptSecret } from "../lib/secretBox";
 import { nowVN } from "../lib/vnTime";
 
@@ -11,7 +12,10 @@ import { nowVN } from "../lib/vnTime";
 // vi-pham-app backend/src/routes/settings.ts. Dung chung GOOGLE_CLIENT_ID/SECRET voi dang nhap; redirect URI
 // `<origin>/api/settings/google-drive/callback` PHAI duoc them vao Google Cloud Console > OAuth Client.
 const settings = new Hono<{ Bindings: Env }>();
-settings.use("*", verifySessionMiddleware, loadUser, requireAdmin);
+// Drive (luu hoa don): chi Admin. Gmail gui bao cao dinh ky: Admin + HCNS (2026-10-30, user cho HCNS thao tac bao cao email).
+settings.use("*", verifySessionMiddleware, loadUser, async (c, next) =>
+  /^\/api\/settings\/gmail(\/|$)/.test(c.req.path) ? requireRole("Admin", "HCNS")(c, next) : requireAdmin(c, next),
+);
 
 const STATE_COOKIE = "ccdc_drive_oauth_state";
 // drive.file: chi thay/sua tep do CHINH app tao, khong xin quyen toan bo Drive.

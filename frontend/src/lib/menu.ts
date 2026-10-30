@@ -154,7 +154,7 @@ export const MENU: MenuItem[] = [
   { key: "nhan-vien", nhom: "cau-hinh", label: t("Nhân viên & sơ đồ quản lý"), icon: Network, tab: "nhan-vien", show: laQuanTri },
   { key: "tai-khoan", nhom: "cau-hinh", label: t("Tài khoản & phân quyền"), icon: ShieldCheck, tab: "tai-khoan", show: (u) => u.vai_tro === "Admin" },
   { key: "cong-ty", nhom: "cau-hinh", label: t("Công ty (pháp nhân)"), icon: Building2, tab: "cong-ty", show: (u) => u.vai_tro === "Admin" },
-  { key: "bao-cao-email", nhom: "cau-hinh", label: t("Báo cáo email định kỳ"), icon: Mail, tab: "bao-cao-email", show: (u) => u.vai_tro === "Admin" },
+  { key: "bao-cao-email", nhom: "cau-hinh", label: t("Báo cáo email định kỳ"), icon: Mail, tab: "bao-cao-email", show: laHcnsHoacAdmin },
 ];
 
 /** Menu da loc theo nguoi dung (bo muc/con khong duoc xem, bo nhom khong con con nao). */

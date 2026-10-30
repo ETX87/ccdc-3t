@@ -193,7 +193,8 @@ state đang dùng.
   `POST /vt-tieu-hao/ton-toi-thieu/import`, khớp tên bỏ dấu, lọc thêm ĐVT). TSCĐ: bảng `ts_ton_toi_thieu` theo DÒNG HÀNG
   (cùng tên, `chuanTen` dùng chung với sinh mã TS), tồn = TS "Trong kho" không hỏng (nút "Tồn tối thiểu" ở Danh mục TS).
   Cảnh báo `duoi-ton-toi-thieu` (tính ở JS, chỉ phạm vi toàn công ty — thủ kho/QL không thấy).
-- **Báo cáo email** (`routes/baoCaoEmail.ts`, màn "Báo cáo email định kỳ", Admin): gửi qua **Gmail API** bằng tài khoản
+- **Báo cáo email** (`routes/baoCaoEmail.ts`, màn "Báo cáo email định kỳ", Admin + HCNS — HCNS chỉ chọn/xem/gửi tay trong công
+  ty tài khoản được gán; kết nối Gmail cũng mở cho HCNS, Drive vẫn chỉ Admin): gửi qua **Gmail API** bằng tài khoản
   Admin kết nối (`gmail_oauth`, scope `gmail.send`, RIÊNG với Drive). Cron `0 13 * * 4` = 20h tối thứ 5 VN (bật/tắt ở
   cấu hình). Dữ liệu `lib/baoCaoTuan.ts` → HTML inline-style + Excel phẳng (`lib/xlsx.ts`, tự viết, không thư viện).
   Production cần: BẬT Gmail API trong Google Cloud project của OAuth Client + thêm redirect URI

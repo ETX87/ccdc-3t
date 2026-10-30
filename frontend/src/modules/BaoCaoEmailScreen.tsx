@@ -11,7 +11,7 @@ import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
 import { fmtNgayGio, fmtSo } from "../lib/format";
 import { thongBaoLoi } from "../lib/nhan";
 
-// Bao cao email dinh ky (Admin, migration 0021): tai khoan Gmail gui, nguoi nhan, cong ty, tu dong toi thu 5 (20h VN),
+// Bao cao email dinh ky (Admin + HCNS, migration 0021): tai khoan Gmail gui, nguoi nhan, cong ty, tu dong toi thu 5 (20h VN),
 // xem truoc dung email se gui + tai Excel dinh kem, gui ngay / gui thu cho minh, nhat ky gui. Backend routes/baoCaoEmail.ts.
 
 interface CauHinh {

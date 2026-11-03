@@ -34,7 +34,17 @@ interface PhieuXem {
   trang_thai: string | null;
   /** Nguoi nhan khac cong ty kho -> se them kiem nhiem cong ty kho khi tao phieu. */
   them_kiem_nhiem: { ma_nv: string; ten_nv: string; cong_ty: string } | null;
-  items: { vt_id: string; ten_vt: string; don_vi_tinh: string | null; so_luong: number; ton: number }[];
+  items: {
+    vt_id: string;
+    ten_vt: string;
+    don_vi_tinh: string | null;
+    so_luong: number;
+    ton: number;
+    don_gia: number | null;
+    thanh_tien: number | null;
+    /** Don gia lay tu: file / thanh tien chia SL / gia tham khao danh muc. */
+    nguon_gia: "file" | "thanh_tien" | "danh_muc" | null;
+  }[];
 }
 interface KetQuaXem {
   phieu: PhieuXem[];
@@ -55,6 +65,7 @@ const COT: [string, string[]][] = [
   ["ten_vt", moiNgonNgu("Tên vật tư")],
   ["so_luong", moiNgonNgu("Số lượng")],
   ["don_gia", moiNgonNgu("Đơn giá")],
+  ["thanh_tien", moiNgonNgu("Thành tiền")],
   ["ghi_chu", moiNgonNgu("Ghi chú")],
 ];
 const NHAN_COT: Record<string, string> = Object.fromEntries(COT.map(([k, ds]) => [k, t(ds[0])]));
@@ -106,6 +117,7 @@ export function NhapExcelPhieuCk({ khoNguon, khoKhac, vts, onClose, onXong }: { 
       [t("Kho nhận là kho thường → phiếu Chuyển kho; kho tiêu hao văn phòng → Xuất tiêu dùng VP; Mã NV / tên → Cấp phát NV.")],
       [t("Kho ghi theo tên hoặc mã kho (sheet Kho). Vật tư ghi Mã vật tư (ưu tiên) hoặc Tên vật tư đúng danh mục (sheet Vật tư).")],
       [t("Chỉ xuất được từ kho bạn phụ trách; tồn được cộng dồn mọi phiếu trong file. File còn lỗi thì không phiếu nào được tạo.")],
+      [t("Đơn giá / Thành tiền không bắt buộc: bỏ trống Đơn giá thì lấy Thành tiền ÷ Số lượng, bỏ trống cả 2 thì lấy giá tham khảo trong danh mục; bỏ trống Thành tiền thì = Đơn giá × Số lượng.")],
       [t("Xóa các dòng ví dụ trước khi nhập.")],
     ];
     const wsHd = XLSX.utils.aoa_to_sheet(huongDan);
@@ -295,6 +307,18 @@ export function NhapExcelPhieuCk({ khoNguon, khoKhac, vts, onClose, onXong }: { 
                         {p.items.map((it) => (
                           <div key={it.vt_id} className="small">
                             {it.ten_vt}: <b>{fmtSo(it.so_luong)}</b> {it.don_vi_tinh ?? ""} <span className="muted">{t("(tồn {x})", { x: fmtSo(it.ton) })}</span>
+                            <span className="muted">
+                              {" · "}
+                              {it.don_gia != null ? (
+                                <>
+                                  {t("{dg} đ × {sl} = {tt} đ", { dg: fmtSo(it.don_gia, 2), sl: fmtSo(it.so_luong), tt: fmtSo(it.thanh_tien ?? it.don_gia * it.so_luong) })}
+                                  {it.nguon_gia === "danh_muc" && ` ${t("(giá danh mục)")}`}
+                                  {it.nguon_gia === "thanh_tien" && ` ${t("(tính từ thành tiền)")}`}
+                                </>
+                              ) : (
+                                <span className="text-orange">{t("chưa có giá")}</span>
+                              )}
+                            </span>
                           </div>
                         ))}
                       </td>

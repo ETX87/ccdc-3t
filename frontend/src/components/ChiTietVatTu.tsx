@@ -8,7 +8,9 @@ import { FilterTabs } from "./FilterTabs";
 import { ChonLoc } from "./ChonLoc";
 import { PhanTrang, useTrangKhach } from "./PhanTrang";
 import { KhoTag, LoaiChip, SoTon, TienTe } from "./NoiBat";
-import { MucTonBadge, type MucTon } from "./TonToiThieu";
+import { MucTonBadge, SuaTonToiThieuVt, type MucTon } from "./TonToiThieu";
+import { useAuth } from "../auth/AuthContext";
+import { isHcns } from "../lib/nhan";
 import { boDau } from "./ChonLoc";
 import { exportRowsToExcel } from "../lib/exportExcel";
 import { fmtNgayGio, fmtSo } from "../lib/format";
@@ -93,13 +95,17 @@ export function VatTuModal({ id, onClose, onMoPhieu }: { id: string; onClose: ()
   const [locKieu, setLocKieu] = useState<"" | Kieu>("");
   const [locKho, setLocKho] = useState("");
   const [tim, setTim] = useState("");
+  const auth = useAuth();
+  const suaDuoc = auth.status === "authenticated" && isHcns(auth.user);
+  const [suaMin, setSuaMin] = useState(false);
+  const [taiLai, setTaiLai] = useState(0);
 
   useEffect(() => {
     api
       .get<DuLieu>(`/vt-tieu-hao/${encodeURIComponent(id)}/chi-tiet`)
       .then(setD)
       .catch((e) => setLoi(thongBaoLoi(e, t("Không tải được thông tin vật tư."))));
-  }, [id]);
+  }, [id, taiLai]);
 
   const dvt = d?.vt.don_vi_tinh ?? "";
   const khoLs = useMemo(() => {
@@ -193,6 +199,11 @@ export function VatTuModal({ id, onClose, onMoPhieu }: { id: string; onClose: ()
                   </>
                 ) : (
                   <span className="muted">{t("Chưa cài")}</span>
+                )}
+                {suaDuoc && (
+                  <button type="button" className="btn btn-outline btn-sm" style={{ marginLeft: 6 }} onClick={() => setSuaMin(true)}>
+                    {t("Sửa")}
+                  </button>
                 )}
               </div>
             </div>
@@ -449,6 +460,16 @@ export function VatTuModal({ id, onClose, onMoPhieu }: { id: string; onClose: ()
             </>
           )}
         </>
+      )}
+      {suaMin && d && (
+        <SuaTonToiThieuVt
+          vt={{ id: d.vt.id, ten_vt: d.vt.ten_vt, don_vi_tinh: d.vt.don_vi_tinh, ton_toi_thieu: d.toi_thieu?.ton_toi_thieu ?? null, thoi_gian_dat_hang: d.vt.thoi_gian_dat_hang }}
+          onClose={() => setSuaMin(false)}
+          onXong={() => {
+            setSuaMin(false);
+            setTaiLai((x) => x + 1);
+          }}
+        />
       )}
     </Modal>
   );

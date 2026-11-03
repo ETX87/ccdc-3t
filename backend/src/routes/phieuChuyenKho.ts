@@ -194,6 +194,8 @@ interface CreateItem {
   vt_id: string;
   so_luong: number;
   don_gia?: number | null;
+  /** Chi import Excel: thanh tien ghi trong file (mac dinh = don gia x SL). */
+  thanh_tien?: number | null;
 }
 interface CreateBody {
   loai?: Loai;
@@ -370,7 +372,7 @@ function lenhTaoPhieu(
       const donGia = it.don_gia ?? null;
       return db
         .prepare(`INSERT INTO phieu_chuyen_kho_ct (phieu_id, vt_id, so_luong, don_gia, thanh_tien) VALUES (?, ?, ?, ?, ?)`)
-        .bind(id, it.vt_id, Number(it.so_luong), donGia, donGia != null ? donGia * Number(it.so_luong) : null);
+        .bind(id, it.vt_id, Number(it.so_luong), donGia, it.thanh_tien ?? (donGia != null ? donGia * Number(it.so_luong) : null));
     }),
     db
       .prepare(`INSERT INTO phieu_chuyen_kho_log (phieu_id, trang_thai, nguoi_xu_ly, ngay_xu_ly, ghi_chu) VALUES (?, ?, ?, ?, ?)`)
@@ -398,6 +400,7 @@ interface DongImport {
   ten_vt?: string | null;
   so_luong?: string | number | null;
   don_gia?: string | number | null;
+  thanh_tien?: string | number | null;
   ghi_chu?: string | null;
 }
 type LoiImport = { dong: number; ma: string; gia_tri?: string };
@@ -426,7 +429,7 @@ phieuChuyenKho.post("/import", async (c) => {
   const [{ results: khos }, { results: vts }, { results: nvs }, { results: cts }] = await db.batch([
     db.prepare(`SELECT id, ten_kho, loai, nhan_vien_id, bat_tat, cong_ty_id FROM kho WHERE bat_tat = 1`),
     db.prepare(
-      `SELECT id, ten_vt, don_vi_tinh, cong_ty_id FROM vt_tieu_hao WHERE vo_hieu_hoa = 0 AND cong_ty_id IN (SELECT value FROM json_each(?))`,
+      `SELECT id, ten_vt, don_vi_tinh, cong_ty_id, don_gia_tham_khao FROM vt_tieu_hao WHERE vo_hieu_hoa = 0 AND cong_ty_id IN (SELECT value FROM json_each(?))`,
     ).bind(congTy),
     // Moi nhan vien dang lam viec (ca cong ty khac - 2026-10-28: ma NV cong ty khac -> tu them kiem nhiem cong ty kho).
     db.prepare(
@@ -436,7 +439,7 @@ phieuChuyenKho.post("/import", async (c) => {
     db.prepare("SELECT id, ma FROM cong_ty"),
   ]) as unknown as [
     { results: { id: number; ten_kho: string; loai: string; cong_ty_id: number }[] },
-    { results: { id: string; ten_vt: string; don_vi_tinh: string | null; cong_ty_id: number }[] },
+    { results: { id: string; ten_vt: string; don_vi_tinh: string | null; cong_ty_id: number; don_gia_tham_khao: number | null }[] },
     { results: { ma_nv: string; ten_nv: string; quan_ly_id: string | null; cts: string | null }[] },
     { results: { id: number; ma: string }[] },
   ];
@@ -477,6 +480,8 @@ phieuChuyenKho.post("/import", async (c) => {
     themNv: { ma_nv: string; ten_nv: string; quan_ly_id: string | null } | null;
   };
   const nhoms = new Map<string, Nhom>();
+  // Nguon don gia tung dong phieu (file / thanh tien / danh muc) - hien o xem truoc.
+  const nguonGiaVt = new Map<string, "file" | "thanh_tien" | "danh_muc" | null>();
 
   for (const d of dongs) {
     const loiTruoc = loi.length;
@@ -537,8 +542,25 @@ phieuChuyenKho.post("/import", async (c) => {
     }
     const sl = so(d.so_luong);
     if (!(sl > 0)) loi.push({ dong: d.dong, ma: "SO_LUONG_KHONG_HOP_LE", gia_tri: gv(d.so_luong) });
-    const dg = gv(d.don_gia) ? so(d.don_gia) : null;
+    // Gia (2026-11-03): Don gia trong file > Thanh tien / SL > gia tham khao danh muc. Thanh tien bo trong = don gia x SL;
+    // ghi ca 2 ma lech nhau (> 1 dong) -> loi de nguoi dung bo trong 1 cot.
+    let dg = gv(d.don_gia) ? so(d.don_gia) : null;
+    const tt = gv(d.thanh_tien) ? so(d.thanh_tien) : null;
     if (dg != null && !(dg >= 0)) loi.push({ dong: d.dong, ma: "IMPORT_DON_GIA_SAI", gia_tri: gv(d.don_gia) });
+    if (tt != null && !(tt >= 0)) loi.push({ dong: d.dong, ma: "IMPORT_THANH_TIEN_SAI", gia_tri: gv(d.thanh_tien) });
+    let nguonGia: "file" | "thanh_tien" | "danh_muc" | null = dg != null ? "file" : null;
+    if (dg != null && tt != null && sl > 0 && Math.abs(dg * sl - tt) > 1) {
+      loi.push({ dong: d.dong, ma: "IMPORT_THANH_TIEN_LECH", gia_tri: `${gv(d.so_luong)} × ${gv(d.don_gia)} ≠ ${gv(d.thanh_tien)}` });
+    }
+    if (dg == null && tt != null && sl > 0) {
+      dg = tt / sl;
+      nguonGia = "thanh_tien";
+    }
+    if (dg == null && vt?.don_gia_tham_khao != null) {
+      dg = vt.don_gia_tham_khao;
+      nguonGia = "danh_muc";
+    }
+    const thanhTien = tt ?? (dg != null && sl > 0 ? dg * sl : null);
     if (loi.length > loiTruoc || !khoTu || !vt) continue;
 
     const khoa = [gv(d.nhom), khoTu.id, denKho ?? "", denNv ?? "", chuan(tuDo)].join("|");
@@ -564,9 +586,13 @@ phieuChuyenKho.post("/import", async (c) => {
     } else if (!n.body.ghi_chu && gv(d.ghi_chu)) n.body.ghi_chu = gv(d.ghi_chu);
     n.dong.push(d.dong);
     // Cung vat tu nhieu dong trong 1 phieu -> cong don thanh 1 dong.
-    const cu = n.body.items.find((i) => i.vt_id === vt!.id);
-    if (cu) cu.so_luong += sl;
-    else n.body.items.push({ vt_id: vt.id, so_luong: sl, don_gia: dg });
+    // Cung vat tu + cung don gia nhieu dong trong 1 phieu -> cong don 1 dong; khac gia -> dong rieng.
+    const cu = n.body.items.find((i) => i.vt_id === vt!.id && i.don_gia === dg);
+    if (cu) {
+      cu.so_luong += sl;
+      cu.thanh_tien = cu.thanh_tien != null && thanhTien != null ? cu.thanh_tien + thanhTien : null;
+    } else n.body.items.push({ vt_id: vt.id, so_luong: sl, don_gia: dg, thanh_tien: thanhTien });
+    nguonGiaVt.set(`${khoa}|${vt.id}|${dg}`, nguonGia);
   }
 
   // Quyen + quy tac nguon/dich tung phieu (y nhu lap tay), roi ton cong don theo kho nguon.
@@ -578,7 +604,7 @@ phieuChuyenKho.post("/import", async (c) => {
     den: string;
     trang_thai: string | null;
     them_kiem_nhiem: { ma_nv: string; ten_nv: string; cong_ty: string } | null;
-    items: { vt_id: string; ten_vt: string; don_vi_tinh: string | null; so_luong: number; don_gia: number | null; ton: number }[];
+    items: { vt_id: string; ten_vt: string; don_vi_tinh: string | null; so_luong: number; don_gia: number | null; thanh_tien: number | null; nguon_gia: "file" | "thanh_tien" | "danh_muc" | null; ton: number }[];
   }[] = [];
   const trangThai = new Map<string, string>();
   const canXuat = new Map<string, number>();
@@ -624,6 +650,8 @@ phieuChuyenKho.post("/import", async (c) => {
         don_vi_tinh: vtMap.get(it.vt_id)?.don_vi_tinh ?? null,
         so_luong: it.so_luong,
         don_gia: it.don_gia ?? null,
+        thanh_tien: it.thanh_tien ?? null,
+        nguon_gia: nguonGiaVt.get(`${n.khoa}|${it.vt_id}|${it.don_gia ?? null}`) ?? null,
         ton: ton.get(`${n.body.tu_kho_id}|${it.vt_id}`) ?? 0,
       })),
     });

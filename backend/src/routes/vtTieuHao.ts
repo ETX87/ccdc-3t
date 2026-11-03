@@ -393,6 +393,22 @@ vtTieuHao.post("/ton-toi-thieu/import", requireRole("Admin", "HCNS"), async (c) 
   return c.json({ dong: kq, so_khop: ghi.length, trung, da_ghi: !!body?.thuc_hien });
 });
 
+// PATCH /:id/ton-toi-thieu { ton_toi_thieu, thoi_gian_dat_hang } - CHI sua cai dat ton toi thieu (nut sua nhanh o danh
+// muc / ho so vat tu, 2026-11-03) - khong dong cac truong khac nhu PUT. Admin / HCNS cong ty cua vat tu.
+vtTieuHao.patch("/:id/ton-toi-thieu", requireRole("Admin", "HCNS"), async (c) => {
+  const id = c.req.param("id") ?? "";
+  const body = await c.req.json<{ ton_toi_thieu?: unknown; thoi_gian_dat_hang?: unknown }>().catch(() => null);
+  if (!body) return c.json({ error: "MISSING_FIELDS" }, 400);
+  const q = await vtQuanTri(c.env.DB, c.get("user"), id);
+  if ("error" in q) return c.json({ error: q.error }, q.status);
+  const toiThieu = soToiThieu(body.ton_toi_thieu);
+  if (toiThieu === undefined) return c.json({ error: "TON_TOI_THIEU_KHONG_HOP_LE" }, 400);
+  await c.env.DB.prepare("UPDATE vt_tieu_hao SET ton_toi_thieu = ?, thoi_gian_dat_hang = ?, updated_at = ? WHERE id = ?")
+    .bind(toiThieu, ghiChuDatHang(body.thoi_gian_dat_hang), nowVN(), id)
+    .run();
+  return c.json({ ok: true, ton_toi_thieu: toiThieu });
+});
+
 vtTieuHao.delete("/:id", requireRole("Admin", "HCNS"), async (c) => {
   const id = c.req.param("id");
   const q = await vtQuanTri(c.env.DB, c.get("user"), id ?? "");

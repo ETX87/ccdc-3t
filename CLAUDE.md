@@ -172,6 +172,9 @@ state đang dùng.
   người import có `duocThemNvVaoCongTy` → xem trước báo "sẽ thêm kiêm nhiệm" (`them_kiem_nhiem`), lúc tạo chèn
   `nhan_vien_cong_ty` (+ `lenhTaoKhoQl`) ĐẦU cùng batch với phiếu (`kiemTraTao(..., seThemNv)` bỏ qua kiểm NV thuộc công ty);
   không có quyền → lỗi `NHAN_VIEN_KHAC_CONG_TY` như cũ.
+  Giá (2026-11-03): cột Đơn giá + Thành tiền (không bắt buộc) — Đơn giá file > Thành tiền ÷ SL > `don_gia_tham_khao` danh
+  mục; Thành tiền trống = Đơn giá × SL; ghi cả 2 mà lệch > 1đ → `IMPORT_THANH_TIEN_LECH`. `CreateItem.thanh_tien` (chỉ
+  import) ghi thẳng `phieu_chuyen_kho_ct.thanh_tien`; cùng vật tư + cùng đơn giá mới gộp 1 dòng.
 - **Mã vật tư tự sinh** (2026-10-19, `POST /vt-tieu-hao` bỏ qua `id` client gửi): `TS<mã công ty>-` + 6 chữ số, số tiếp
   = max mã cùng dạng trong danh mục (TS3T-000344, TSNSKX-000273), sinh ngay trong câu INSERT (`RETURNING id`); form hiện
   trước mã dự kiến qua `GET /vt-tieu-hao/ma-tiep-theo?cong_ty_id=`. Mã cũ khác dạng (hash, tên) giữ nguyên.
@@ -187,6 +190,9 @@ state đang dùng.
 
 ## Tồn kho tối thiểu + báo cáo email định kỳ (2026-10-30, migration 0021)
 
+- **Sửa nhanh tồn tối thiểu** (2026-11-03): `PATCH /vt-tieu-hao/:id/ton-toi-thieu` (Admin/HCNS công ty của vật tư, chỉ 2
+  cột tồn tối thiểu + thời gian đặt hàng) — popup `SuaTonToiThieuVt` (TonToiThieu.tsx) mở từ ô "Tồn / Tối thiểu" ở Danh mục
+  vật tư và nút "Sửa" trong hồ sơ vật tư.
 - **Tồn tối thiểu** so với TỔNG tồn công ty (mọi kho tính tồn + hàng đang chuyển tới kho tính tồn), không theo từng kho
   — `lib/tonToiThieu.ts` (`danhGiaTon`: hết / dưới / sắp chạm ≤120% / đảm bảo; NULL/0 = không quy định). Vật tư: cột
   `vt_tieu_hao.ton_toi_thieu` + `thoi_gian_dat_hang` (form + "Nhập tồn tối thiểu" từ Excel mẫu `TỒN KHO TỐI THIỂU.xlsx`,

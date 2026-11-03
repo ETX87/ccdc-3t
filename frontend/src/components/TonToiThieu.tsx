@@ -514,3 +514,60 @@ export function TonToiThieuTsModal({
     </Modal>
   );
 }
+
+/**
+ * Sua nhanh cai dat ton toi thieu 1 vat tu tieu hao (PATCH /vt-tieu-hao/:id/ton-toi-thieu) - Admin / HCNS. Mo tu o
+ * "Ton / Toi thieu" o Danh muc vat tu va o ho so vat tu (2026-11-03).
+ */
+export function SuaTonToiThieuVt({
+  vt,
+  onClose,
+  onXong,
+}: {
+  vt: { id: string; ten_vt: string; don_vi_tinh: string | null; ton_toi_thieu: number | null; thoi_gian_dat_hang: string | null };
+  onClose: () => void;
+  onXong: () => void;
+}) {
+  const [min, setMin] = useState(vt.ton_toi_thieu != null ? String(vt.ton_toi_thieu) : "");
+  const [datHang, setDatHang] = useState(vt.thoi_gian_dat_hang ?? "");
+  const [loi, setLoi] = useState<string | null>(null);
+  const [dangLuu, setDangLuu] = useState(false);
+  async function luu() {
+    const so = min.trim() === "" ? null : Number(min);
+    if (so != null && (!Number.isFinite(so) || so < 0)) return setLoi(t("Tồn tối thiểu phải là số không âm."));
+    setDangLuu(true);
+    setLoi(null);
+    try {
+      await api.patch(`/vt-tieu-hao/${encodeURIComponent(vt.id)}/ton-toi-thieu`, { ton_toi_thieu: so, thoi_gian_dat_hang: datHang });
+      baoThayDoi();
+      onXong();
+    } catch (e) {
+      setLoi(thongBaoLoi(e));
+      setDangLuu(false);
+    }
+  }
+  return (
+    <Modal title={t("Cài tồn tối thiểu: {ten}", { ten: vt.ten_vt })} onClose={onClose}>
+      <div className="form-grid">
+        <div className="field-group">
+          <label className="field-label">{t("Tồn tối thiểu ({dvt})", { dvt: vt.don_vi_tinh ?? "" })}</label>
+          <input type="number" min={0} value={min} autoFocus placeholder={t("Bỏ trống / 0 = không quy định")} onChange={(e) => setMin(e.target.value)} />
+          <div className="field-hint">{t("So với TỔNG tồn của công ty (mọi kho tính tồn + hàng đang chuyển tới).")}</div>
+        </div>
+        <div className="field-group">
+          <label className="field-label">{t("Thời gian đặt hàng / ghi chú")}</label>
+          <input type="text" value={datHang} maxLength={200} onChange={(e) => setDatHang(e.target.value)} />
+        </div>
+      </div>
+      {loi && <div className="alert alert-error">{loi}</div>}
+      <div className="modal-actions">
+        <button type="button" className="btn" onClick={onClose} disabled={dangLuu}>
+          {t("Huỷ")}
+        </button>
+        <button type="button" className="btn btn-primary" onClick={luu} disabled={dangLuu}>
+          {t("Lưu")}
+        </button>
+      </div>
+    </Modal>
+  );
+}

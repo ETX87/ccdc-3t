@@ -16,7 +16,7 @@ import { congTyMacDinh, hienCongTy, maCongTy } from "../lib/congTy";
 import { ChonLoc } from "../components/ChonLoc";
 import { QuanLyNhomModal } from "../components/QuanLyNhomModal";
 import { useChiTiet } from "../components/ChiTiet";
-import { lopDongTon, MucTonBadge, NhapTonToiThieuExcel, type MucTon } from "../components/TonToiThieu";
+import { lopDongTon, MucTonBadge, NhapTonToiThieuExcel, SuaTonToiThieuVt, type MucTon } from "../components/TonToiThieu";
 
 interface NhomCcdc {
   id: number;
@@ -68,6 +68,8 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
   // Loc ton toi thieu: "" tat ca | "can" het/duoi/sap | "co" da cai | "chua" chua cai.
   const [locMin, setLocMin] = useState("");
   const [showNhapMin, setShowNhapMin] = useState(false);
+  // Sua nhanh ton toi thieu 1 vat tu (o "Ton / Toi thieu").
+  const [suaMin, setSuaMin] = useState<VtRow | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm());
@@ -354,7 +356,16 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
                       {fmtSo(r.ton, 2)}
                     </button>
                     {" / "}
-                    {r.ton_toi_thieu != null ? fmtSo(r.ton_toi_thieu, 2) : <span className="muted">-</span>}
+                    {canEdit ? (
+                      <button type="button" className="so-link" title={t("Sửa tồn tối thiểu")} onClick={() => setSuaMin(r)}>
+                        {r.ton_toi_thieu != null ? fmtSo(r.ton_toi_thieu, 2) : t("Cài")}
+                        <Edit size={11} style={{ marginLeft: 3, verticalAlign: "-1px" }} />
+                      </button>
+                    ) : r.ton_toi_thieu != null ? (
+                      fmtSo(r.ton_toi_thieu, 2)
+                    ) : (
+                      <span className="muted">-</span>
+                    )}
                   </td>
                   <td data-label={t("Đánh giá")}>
                     {r.muc === "khong" ? (
@@ -468,6 +479,17 @@ export function DanhMucTieuHaoScreen({ tabs }: { tabs?: ReactNode }) {
             </button>
           </div>
         </Modal>
+      )}
+      {suaMin && (
+        <SuaTonToiThieuVt
+          vt={suaMin}
+          onClose={() => setSuaMin(null)}
+          onXong={() => {
+            setMsg(t("Đã cập nhật tồn tối thiểu {ten_vt}.", { ten_vt: suaMin.ten_vt }));
+            setSuaMin(null);
+            loadRows();
+          }}
+        />
       )}
       {showNhapMin && (
         <NhapTonToiThieuExcel vts={rows ?? []} ctTao={ctTao} onClose={() => setShowNhapMin(false)} onXong={(m) => (setShowNhapMin(false), setMsg(m))} />

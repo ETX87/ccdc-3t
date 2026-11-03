@@ -159,6 +159,8 @@ const LOI: Record<string, string> = {
   IMPORT_VT_KHONG_THAY: t("Không tìm thấy vật tư trong danh mục công ty của kho xuất."),
   IMPORT_VT_TRUNG_TEN: t("Tên vật tư trùng nhiều mã - ghi Mã vật tư."),
   IMPORT_DON_GIA_SAI: t("Đơn giá không hợp lệ."),
+  IMPORT_THANH_TIEN_SAI: t("Thành tiền không hợp lệ."),
+  IMPORT_THANH_TIEN_LECH: t("Thành tiền khác Đơn giá × Số lượng - bỏ trống 1 trong 2 cột hoặc sửa cho khớp."),
   IMPORT_VUOT_TON: t("Tổng số lượng xuất (cộng dồn cả file) vượt tồn kho xuất."),
 };
 

@@ -616,12 +616,28 @@ async function layCanhBao(db: D1Database, pv: PhamVi): Promise<CanhBao[]> {
   return ds.sort((a, b) => Number(b.so_luong > 0) - Number(a.so_luong > 0) || thuTu[a.muc_do] - thuTu[b.muc_do] || b.so_luong - a.so_luong);
 }
 
+// 2026-11-06: /viec-can-lam duoc FE goi lai moi 60s (lib/duLieuChung.tsx) chi de lay SO canh bao cho badge menu, nhung
+// layCanhBao chay 7-8 cau tong hop (rieng "ton-am" quet ca view v_ton_kho ~84k rows) -> ~230M rows read/ngay. Cache ket
+// qua trong isolate theo pham vi (TTL 2 phut). Chi cache GIA TRI da tinh xong, khong cache Promise (Workers khong cho 1
+// request cho Promise sinh tu request khac). Badge co the tre toi 2 phut; man Canh bao (GET /canh-bao) van tinh song.
+const CANH_BAO_TTL_MS = 120_000;
+const canhBaoCache = new Map<string, { at: number; ds: CanhBao[] }>();
+async function layCanhBaoBadge(db: D1Database, pv: PhamVi): Promise<CanhBao[]> {
+  const key = JSON.stringify(pv);
+  const hit = canhBaoCache.get(key);
+  if (hit && Date.now() - hit.at < CANH_BAO_TTL_MS) return hit.ds;
+  const ds = await layCanhBao(db, pv);
+  if (canhBaoCache.size > 200) canhBaoCache.clear();
+  canhBaoCache.set(key, { at: Date.now(), ds });
+  return ds;
+}
+
 // GET /viec-can-lam - danh sach viec cua nguoi dang dang nhap + dem theo tab + so do menu/chuong.
 dashboard.get("/viec-can-lam", async (c) => {
   const db = c.env.DB;
   const user = c.get("user");
   const pv = await layPhamVi(db, user);
-  const [rows, canhBao] = await Promise.all([layViecCanLam(db, user, pv), pv.xemTongHop ? layCanhBao(db, pv) : Promise.resolve([])]);
+  const [rows, canhBao] = await Promise.all([layViecCanLam(db, user, pv), pv.xemTongHop ? layCanhBaoBadge(db, pv) : Promise.resolve([])]);
   const dem = (f: (r: ViecRow) => boolean) => rows.filter(f).length;
   const laKT = user.vai_tro === "Admin" || user.vai_tro === "Ke toan";
   const hong = rows.find((r) => r.hanh_dong === "xu_ly_hong")?.so_luong ?? 0;

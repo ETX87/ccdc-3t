@@ -69,7 +69,9 @@ export function DuLieuChungProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     reload();
-    const t = window.setInterval(reload, 60_000);
+    // 2026-11-06: chi tu tai lai khi tab dang hien - tab an/de qua dem van goi moi 60s (~230M rows read/ngay tren D1).
+    // Quay lai tab -> onVis tai ngay.
+    const t = window.setInterval(() => document.visibilityState === "visible" && reload(), 60_000);
     const onVis = () => document.visibilityState === "visible" && reload();
     document.addEventListener("visibilitychange", onVis);
     return () => {

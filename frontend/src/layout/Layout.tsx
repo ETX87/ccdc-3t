@@ -1,4 +1,5 @@
 import { t } from "../lib/i18n";
+import { APP_VERSION } from "../version";
 import { useEffect, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, Menu as MenuIcon } from "lucide-react";
 import { useAuth, useRefreshUser } from "../auth/AuthContext";
@@ -150,6 +151,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="sidebar-slogan">
             <div className="slogan-line1">{t("Quản lý tài sản hiệu quả")}</div>
             <div className="slogan-line2">{t("Kiến tạo giá trị bền vững")}</div>
+            <div className="slogan-version">{t("Phiên bản")} v{APP_VERSION}</div>
           </div>
         </div>
       </aside>

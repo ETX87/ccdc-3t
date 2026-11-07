@@ -335,6 +335,11 @@ Drive đã kết nối) → `chup_ql_nv.py chuan_bi …` (Playwright giả lập
   hàng, nhập tay (trim + viết hoa, ≤50 ký tự, KHÔNG đối chiếu với hệ EO). Thiếu → lỗi `CAN_MA_EO`. Phiếu tiêu hủy cũ
   chưa có mã → bổ sung lúc "Hoàn tất". Thanh lý không cần.
 
+## Số phiên bản
+
+`frontend/src/version.ts` `APP_VERSION` (hiện ở chân sidebar, kiểu linh-kien-app): tăng 0.001 MỖI lần deploy production
+("1.001" → "1.002"…), sửa tay và commit chung với thay đổi TRƯỚC khi deploy.
+
 ## Ports dev (khác các app khác trong hệ, chạy song song được)
 
 Backend `wrangler dev`: 8791. Frontend Vite: 5177 (proxy `/api` → 8791).

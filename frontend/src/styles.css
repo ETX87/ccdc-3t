@@ -200,6 +200,7 @@ html, body {
   font-size: 11.5px;
   color: rgba(255, 255, 255, 0.7);
 }
+.slogan-version { margin-top: 4px; font-size: 10.5px; color: rgba(255, 255, 255, 0.55); }
 
 /* ----------------- MAIN AREA ----------------- */
 .main-area {
@@ -1572,6 +1573,9 @@ input.header-month { height: 33px; width: auto; font-size: 12.5px; border-radius
 /* Thanh dieu huong duoi (chi dien thoai) */
 .bottom-nav { display: none; }
 
+/* Con cua cac luoi bo cuc khong duoc no rong theo noi dung (o ngay, bang dai...) - tranh tran ngang tren dien thoai */
+.split-grid > *, .middle-grid > *, .bottom-grid > *, .kpi-grid > * { min-width: 0; }
+
 /* ==========================================================================
    RESPONSIVE: >=1280 bo cuc chuan | 900-1280 KPI 3 cot | <900 menu truot + 1 cot + bang dang the
    | <600 thanh dieu huong duoi + KPI 2 cot
@@ -1620,7 +1624,9 @@ input.header-month { height: 33px; width: auto; font-size: 12.5px; border-radius
 
   /* Bang -> the doc (moi o 1 dong co nhan) */
   .task-table thead { display: none; }
-  .task-table, .task-table tbody, .task-table tr, .task-table td { display: block; width: 100% !important; }
+  .task-table, .task-table tbody, .task-table tfoot, .task-table tr, .task-table td, .task-table tfoot th { display: block; width: 100% !important; }
+  .task-table tfoot tr { background: #f8fafc; border-color: #e2e8f0; }
+  .task-table tfoot .nb-tong td { border-top: none; background: transparent; }
   .task-table tr { border: 1px solid #eef2f6; border-radius: 10px; padding: 6px 10px; margin-bottom: 8px; background: #fff; }
   .task-table tr.row-overdue { border-left: 3px solid #ef4444; }
   .task-table tr.row-overdue td:first-child { box-shadow: none; }
@@ -1628,9 +1634,17 @@ input.header-month { height: 33px; width: auto; font-size: 12.5px; border-radius
     border: none; padding: 3px 0; white-space: normal; display: flex; justify-content: space-between; gap: 10px;
     text-align: right !important; min-width: 0;
   }
-  .task-table td[data-label]::before { content: attr(data-label); color: #94a3b8; font-size: 11px; text-align: left; flex-shrink: 0; }
+  .task-table td[data-label]::before { content: attr(data-label); color: #94a3b8; font-size: 11px; text-align: left; flex-shrink: 0; margin-right: auto; }
+  /* O co nhieu phan tu con (so + gia tri...): don ve ben phai, khong dan deu giua dong */
+  .task-table td[data-label] { justify-content: flex-end; flex-wrap: wrap; column-gap: 8px; align-items: baseline; }
   .task-table td .row-actions { justify-content: flex-end; }
   .task-table td.task-empty { display: block; text-align: center !important; }
+  /* Dong canh bao / chu y o dang the: vien trai ca the, khong to nen tung o */
+  .task-table tr.row-canh-bao { border-left: 3px solid #ef4444; background: #fffafa; }
+  .task-table tr.row-chu-y { border-left: 3px solid #f59e0b; }
+  .task-table tr.row-canh-bao td, .task-table tr.row-canh-bao td:first-child, .task-table tr.row-chu-y td:first-child { box-shadow: none; background: transparent; }
+  .task-table tr.row-clickable:hover td { background: transparent; }
+  .task-table tr.row-clickable:hover { background: #f0f9ff; }
 }
 
 @media (max-width: 600px) {
@@ -1663,18 +1677,69 @@ input.header-month { height: 33px; width: auto; font-size: 12.5px; border-radius
     position: absolute; top: -5px; right: -10px; background: #ef4444; color: #fff; font-size: 9.5px; font-weight: 700;
     min-width: 16px; height: 16px; border-radius: 8px; padding: 0 4px; display: flex; align-items: center; justify-content: center;
   }
-  .modal-box { max-height: 92dvh; }
+  /* Popup = tam truot tu duoi len, rong het man; tieu de + nut dong dinh tren khi cuon */
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal-box, .modal-box.modal-lg {
+    max-width: 100%; max-height: 94dvh; border-radius: 16px 16px 0 0;
+    padding: 0 14px calc(14px + env(safe-area-inset-bottom));
+  }
+  .modal-head {
+    position: sticky; top: 0; z-index: 3; background: #ffffff; margin: 0 -14px 12px; padding: 14px 14px 10px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .modal-title { font-size: 15px; min-width: 0; }
+  .modal-close { padding: 6px; margin: -6px -6px -6px 0; }
+  /* Nut Huy / Luu luon nhin thay o day tam khi form dai */
+  .modal-actions {
+    flex-wrap: wrap; position: sticky; bottom: calc(-14px - env(safe-area-inset-bottom)); z-index: 3; background: #ffffff;
+    margin: 12px -14px 0; padding: 10px 14px; border-top: 1px solid #f1f5f9;
+  }
+  /* Nut nho de cham bang ngon tay */
+  .btn-sm { min-height: 34px; }
+  .modal-actions > .btn { flex: 1 1 auto; }
+  /* Thong tin phieu 2 cot cho gon; bang vat tu cu (data-table) giu do rong doc duoc, cuon ngang */
+  .info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+  .info-grid .info-item { min-width: 0; overflow-wrap: anywhere; }
+  .table-scroll > table.data-table { min-width: 520px; }
+  .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .check-label { white-space: normal; align-items: flex-start; max-width: 100%; }
+  .check-label input { flex-shrink: 0; margin-top: 1px; }
+  /* iOS tu phong to khi cham o nhap co chu < 16px */
+  input, select, textarea, .chon-loc-tim input { font-size: 16px; }
   .dashboard-title { width: 100%; }
   .dashboard-title-group { width: 100%; }
   .dashboard-title-group > .header-dropdown, .dashboard-title-group > .header-dropdown-wrap { flex: 1 1 100%; min-width: 0; }
   .header-dropdown-wrap > .header-dropdown { width: 100%; }
   .header-dropdown .dropdown-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .select-dropdown select { width: 100%; }
-  .filter-bar > * { flex: 1 1 100%; }
+  .filter-bar { gap: 8px; }
+  .filter-bar > * { flex: 1 1 calc(50% - 4px); min-width: 0; }
+  .filter-bar > .filter-search, .filter-bar > .topbar-search { flex-basis: 100%; }
+  .filter-bar .chon-loc.chon-loc, .filter-bar select, .filter-bar input:not([type="checkbox"]):not([type="radio"]) { min-width: 0; max-width: none; width: 100%; }
   .topbar-search.filter-search { width: 100%; }
   .popover-panel { position: fixed; left: 8px; right: 8px; top: 120px; width: auto; }
   .card-header { flex-wrap: wrap; gap: 6px; }
   .chart-legend-group { flex-wrap: wrap; }
+
+  /* Nut tac vu dau man: luoi 2 cot rong deu, khong lech phai lom chom */
+  .header-actions { width: 100%; margin-left: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .header-actions > .btn { width: 100%; padding: 0 8px; font-size: 12.5px; min-width: 0; }
+  .header-actions > .btn:only-of-type, .header-actions > .btn.btn-primary:last-of-type:nth-of-type(odd) { grid-column: 1 / -1; }
+  .header-actions > :not(.btn) { grid-column: 1 / -1; justify-self: end; }
+  .content-card { padding: 12px; }
+  .card-header .row-actions { flex-wrap: wrap; justify-content: flex-start; }
+  .card-header .row-actions input[type="date"] { flex: 1 1 120px; min-width: 0; }
+
+  /* Topbar dien thoai: o cong ty / ngon ngu thu gon (bo icon, mui ten) de khong de len nut tim kiem */
+  .topbar { padding: 0 6px; gap: 2px; }
+  .topbar-right { gap: 4px; min-width: 0; flex-shrink: 1; }
+  .topbar-right .header-dropdown { padding: 0 4px; height: 32px; min-width: 0; flex-shrink: 1; }
+  .topbar-right .header-dropdown .dropdown-icon, .topbar-right .header-dropdown .dropdown-arrow { display: none; }
+  .topbar-right .select-dropdown select, .topbar-right .select-dropdown .chon-loc {
+    padding: 0 4px; max-width: 92px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
+  }
+  .topbar-menu-btn, .topbar-search-toggle { width: 34px; height: 34px; flex-shrink: 0; }
+  .topbar-search-wrap:not(.expanded) { flex: 0 0 auto; }
 }
 
 /* Ty le (thanh ngang nho trong bang bao cao) */

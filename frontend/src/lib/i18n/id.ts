@@ -1735,4 +1735,5 @@ export const ID: Record<string, string> = {
   "Sửa tồn tối thiểu": "Ubah stok minimum",
   "Cài": "Atur",
   "Đã cập nhật tồn tối thiểu {ten_vt}.": "Stok minimum {ten_vt} diperbarui.",
+  "Phiên bản": "Versi",
 };

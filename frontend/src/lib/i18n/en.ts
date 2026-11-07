@@ -1735,4 +1735,5 @@ export const EN: Record<string, string> = {
   "Sửa tồn tối thiểu": "Edit minimum stock",
   "Cài": "Set",
   "Đã cập nhật tồn tối thiểu {ten_vt}.": "Updated minimum stock of {ten_vt}.",
+  "Phiên bản": "Version",
 };

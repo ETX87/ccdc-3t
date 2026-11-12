@@ -7,6 +7,7 @@ import { formatVNFromMs, nowVN } from "../lib/vnTime";
 import { getKho, khoPhuTrach, laHcns, LOAI_DOI_DUOC, type LoaiKho } from "../lib/quyen";
 import { layPhamViXemTon } from "../lib/phamVi";
 import { nvThuocCongTy } from "../lib/nvCongTy";
+import { TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
 
 // Danh muc kho (chuoi KHO MUA -> HCNS -> MIEN -> QL) + gan thu kho. Kho QL thuong duoc tao tu dong
 // khi gan quan ly truc tiep cho nhan vien (routes/nhanVien.ts), van tao tay duoc o day.
@@ -18,7 +19,7 @@ const LOAI_HOP_LE: LoaiKho[] = ["Mua hang", "HCNS", "Mien", "Trung chuyen", "Qua
 // Danh sach kho cac cong ty dang xem (bo loc cong ty tren topbar).
 kho.get("/", async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT k.id, k.ten_kho, k.loai, k.nhan_vien_id, nv.ten_nv AS nhan_vien_ten, k.bat_tat, k.ghi_chu, k.cong_ty_id, ct.ma AS cong_ty_ma,
+    `SELECT k.id, ${TEN_KHO("k")} AS ten_kho, k.ten_kho AS ten_goc, k.loai, k.nhan_vien_id, ${TEN_NV("nv")} AS nhan_vien_ten, k.bat_tat, k.ghi_chu, k.cong_ty_id, ct.ma AS cong_ty_ma,
             (SELECT group_concat(t.email, ',') FROM kho_thu_kho t WHERE t.kho_id = k.id) AS thu_kho
      FROM kho k LEFT JOIN nhan_vien nv ON nv.ma_nv = k.nhan_vien_id JOIN cong_ty ct ON ct.id = k.cong_ty_id
      WHERE k.cong_ty_id IN (SELECT value FROM json_each(?))
@@ -34,7 +35,7 @@ kho.get("/", async (c) => {
 // loai + cong ty (khong so lieu ton).
 kho.get("/dich", async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT k.id, k.ten_kho, k.loai, k.nhan_vien_id, k.bat_tat, k.cong_ty_id, ct.ma AS cong_ty_ma
+    `SELECT k.id, ${TEN_KHO("k")} AS ten_kho, k.loai, k.nhan_vien_id, k.bat_tat, k.cong_ty_id, ct.ma AS cong_ty_ma
      FROM kho k JOIN cong_ty ct ON ct.id = k.cong_ty_id
      WHERE k.bat_tat = 1 AND ct.bat_tat = 1 AND k.loai NOT IN ('Mua hang', 'Tieu hao')
      ORDER BY k.cong_ty_id, CASE k.loai WHEN 'HCNS' THEN 1 WHEN 'Mien' THEN 2 WHEN 'Trung chuyen' THEN 2 ELSE 3 END, k.ten_kho`,
@@ -71,7 +72,7 @@ kho.get("/tong-hop", async (c) => {
        cn AS (
          SELECT den_kho_id AS kho_id, COUNT(*) AS n, SUM(CASE WHEN created_at < ? THEN 1 ELSE 0 END) AS qh
          FROM phieu_chuyen_kho WHERE trang_thai = 'Dang chuyen' GROUP BY den_kho_id)
-       SELECT k.id, k.ten_kho, k.loai, k.bat_tat, k.cong_ty_id, nv.ten_nv AS nhan_vien_ten,
+       SELECT k.id, ${TEN_KHO("k")} AS ten_kho, k.loai, k.bat_tat, k.cong_ty_id, ${TEN_NV("nv")} AS nhan_vien_ten,
               COALESCE(ts.n, 0) AS ts_trong_kho, COALESCE(ts.gt, 0) AS gt_ts,
               COALESCE(ton.so_mat_hang, 0) AS so_mat_hang, COALESCE(ton.gt_tieu_hao, 0) AS gt_tieu_hao,
               COALESCE(ton.ton_am, 0) AS ton_am, COALESCE(cn.n, 0) AS cho_nhan, COALESCE(cn.qh, 0) AS cho_nhan_qua_han

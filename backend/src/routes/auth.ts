@@ -159,11 +159,13 @@ auth.get("/me", verifySessionMiddleware, loadUser, async (c) => {
   )
     .bind(JSON.stringify(user.cong_ty_ids))
     .all<{ id: number; ma: string; ten: string }>();
+  // Ten kho hien thi kem ma cong ty (lib/nhanCongTy.ts) - kho phu trach luon thuoc cong ty user duoc xem.
+  const maCt = new Map(congTy.map((x) => [x.id, x.ma]));
   const capDuoi = user.ma_nv
     ? await c.env.DB.prepare("SELECT 1 AS ok FROM nhan_vien WHERE quan_ly_id = ? AND dang_lam_viec = 1 LIMIT 1").bind(user.ma_nv).first()
     : null;
   return c.json({
-    user: { ...user, kho_phu_trach: kho.map((k) => ({ id: k.id, ten_kho: k.ten_kho, loai: k.loai, nhan_vien_id: k.nhan_vien_id, cong_ty_id: k.cong_ty_id })), kho_nhan: khoNhan, co_cap_duoi: !!capDuoi, cong_ty: congTy },
+    user: { ...user, kho_phu_trach: kho.map((k) => ({ id: k.id, ten_kho: maCt.has(k.cong_ty_id) ? `[${maCt.get(k.cong_ty_id)}] ${k.ten_kho}` : k.ten_kho, loai: k.loai, nhan_vien_id: k.nhan_vien_id, cong_ty_id: k.cong_ty_id })), kho_nhan: khoNhan, co_cap_duoi: !!capDuoi, cong_ty: congTy },
   });
 });
 

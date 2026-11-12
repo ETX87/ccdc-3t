@@ -44,7 +44,8 @@ interface TongHopKho {
 
 interface KhoRow {
   id: number;
-  ten_kho: string;
+  ten_kho: string; // da kem nhan cong ty "[3T] ..." (backend) - chi de hien thi
+  ten_goc: string; // ten luu trong DB - dung khi ghi nguoc (PUT / doi loai)
   loai: LoaiKho;
   nhan_vien_id: string | null;
   nhan_vien_ten: string | null;
@@ -612,7 +613,7 @@ function CauHinhKho() {
                     <button
                       className="btn btn-outline btn-sm"
                       style={{ marginRight: 6 }}
-                      onClick={() => setDoiLoai({ kho: k, ten: k.ten_kho, loai: LOAI_DOI.find((l) => l !== k.loai)!, nv: "" })}
+                      onClick={() => setDoiLoai({ kho: k, ten: k.ten_goc, loai: LOAI_DOI.find((l) => l !== k.loai)!, nv: "" })}
                     >
                       {t("Đổi loại kho")}
                     </button>
@@ -622,7 +623,7 @@ function CauHinhKho() {
                       className={`btn btn-outline btn-sm ${k.bat_tat ? "danger-outline" : ""}`}
                       onClick={() =>
                         run(
-                          () => api.put(`/kho/${k.id}`, { ten_kho: k.ten_kho, ghi_chu: k.ghi_chu, bat_tat: !k.bat_tat }),
+                          () => api.put(`/kho/${k.id}`, { ten_kho: k.ten_goc, ghi_chu: k.ghi_chu, bat_tat: !k.bat_tat }),
                           `${k.bat_tat ? t("Đã ngừng") : t("Đã kích hoạt")} ${k.ten_kho}.`,
                         )
                       }

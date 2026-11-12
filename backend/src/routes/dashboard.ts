@@ -8,6 +8,7 @@ import { dkCotKho, dkPhieuKho, dkTaiSan, layPhamVi, locTheoKho, type PhamVi } fr
 import { chupNeuChuaCo, soLieuDaChup, tinhChiSo } from "../lib/thongKe";
 import { khoNhanHang, khoPhuTrach } from "../lib/quyen";
 import { canXuLy, layTonToiThieu } from "../lib/tonToiThieu";
+import { TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
 
 // Du lieu that cho giao dien 3T Asset Management (ke hoach Giai doan 1.6 muc 3.2): tong quan, viec can
 // lam (+ so do tren menu/chuong), canh bao, tim kiem. MOI truy van loc theo pham vi (lib/phamVi.ts).
@@ -279,7 +280,7 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
     stmts.push({
       kind: "kt_ck",
       stmt: db.prepare(
-        `SELECT p.id, p.ma_phieu, p.loai, p.created_at AS t, ${TEN_NGUOI("p.nguoi_lap")} AS nguoi, kt.ten_kho AS tu, kd.ten_kho AS den, ${TOM_TAT_CK} AS tom_tat
+        `SELECT p.id, p.ma_phieu, p.loai, p.created_at AS t, ${TEN_NGUOI("p.nguoi_lap")} AS nguoi, ${TEN_KHO("kt")} AS tu, ${TEN_KHO("kd")} AS den, ${TOM_TAT_CK} AS tom_tat
          FROM phieu_chuyen_kho p JOIN kho kt ON kt.id = p.tu_kho_id LEFT JOIN kho kd ON kd.id = p.den_kho_id WHERE p.trang_thai = 'Cho ke toan duyet' AND p.nguoi_lap != ? AND ${pkV.sql} ORDER BY p.created_at`,
       ).bind(user.email, ...pkV.binds),
     });
@@ -287,7 +288,7 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
       kind: "kt_gn",
       stmt: db
         .prepare(
-          `SELECT g.id, g.ma_phieu, g.ngay_lap AS t, ${TEN_NGUOI("g.nguoi_lap")} AS nguoi, kt.ten_kho AS tu, kd.ten_kho AS den, ${TOM_TAT_GN} AS tom_tat
+          `SELECT g.id, g.ma_phieu, g.ngay_lap AS t, ${TEN_NGUOI("g.nguoi_lap")} AS nguoi, ${TEN_KHO("kt")} AS tu, ${TEN_KHO("kd")} AS den, ${TOM_TAT_GN} AS tom_tat
            FROM phieu_giao_nhan g JOIN kho kt ON kt.id = g.tu_kho_id JOIN kho kd ON kd.id = g.den_kho_id
            WHERE g.trang_thai_duyet = 'Cho ke toan duyet' AND g.nguoi_lap != ? AND kt.cong_ty_id IN (SELECT value FROM json_each(?)) ORDER BY g.ngay_lap`,
         )
@@ -307,7 +308,7 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
       kind: "nhan_kho",
       stmt: db
         .prepare(
-          `SELECT p.id, p.ma_phieu, p.created_at AS t, kt.ten_kho AS tu, kd.ten_kho AS den, ${TOM_TAT_CK} AS tom_tat
+          `SELECT p.id, p.ma_phieu, p.created_at AS t, ${TEN_KHO("kt")} AS tu, ${TEN_KHO("kd")} AS den, ${TOM_TAT_CK} AS tom_tat
            FROM phieu_chuyen_kho p JOIN kho kt ON kt.id = p.tu_kho_id JOIN kho kd ON kd.id = p.den_kho_id
            WHERE p.trang_thai = 'Dang chuyen' AND p.den_kho_id IN (SELECT value FROM json_each(?)) ORDER BY p.created_at`,
         )
@@ -317,7 +318,7 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
       kind: "gn_kho",
       stmt: db
         .prepare(
-          `SELECT g.id, g.ma_phieu, g.loai_phieu, g.ngay_lap AS t, kd.ten_kho AS den, ${TEN_NGUOI("g.nguoi_lap")} AS nguoi, ${TOM_TAT_GN} AS tom_tat
+          `SELECT g.id, g.ma_phieu, g.loai_phieu, g.ngay_lap AS t, ${TEN_KHO("kd")} AS den, ${TEN_NGUOI("g.nguoi_lap")} AS nguoi, ${TOM_TAT_GN} AS tom_tat
            FROM phieu_giao_nhan g JOIN kho kd ON kd.id = g.den_kho_id
            WHERE g.da_xac_nhan = 0 AND g.loai_phieu IN ('Thu hoi', 'Chuyen kho') AND (g.trang_thai_duyet IS NULL OR g.trang_thai_duyet = 'Da duyet')
              AND g.den_kho_id IN (SELECT value FROM json_each(?))`,
@@ -341,7 +342,7 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
       kind: "cp_nv",
       stmt: db
         .prepare(
-          `SELECT p.id, p.ma_phieu, p.created_at AS t, kt.ten_kho AS tu, ${TOM_TAT_CK} AS tom_tat
+          `SELECT p.id, p.ma_phieu, p.created_at AS t, ${TEN_KHO("kt")} AS tu, ${TOM_TAT_CK} AS tom_tat
            FROM phieu_chuyen_kho p JOIN kho kt ON kt.id = p.tu_kho_id
            WHERE p.loai = 'Cap phat NV' AND p.trang_thai = 'Da giao' AND p.da_xac_nhan = 0 AND p.den_nhan_vien_id = ?
              AND kt.cong_ty_id IN (SELECT value FROM json_each(?))`,
@@ -375,7 +376,7 @@ async function layViecCanLam(db: D1Database, user: AppUser, pv: PhamVi): Promise
     kind: "bi_tu_choi_ck",
     stmt: db
       .prepare(
-        `SELECT p.id, p.ma_phieu, p.trang_thai, p.updated_at AS t, ${TOM_TAT_CK} AS tom_tat, kd.ten_kho AS den,
+        `SELECT p.id, p.ma_phieu, p.trang_thai, p.updated_at AS t, ${TOM_TAT_CK} AS tom_tat, ${TEN_KHO("kd")} AS den,
                 (SELECT l.ghi_chu FROM phieu_chuyen_kho_log l WHERE l.phieu_id = p.id ORDER BY l.id DESC LIMIT 1) AS ly_do
          FROM phieu_chuyen_kho p JOIN kho kt ON kt.id = p.tu_kho_id LEFT JOIN kho kd ON kd.id = p.den_kho_id
          WHERE p.trang_thai IN ('Ke toan tu choi', 'Bi tu choi') AND p.da_xu_ly_tu_choi = 0
@@ -489,7 +490,7 @@ function cauLenhCanhBao(db: D1Database, pv: PhamVi) {
     // Chi tiet tung loai (dung chung cho dem + danh sach): moi dong co ma, ten, chi_tiet, thoi_gian, kind, ref.
     "cho-ban-giao": db
       .prepare(
-        `SELECT p.ma_phieu AS ma, 'Chuyển kho chưa nhận' AS ten, kt.ten_kho || ' → ' || kd.ten_kho AS chi_tiet, p.created_at AS thoi_gian, 'chuyen_kho' AS kind, p.id AS ref
+        `SELECT p.ma_phieu AS ma, 'Chuyển kho chưa nhận' AS ten, ${TEN_KHO("kt")} || ' → ' || ${TEN_KHO("kd")} AS chi_tiet, p.created_at AS thoi_gian, 'chuyen_kho' AS kind, p.id AS ref
          FROM phieu_chuyen_kho p JOIN kho kt ON kt.id = p.tu_kho_id JOIN kho kd ON kd.id = p.den_kho_id
          WHERE p.trang_thai = 'Dang chuyen' AND p.created_at < ? AND ${pk.sql}
          UNION ALL
@@ -512,7 +513,7 @@ function cauLenhCanhBao(db: D1Database, pv: PhamVi) {
       .bind(moc, ...pk.binds, moc, ...ts.binds),
     "ton-am": db
       .prepare(
-        `SELECT t.vt_id AS ma, v.ten_vt AS ten, k.ten_kho || ': tồn ' || printf('%g', t.ton) || ' ' || COALESCE(v.don_vi_tinh, '') AS chi_tiet, NULL AS thoi_gian, 'vat_tu' AS kind, t.vt_id AS ref
+        `SELECT t.vt_id AS ma, v.ten_vt AS ten, ${TEN_KHO("k")} || ': tồn ' || printf('%g', t.ton) || ' ' || COALESCE(v.don_vi_tinh, '') AS chi_tiet, NULL AS thoi_gian, 'vat_tu' AS kind, t.vt_id AS ref
          FROM v_ton_kho t JOIN kho k ON k.id = t.kho_id JOIN vt_tieu_hao v ON v.id = t.vt_id
          WHERE t.ton < 0 AND ${ton.sql} ORDER BY t.ton`,
       )
@@ -819,7 +820,7 @@ dashboard.get("/tim-kiem", async (c) => {
   const [taiSan, vatTu, nhanVien, phieuCk, phieuGn, phieuXl] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
-        `SELECT c.id, c.ten_ccdc AS ten, c.trang_thai_hien_tai AS trang_thai, COALESCE(nv.ten_nv, k.ten_kho) AS vi_tri
+        `SELECT c.id, c.ten_ccdc AS ten, c.trang_thai_hien_tai AS trang_thai, COALESCE(${TEN_NV("nv")}, ${TEN_KHO("k")}) AS vi_tri
          FROM ccdc c LEFT JOIN nhan_vien nv ON nv.ma_nv = c.nguoi_dang_giu LEFT JOIN kho k ON k.id = c.kho_id
          WHERE c.vo_hieu_hoa = 0 AND ${tkTs.sql} AND ${ts.sql}
          ORDER BY c.id LIMIT 6`,
@@ -833,7 +834,7 @@ dashboard.get("/tim-kiem", async (c) => {
       .bind(pv.xemTongHop ? 1 : 0, JSON.stringify(user.cong_ty_xem), ...tkVt.binds),
     db
       .prepare(
-        `SELECT ma_nv AS id, ten_nv AS ten, bo_phan FROM nhan_vien
+        `SELECT ma_nv AS id, ${TEN_NV("nhan_vien")} AS ten, bo_phan FROM nhan_vien
          WHERE ${tkNv.sql} AND (? = 1 OR ma_nv IN (SELECT value FROM json_each(?)))
          ORDER BY dang_lam_viec DESC, ten_nv LIMIT 6`,
       )

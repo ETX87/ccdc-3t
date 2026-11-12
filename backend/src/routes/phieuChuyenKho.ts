@@ -9,6 +9,7 @@ import { ghepVatTu } from "../lib/ghepVatTu";
 import { sinhMaPhieu, TIEN_TO_CHUYEN_KHO } from "../lib/maPhieu";
 import { dkPhieuKho, layPhamVi, type PhamVi } from "../lib/phamVi";
 import { docTrang, layTrang } from "../lib/phanTrang";
+import { boNhanCongTy, TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
 
 /**
  * Phieu nguoi dung duoc xem: kho trong pham vi + phieu minh lap + phieu cap cho nhom minh (ban than/cap duoi),
@@ -88,9 +89,9 @@ phieuChuyenKho.get("/", async (c) => {
     binds.push(...ids);
   }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-  const sql = `SELECT p.id, p.ma_phieu, p.loai, p.tu_kho_id, kt.ten_kho AS tu_kho_ten, p.den_kho_id, kd.ten_kho AS den_kho_ten,
+  const sql = `SELECT p.id, p.ma_phieu, p.loai, p.tu_kho_id, ${TEN_KHO("kt")} AS tu_kho_ten, p.den_kho_id, ${TEN_KHO("kd")} AS den_kho_ten,
             kt.cong_ty_id AS tu_cong_ty_id, kd.cong_ty_id AS den_cong_ty_id,
-            p.den_nhan_vien_id, nv.ten_nv AS den_nhan_vien_ten, p.nguoi_nhan_ten_tu_do, p.nha_cung_cap,
+            p.den_nhan_vien_id, ${TEN_NV("nv")} AS den_nhan_vien_ten, p.nguoi_nhan_ten_tu_do, p.nha_cung_cap,
             p.nguoi_lap, p.trang_thai, p.da_xac_nhan, p.ghi_chu, p.created_at, kt.loai AS tu_kho_loai, kd.loai AS den_kho_loai, p.da_xu_ly_tu_choi,
             (SELECT COUNT(*) FROM phieu_chuyen_kho_ct ct WHERE ct.phieu_id = p.id) AS so_dong,
             (SELECT group_concat(v.ten_vt || CASE WHEN ct.dau IS NULL THEN ' x' || printf('%g', ct.so_luong) ELSE ' ' || printf('%+g', ct.so_luong * ct.dau) END, '; ') FROM phieu_chuyen_kho_ct ct
@@ -158,7 +159,7 @@ phieuChuyenKho.get("/thong-ke", async (c) => {
 phieuChuyenKho.get("/:id", async (c) => {
   const id = c.req.param("id");
   const row = await c.env.DB.prepare(
-    `SELECT p.*, kt.ten_kho AS tu_kho_ten, kt.loai AS tu_kho_loai, kd.ten_kho AS den_kho_ten, kd.loai AS den_kho_loai, nv.ten_nv AS den_nhan_vien_ten,
+    `SELECT p.*, ${TEN_KHO("kt")} AS tu_kho_ten, kt.loai AS tu_kho_loai, ${TEN_KHO("kd")} AS den_kho_ten, kd.loai AS den_kho_loai, ${TEN_NV("nv")} AS den_nhan_vien_ten,
             (SELECT g.ma_phieu FROM phieu_chuyen_kho g WHERE g.id = p.gui_lai_tu) AS gui_lai_tu_ma,
             (SELECT g.id FROM phieu_chuyen_kho g WHERE g.gui_lai_tu = p.id) AS da_gui_lai_id,
             (SELECT g.ma_phieu FROM phieu_chuyen_kho g WHERE g.gui_lai_tu = p.id) AS da_gui_lai_ma,
@@ -456,7 +457,7 @@ phieuChuyenKho.post("/import", async (c) => {
   // Kho: theo ma (id) hoac ten (bo dau). Trung ten -> uu tien cong ty `uuTien` (cong ty kho nguon / dang xem), con
   // trung nua thi bao loi de nguoi dung ghi ma kho.
   function timKho(v: unknown, uuTien: number[]): { id: number } | { loi: string } {
-    const s = chuan(v);
+    const s = chuan(boNhanCongTy(String(v ?? ""))); // ten dan tu Excel xuat ra co nhan "[3T] " dau
     if (!s) return { loi: "IMPORT_THIEU_KHO" };
     let ds = /^\d+$/.test(s) ? khos.filter((k) => k.id === Number(s)) : [];
     if (!ds.length) ds = khos.filter((k) => chuan(k.ten_kho) === s);

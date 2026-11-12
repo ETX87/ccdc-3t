@@ -1,5 +1,6 @@
 import { layTonToiThieu, type DongTonToiThieu } from "./tonToiThieu";
 import { nowVN } from "./vnTime";
+import { TEN_KHO, TEN_NV } from "./nhanCongTy";
 
 // Bao cao dinh ky gui email (2026-10-30): gom so lieu nhanh cua cac cong ty duoc chon trong ky [tu, den] - tai san, tai
 // khoan, tieu hao, ton toi thieu, viec ton dong - va tu rut ra "diem noi bat". Dung chung cho email HTML, file Excel dinh
@@ -138,7 +139,7 @@ export async function thuThapBaoCao(db: D1Database, congTyIdsChon: number[] | nu
     q(`SELECT COUNT(*) AS n FROM v_ton_kho t JOIN kho k ON k.id = t.kho_id WHERE t.ton < 0 AND k.cong_ty_id ${IN}`, J),
     // 7 viec ton dong: phieu chuyen kho (cho KT / dang chuyen / bi tu choi chua xu ly)
     q(`SELECT p.ma_phieu, p.loai, p.trang_thai, p.created_at, COALESCE(kt.cong_ty_id, kd.cong_ty_id) AS cong_ty_id,
-              kt.ten_kho AS tu, COALESCE(kd.ten_kho, nv.ten_nv, p.nguoi_nhan_ten_tu_do) AS den
+              ${TEN_KHO("kt")} AS tu, COALESCE(${TEN_KHO("kd")}, ${TEN_NV("nv")}, p.nguoi_nhan_ten_tu_do) AS den
        FROM phieu_chuyen_kho p LEFT JOIN kho kt ON kt.id = p.tu_kho_id LEFT JOIN kho kd ON kd.id = p.den_kho_id LEFT JOIN nhan_vien nv ON nv.ma_nv = p.den_nhan_vien_id
        WHERE (p.trang_thai IN ('Cho ke toan duyet', 'Dang chuyen', 'Ke toan tu choi') OR (p.trang_thai = 'Bi tu choi' AND p.da_xu_ly_tu_choi = 0))
          AND (kt.cong_ty_id ${IN} OR kd.cong_ty_id ${IN})`, J, J),
@@ -148,7 +149,7 @@ export async function thuThapBaoCao(db: D1Database, congTyIdsChon: number[] | nu
        WHERE x.trang_thai = 'Cho ke toan duyet' AND c.cong_ty_id ${IN} GROUP BY x.id`, J),
     // 9 viec ton dong: giao nhan TSCD chua xac nhan / cho KT duyet
     q(`SELECT g.ma_phieu, g.loai_phieu, g.trang_thai_duyet, g.ngay_lap AS created_at, MIN(c.cong_ty_id) AS cong_ty_id, COUNT(*) AS so_ts,
-              kt.ten_kho AS tu, COALESCE(kd.ten_kho, nv.ten_nv, nv0.ten_nv) AS den
+              ${TEN_KHO("kt")} AS tu, COALESCE(${TEN_KHO("kd")}, ${TEN_NV("nv")}, ${TEN_NV("nv0")}) AS den
        FROM phieu_giao_nhan g JOIN phieu_giao_nhan_ct ct ON ct.phieu_id = g.id JOIN ccdc c ON c.id = ct.ccdc_id
        LEFT JOIN kho kt ON kt.id = g.tu_kho_id LEFT JOIN kho kd ON kd.id = g.den_kho_id
        LEFT JOIN nhan_vien nv ON nv.ma_nv = g.nhan_vien_nhan_moi_id LEFT JOIN nhan_vien nv0 ON nv0.ma_nv = g.nhan_vien_id

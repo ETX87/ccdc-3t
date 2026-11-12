@@ -4,6 +4,7 @@ import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { dkCotKho, dkPhieuKho, dkTaiSan, layPhamVi, layPhamViXemTon, locTheoKho, type PhamVi } from "../lib/phamVi";
 import { nowVN } from "../lib/vnTime";
+import { TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
 
 const baoCao = new Hono<{ Bindings: Env }>();
 baoCao.use("*", verifySessionMiddleware, loadUser, async (c, next) => {
@@ -76,7 +77,7 @@ baoCao.get("/ton-theo-kho", async (c) => {
   const ct = JSON.stringify(c.get("user").cong_ty_xem);
   const [kho, vt, ton] = await c.env.DB.batch([
     c.env.DB.prepare(
-      `SELECT k.id, k.ten_kho, k.loai, k.cong_ty_id FROM kho k
+      `SELECT k.id, ${TEN_KHO("k")} AS ten_kho, k.loai, k.cong_ty_id FROM kho k
        WHERE k.bat_tat = 1 AND k.loai NOT IN ('Mua hang', 'Tieu hao') AND k.cong_ty_id IN (SELECT value FROM json_each(?)) AND ${dk.sql}
        ORDER BY CASE k.loai WHEN 'HCNS' THEN 1 WHEN 'Mien' THEN 2 WHEN 'Trung chuyen' THEN 2 ELSE 3 END, k.ten_kho`,
     ).bind(ct, ...dk.binds),
@@ -100,10 +101,10 @@ baoCao.get("/the-kho", async (c) => {
   const vtId = c.req.query("vt_id") ?? "";
   if (!khoId || !vtId) return c.json({ error: "MISSING_FIELDS" }, 400);
   if (!pv.toanBo && !pv.khoIds.includes(khoId)) return c.json({ error: "FORBIDDEN" }, 403);
-  const DOI_TAC_DEN = `COALESCE(kd.ten_kho, nv.ten_nv, p.nguoi_nhan_ten_tu_do)`;
+  const DOI_TAC_DEN = `COALESCE(${TEN_KHO("kd")}, ${TEN_NV("nv")}, p.nguoi_nhan_ten_tu_do)`;
   const { results } = await c.env.DB.prepare(
     `SELECT * FROM (
-       SELECT p.id, p.ma_phieu, p.loai, p.trang_thai, p.created_at AS ngay, kt.ten_kho AS doi_tac, ct.so_luong AS nhap, 0 AS xuat
+       SELECT p.id, p.ma_phieu, p.loai, p.trang_thai, p.created_at AS ngay, ${TEN_KHO("kt")} AS doi_tac, ct.so_luong AS nhap, 0 AS xuat
        FROM phieu_chuyen_kho p JOIN phieu_chuyen_kho_ct ct ON ct.phieu_id = p.id JOIN kho kt ON kt.id = p.tu_kho_id
        WHERE p.den_kho_id = ?1 AND p.trang_thai IN ('Da nhan', 'Dang chuyen') AND COALESCE(ct.vt_id_den, ct.vt_id) = ?2
        UNION ALL
@@ -155,10 +156,10 @@ baoCao.get("/tieu-hao-nv", async (c) => {
        GROUP BY nguoi_key, v.id`,
     ).bind(tu, den, congTy, ...dk.binds),
     c.env.DB.prepare(
-      `SELECT ${nguoi} AS nguoi_key, nv.ma_nv, COALESCE(nv.ten_nv, TRIM(p.nguoi_nhan_ten_tu_do)) AS ten_nv, nv.bo_phan, nv.chuc_vu,
+      `SELECT ${nguoi} AS nguoi_key, nv.ma_nv, COALESCE(${TEN_NV("nv")}, TRIM(p.nguoi_nhan_ten_tu_do)) AS ten_nv, nv.bo_phan, nv.chuc_vu,
               COUNT(*) AS so_phieu, MIN(p.created_at) AS lan_dau, MAX(p.created_at) AS lan_cuoi,
               SUM(CASE WHEN p.den_nhan_vien_id IS NOT NULL AND p.da_xac_nhan = 0 THEN 1 ELSE 0 END) AS chua_xac_nhan,
-              group_concat(DISTINCT kt.ten_kho) AS kho_xuat
+              group_concat(DISTINCT ${TEN_KHO("kt")}) AS kho_xuat
        FROM phieu_chuyen_kho p JOIN kho kt ON kt.id = p.tu_kho_id LEFT JOIN nhan_vien nv ON nv.ma_nv = p.den_nhan_vien_id
        WHERE ${loc}
        GROUP BY nguoi_key`,
@@ -176,7 +177,7 @@ baoCao.get("/tieu-dung", async (c) => {
   const tu = ngay("tu") ?? `${nowVN().slice(0, 7)}-01`;
   const den = ngay("den") ?? nowVN().slice(0, 10);
   const { results } = await c.env.DB.prepare(
-    `SELECT kd.id AS kho_id, kd.ten_kho, v.id AS vt_id, v.ten_vt, v.don_vi_tinh, n.ten_nhom,
+    `SELECT kd.id AS kho_id, ${TEN_KHO("kd")} AS ten_kho, v.id AS vt_id, v.ten_vt, v.don_vi_tinh, n.ten_nhom,
             SUM(ct.so_luong) AS so_luong, COUNT(DISTINCT p.id) AS so_phieu,
             SUM(COALESCE(ct.thanh_tien, ct.so_luong * COALESCE(v.don_gia_tham_khao, 0))) AS gia_tri
      FROM phieu_chuyen_kho p JOIN kho kd ON kd.id = p.den_kho_id AND kd.loai = 'Tieu hao'
@@ -196,7 +197,7 @@ baoCao.get("/ts-theo-kho", async (c) => {
   if (!pv) return c.json({ error: "FORBIDDEN" }, 403);
   const dk = dkCotKho(pv, "k.id");
   const { results } = await c.env.DB.prepare(
-    `SELECT k.id, k.ten_kho, k.loai, COUNT(c.id) AS so_luong, COALESCE(SUM(c.nguyen_gia), 0) AS gia_tri,
+    `SELECT k.id, ${TEN_KHO("k")} AS ten_kho, k.loai, COUNT(c.id) AS so_luong, COALESCE(SUM(c.nguyen_gia), 0) AS gia_tri,
             COUNT(CASE WHEN c.trang_thai_hien_tai = 'Hong' THEN 1 END) AS so_hong
      FROM kho k LEFT JOIN ccdc c ON c.kho_id = k.id AND ${CON_QUAN_LY}
      WHERE k.bat_tat = 1 AND k.loai NOT IN ('Mua hang', 'Tieu hao') AND ${dk.sql}
@@ -264,7 +265,7 @@ baoCao.get("/theo-nhan-vien", async (c) => {
   if (!pv) return c.json({ error: "FORBIDDEN" }, 403);
   const ts = dkTaiSan(pv);
   const { results } = await c.env.DB.prepare(
-    `SELECT nv.ma_nv, nv.ten_nv, nv.bo_phan, nv.chuc_vu, nv.dang_lam_viec, COUNT(c.id) AS so_luong_ccdc,
+    `SELECT nv.ma_nv, ${TEN_NV("nv")} AS ten_nv, nv.bo_phan, nv.chuc_vu, nv.dang_lam_viec, COUNT(c.id) AS so_luong_ccdc,
             COALESCE(SUM(c.nguyen_gia), 0) AS gia_tri,
             COUNT(CASE WHEN c.trang_thai_hien_tai = 'Hong' THEN 1 END) AS so_hong
      FROM nhan_vien nv JOIN ccdc c ON c.nguoi_dang_giu = nv.ma_nv AND ${CON_QUAN_LY}
@@ -305,7 +306,7 @@ baoCao.get("/sap-het-bao-hanh", async (c) => {
   const [ds, dem] = await Promise.all([
     c.env.DB.prepare(
       `SELECT c.id, c.ten_ccdc, c.han_bao_hanh, c.trang_thai_hien_tai, c.nha_cung_cap, c.nguyen_gia,
-              nv.ten_nv AS nguoi_dang_giu_ten, k.ten_kho,
+              ${TEN_NV("nv")} AS nguoi_dang_giu_ten, ${TEN_KHO("k")} AS ten_kho,
               CAST(julianday(date(c.han_bao_hanh)) - julianday(date(?)) AS INTEGER) AS con_lai
        FROM ccdc c LEFT JOIN nhan_vien nv ON nv.ma_nv = c.nguoi_dang_giu LEFT JOIN kho k ON k.id = c.kho_id
        WHERE ${CON_QUAN_LY} AND c.han_bao_hanh IS NOT NULL
@@ -333,8 +334,8 @@ baoCao.get("/kiem-ke-chenh-lech", async (c) => {
   const dotId = c.req.query("dot_id") || null;
   const { results } = await c.env.DB.prepare(
     `SELECT k.id, k.dot_kiem_ke_id, d.ten_dot, d.ma_phieu AS ma_dot, d.trang_thai AS trang_thai_dot, k.ccdc_id, c.ten_ccdc,
-            c.nguyen_gia, k.tinh_trang_thuc_te, nvh.ten_nv AS he_thong_nguoi_giu_ten, kh.ten_kho AS he_thong_kho,
-            k.nguoi_dang_giu_thuc_te, nv.ten_nv AS nguoi_dang_giu_thuc_te_ten, k.ghi_chu, k.kiem_ke_luc
+            c.nguyen_gia, k.tinh_trang_thuc_te, ${TEN_NV("nvh")} AS he_thong_nguoi_giu_ten, ${TEN_KHO("kh")} AS he_thong_kho,
+            k.nguoi_dang_giu_thuc_te, ${TEN_NV("nv")} AS nguoi_dang_giu_thuc_te_ten, k.ghi_chu, k.kiem_ke_luc
      FROM kiem_ke_ct k
      JOIN dot_kiem_ke d ON d.id = k.dot_kiem_ke_id
      JOIN ccdc c ON c.id = k.ccdc_id

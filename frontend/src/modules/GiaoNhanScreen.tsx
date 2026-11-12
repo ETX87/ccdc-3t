@@ -529,7 +529,6 @@ function LapPhieuModal({
                     .filter((k) => k.id !== tuKho)
                     .map((k) => (
                       <option key={k.id} value={k.id}>
-                        {k.cong_ty_id !== ctNguon ? `[${k.cong_ty_ma ?? ""}] ` : ""}
                         {k.ten_kho} ({LOAI_KHO[k.loai]})
                       </option>
                     ))}

@@ -6,6 +6,7 @@ import { nowVN } from "../lib/vnTime";
 import { coCongTy, laHcns, laKeToan, laNguoiLap, laThuKho, trongNhom } from "../lib/quyen";
 import { sinhMaPhieu, TIEN_TO_XU_LY } from "../lib/maPhieu";
 import { dkTaiSan, layPhamVi } from "../lib/phamVi";
+import { TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
 
 // Phieu xu ly TAI SAN CO DINH can Ke toan duyet (thay phieu_thanh_ly, quyet dinh user 2026-09-23):
 //   Nhap mua : TS moi tao ('Cho duyet nhap') -> KT duyet -> 'Trong kho' tai kho HCNS; tu choi -> vo hieu hoa.
@@ -89,7 +90,7 @@ phieuXuLyTs.get("/:id", async (c) => {
   const [{ results: items }, { results: log }] = await Promise.all([
     c.env.DB.prepare(
       `SELECT ct.ccdc_id, x.ten_ccdc, x.nguyen_gia, x.trang_thai_hien_tai, ct.trang_thai_truoc, ct.nguoi_giu_truoc,
-              nv.ten_nv AS nguoi_giu_truoc_ten, ct.kho_truoc, k.ten_kho AS kho_truoc_ten
+              ${TEN_NV("nv")} AS nguoi_giu_truoc_ten, ct.kho_truoc, ${TEN_KHO("k")} AS kho_truoc_ten
        FROM phieu_xu_ly_ts_ct ct JOIN ccdc x ON x.id = ct.ccdc_id
        LEFT JOIN nhan_vien nv ON nv.ma_nv = ct.nguoi_giu_truoc
        LEFT JOIN kho k ON k.id = ct.kho_truoc

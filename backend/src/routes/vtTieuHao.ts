@@ -7,6 +7,7 @@ import { nowVN } from "../lib/vnTime";
 import { coCongTy, congTyLoc, congTyTao, laHcns } from "../lib/quyen";
 import { layPhamViXemTon } from "../lib/phamVi";
 import { danhGiaTon, tonVatTu } from "../lib/tonToiThieu";
+import { TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
 
 const vtTieuHao = new Hono<{ Bindings: Env }>();
 vtTieuHao.use("*", verifySessionMiddleware, loadUser);
@@ -119,8 +120,8 @@ vtTieuHao.get("/:id/chi-tiet", async (c) => {
     db
       .prepare(
         `SELECT p.id AS phieu_id, p.ma_phieu, p.loai, p.trang_thai, p.created_at, p.updated_at, p.nguoi_lap, p.ghi_chu,
-                p.tu_kho_id, kt.ten_kho AS tu_ten, kt.loai AS tu_loai, p.den_kho_id, kd.ten_kho AS den_ten, kd.loai AS den_loai,
-                p.den_nhan_vien_id, nv.ten_nv AS nv_ten, nv.bo_phan AS nv_bo_phan, p.nguoi_nhan_ten_tu_do, p.nha_cung_cap,
+                p.tu_kho_id, ${TEN_KHO("kt")} AS tu_ten, kt.loai AS tu_loai, p.den_kho_id, ${TEN_KHO("kd")} AS den_ten, kd.loai AS den_loai,
+                p.den_nhan_vien_id, ${TEN_NV("nv")} AS nv_ten, nv.bo_phan AS nv_bo_phan, p.nguoi_nhan_ten_tu_do, p.nha_cung_cap,
                 ct.so_luong, ct.don_gia, ct.thanh_tien, ct.dau, ct.vt_id, ct.vt_id_den
          FROM phieu_chuyen_kho_ct ct JOIN phieu_chuyen_kho p ON p.id = ct.phieu_id
          LEFT JOIN kho kt ON kt.id = p.tu_kho_id LEFT JOIN kho kd ON kd.id = p.den_kho_id LEFT JOIN nhan_vien nv ON nv.ma_nv = p.den_nhan_vien_id
@@ -128,7 +129,7 @@ vtTieuHao.get("/:id/chi-tiet", async (c) => {
          ORDER BY p.created_at DESC, p.ma_phieu DESC LIMIT 5000`,
       )
       .bind(id),
-    db.prepare("SELECT t.kho_id, t.ton, k.ten_kho, k.loai, k.bat_tat FROM v_ton_kho t JOIN kho k ON k.id = t.kho_id WHERE t.vt_id = ?").bind(id),
+    db.prepare(`SELECT t.kho_id, t.ton, ${TEN_KHO("k")} AS ten_kho, k.loai, k.bat_tat FROM v_ton_kho t JOIN kho k ON k.id = t.kho_id WHERE t.vt_id = ?`).bind(id),
   ]);
   const S = (v: unknown) => (v == null ? null : String(v));
   const N = (v: unknown) => Number(v ?? 0) || 0;

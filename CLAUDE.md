@@ -146,6 +146,11 @@ state đang dùng.
   `INSERT OR IGNORE` (giữ dòng cũ). Kho QL vẫn chỉ cấp cho nhóm của chủ kho (`trongNhom` ở phiếu).
   "Kho tổng tất cả công ty" = BÁO CÁO GỘP (`components/TongTheoCongTy.tsx`: khối đầu tab Tồn theo kho, Tài sản của tôi),
   không phải kho thật.
+- **Nhãn công ty trước tên kho / nhân viên** (2026-11-12, `backend/src/lib/nhanCongTy.ts`): SELECT trả tên để HIỂN THỊ
+  (bảng, ô chọn, Excel, email) dùng `${TEN_KHO("k")}` → "[3T] Kho …", `${TEN_NV("nv")}` → "[3T·NSKX] Tên" (công ty
+  chính trước, rồi kiêm nhiệm). KHÔNG dùng trong WHERE / so khớp tên / giá trị ghi ngược DB. `GET /kho` trả thêm
+  `ten_goc` (tên lưu DB) — ghi lại tên kho (PUT, đổi loại) phải dùng `ten_goc`. `GET /nhan-vien` đầy đủ giữ `ten_nv`
+  gốc (form sửa); `?gon=1` có nhãn. Import Excel tên kho bỏ nhãn qua `boNhanCongTy()`.
 - Báo cáo so sánh: `GET /bao-cao/theo-cong-ty` (tab "Theo công ty", Admin/KT/HCNS xem ≥2 công ty).
 
 ## Kho tiêu hao, sửa / gửi lại / điều chỉnh phiếu tiêu hao (2026-10-09, migration 0015)

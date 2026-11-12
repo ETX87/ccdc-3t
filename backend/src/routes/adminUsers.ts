@@ -4,6 +4,7 @@ import { verifySessionMiddleware } from "../middleware/session";
 import { loadUser } from "../middleware/loadUser";
 import { requireAdmin } from "../middleware/requireAdmin";
 import { nowVN } from "../lib/vnTime";
+import { TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
 
 // Route Admin-only: duyet/tu choi/khoa tai khoan + phan vai tro (Admin / Ke toan / HCNS / Quan ly / Nhan vien).
 const adminUsers = new Hono<{ Bindings: Env }>();
@@ -34,8 +35,8 @@ adminUsers.get("/", async (c) => {
 
   const { results } = await c.env.DB.prepare(
     `SELECT u.email, u.ten, u.vai_tro, u.trang_thai_duyet, u.bi_khoa, u.xem_ton, u.created_at, u.anh_dai_dien,
-            nv.ma_nv, nv.ten_nv, nv.bo_phan,
-            (SELECT GROUP_CONCAT(k.ten_kho, ', ') FROM kho_thu_kho t JOIN kho k ON k.id = t.kho_id WHERE t.email = u.email) AS kho_thu_kho,
+            nv.ma_nv, ${TEN_NV("nv")} AS ten_nv, nv.bo_phan,
+            (SELECT GROUP_CONCAT(${TEN_KHO("k")}, ', ') FROM kho_thu_kho t JOIN kho k ON k.id = t.kho_id WHERE t.email = u.email) AS kho_thu_kho,
             nv.cong_ty_id AS cong_ty_nv,
             (SELECT GROUP_CONCAT(g.cong_ty_id) FROM user_cong_ty g WHERE g.email = u.email) AS cong_ty_gan
      FROM users u

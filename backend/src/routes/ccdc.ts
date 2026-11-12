@@ -9,6 +9,7 @@ import { dkTaiSan, layPhamViXemTon } from "../lib/phamVi";
 import { sinhMaPhieu } from "../lib/maPhieu";
 import { docTrang, layTrang } from "../lib/phanTrang";
 import { chuanTen, danhGiaTon, tonTaiSan } from "../lib/tonToiThieu";
+import { TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
 
 const ccdc = new Hono<{ Bindings: Env }>();
 ccdc.use("*", verifySessionMiddleware, loadUser);
@@ -60,7 +61,7 @@ ccdc.get("/", async (c) => {
   const { where, binds } = await dieuKienLoc(c);
   const sql = `SELECT c.id, c.ten_ccdc, c.nhom_id, n.ten_nhom, c.don_vi_tinh, c.so_seri, c.ngay_mua,
             c.nguyen_gia, c.nha_cung_cap, c.han_bao_hanh, c.tinh_trang, c.trang_thai_hien_tai,
-            c.nguoi_dang_giu, nv.ten_nv AS nguoi_dang_giu_ten, c.kho_id, k.ten_kho, c.anh_url, c.ghi_chu, c.cong_ty_id
+            c.nguoi_dang_giu, ${TEN_NV("nv")} AS nguoi_dang_giu_ten, c.kho_id, ${TEN_KHO("k")} AS ten_kho, c.anh_url, c.ghi_chu, c.cong_ty_id
      FROM ccdc c
      LEFT JOIN nhom_ccdc n ON n.id = c.nhom_id
      LEFT JOIN nhan_vien nv ON nv.ma_nv = c.nguoi_dang_giu
@@ -196,7 +197,7 @@ ccdc.delete("/ton-toi-thieu/:id", requireRole("Admin", "HCNS"), async (c) => {
 ccdc.get("/:id", async (c) => {
   const id = c.req.param("id");
   const row = await c.env.DB.prepare(
-    `SELECT c.*, n.ten_nhom, nv.ten_nv AS nguoi_dang_giu_ten, k.ten_kho
+    `SELECT c.*, n.ten_nhom, ${TEN_NV("nv")} AS nguoi_dang_giu_ten, ${TEN_KHO("k")} AS ten_kho
      FROM ccdc c
      LEFT JOIN nhom_ccdc n ON n.id = c.nhom_id
      LEFT JOIN nhan_vien nv ON nv.ma_nv = c.nguoi_dang_giu
@@ -210,8 +211,8 @@ ccdc.get("/:id", async (c) => {
 
   const { results: lichSu } = await c.env.DB.prepare(
     `SELECT p.id AS phieu_id, p.ma_phieu, p.loai_phieu, p.ngay_lap, p.nguoi_lap, p.nhan_vien_id,
-            nv.ten_nv AS nhan_vien_ten, p.nhan_vien_nhan_moi_id, nv2.ten_nv AS nhan_vien_nhan_moi_ten,
-            kt.ten_kho AS tu_kho_ten, kd.ten_kho AS den_kho_ten,
+            ${TEN_NV("nv")} AS nhan_vien_ten, p.nhan_vien_nhan_moi_id, ${TEN_NV("nv2")} AS nhan_vien_nhan_moi_ten,
+            ${TEN_KHO("kt")} AS tu_kho_ten, ${TEN_KHO("kd")} AS den_kho_ten,
             ct.tinh_trang_ghi_nhan, ct.ghi_chu
      FROM phieu_giao_nhan_ct ct
      JOIN phieu_giao_nhan p ON p.id = ct.phieu_id

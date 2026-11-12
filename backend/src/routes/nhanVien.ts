@@ -9,6 +9,7 @@ import { LoiGop, lapKeHoach, lenhThucHien, type GiuEmail, type YeuCau } from "..
 import { coCongTy, congTyLoc, congTyTao, duocThemNvVaoCongTy, khoPhuTrach, laHcns } from "../lib/quyen";
 import type { AppUser } from "../types";
 import { congTyCuaNv, lenhTaoKhoQl, NV_THUOC_CT } from "../lib/nvCongTy";
+import { TEN_NV } from "../lib/nhanCongTy";
 
 /** Ho so ton tai + nguoi dung la HCNS/Admin 1 trong cac cong ty cua ho so (da phap nhan, nhan vien kiem nhiem). */
 async function nvQuanTri(db: D1Database, user: AppUser, maNv: string) {
@@ -90,7 +91,7 @@ nhanVien.get("/", async (c) => {
   if (q("gon") === "1") {
     // cong_ty_ids = cong ty chinh + kiem nhiem (o chon nguoi nhan trong form loc theo cong ty kho bang danh sach nay).
     const { results } = await c.env.DB.prepare(
-      `SELECT n.ma_nv, n.ten_nv, n.cong_ty_id, (SELECT group_concat(v.cong_ty_id) FROM v_nv_cong_ty v WHERE v.ma_nv = n.ma_nv) AS cts
+      `SELECT n.ma_nv, ${TEN_NV("n")} AS ten_nv, n.cong_ty_id, (SELECT group_concat(v.cong_ty_id) FROM v_nv_cong_ty v WHERE v.ma_nv = n.ma_nv) AS cts
        FROM nhan_vien n WHERE ${where} ORDER BY n.ten_nv`,
     )
       .bind(...binds)
@@ -99,7 +100,7 @@ nhanVien.get("/", async (c) => {
   }
 
   const sql = `SELECT n.ma_nv, n.ten_nv, n.bo_phan, n.chuc_vu, n.sdt, n.email_dang_nhap, n.dang_lam_viec, n.ma_etx,
-            n.quan_ly_id, ql.ten_nv AS quan_ly_ten, n.cong_ty_id,
+            n.quan_ly_id, ${TEN_NV("ql")} AS quan_ly_ten, n.cong_ty_id,
             (SELECT json_group_array(x.cong_ty_id) FROM nhan_vien_cong_ty x WHERE x.ma_nv = n.ma_nv) AS cong_ty_phu,
             (SELECT COUNT(*) FROM nhan_vien x WHERE x.quan_ly_id = n.ma_nv AND x.dang_lam_viec = 1) AS so_cap_duoi,
             (SELECT COUNT(*) FROM ccdc c WHERE c.nguoi_dang_giu = n.ma_nv AND c.vo_hieu_hoa = 0
@@ -153,7 +154,7 @@ nhanVien.get("/cap-duoi", async (c) => {
   const ql = qlParam && (user.vai_tro === "Admin" || user.vai_tro === "HCNS") ? qlParam : user.ma_nv;
   if (!ql) return c.json({ rows: [] });
   const { results } = await c.env.DB.prepare(
-    `SELECT n.ma_nv, n.ten_nv, n.bo_phan, n.chuc_vu, n.email_dang_nhap,
+    `SELECT n.ma_nv, ${TEN_NV("n")} AS ten_nv, n.bo_phan, n.chuc_vu, n.email_dang_nhap,
             (SELECT COUNT(*) FROM ccdc c WHERE c.nguoi_dang_giu = n.ma_nv AND c.vo_hieu_hoa = 0) AS so_ts_dang_giu
      FROM nhan_vien n WHERE n.quan_ly_id = ? AND n.dang_lam_viec = 1 ORDER BY n.ten_nv`,
   )

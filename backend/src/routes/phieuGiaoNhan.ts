@@ -7,6 +7,7 @@ import { laKhoTon, laKhoPhatChung, coCongTy, getKho, khoPhuTrach, laBenNhan, laH
 import { nvThuocCongTy } from "../lib/nvCongTy";
 import { sinhMaPhieu } from "../lib/maPhieu";
 import { layPhamVi } from "../lib/phamVi";
+import { TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
 
 const phieuGiaoNhan = new Hono<{ Bindings: Env }>();
 phieuGiaoNhan.use("*", verifySessionMiddleware, loadUser);
@@ -64,9 +65,9 @@ phieuGiaoNhan.get("/", async (c) => {
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const { results } = await c.env.DB.prepare(
-    `SELECT p.id, p.ma_phieu, p.loai_phieu, p.nhan_vien_id, nv.ten_nv AS nhan_vien_ten,
-            p.nhan_vien_nhan_moi_id, nv2.ten_nv AS nhan_vien_nhan_moi_ten,
-            p.tu_kho_id, kt.ten_kho AS tu_kho_ten, p.den_kho_id, kd.ten_kho AS den_kho_ten,
+    `SELECT p.id, p.ma_phieu, p.loai_phieu, p.nhan_vien_id, ${TEN_NV("nv")} AS nhan_vien_ten,
+            p.nhan_vien_nhan_moi_id, ${TEN_NV("nv2")} AS nhan_vien_nhan_moi_ten,
+            p.tu_kho_id, ${TEN_KHO("kt")} AS tu_kho_ten, p.den_kho_id, ${TEN_KHO("kd")} AS den_kho_ten,
             p.nguoi_lap, p.ngay_lap, p.ghi_chu, p.da_xac_nhan, p.created_at, p.trang_thai_duyet,
             kt.cong_ty_id AS tu_cong_ty_id, kd.cong_ty_id AS den_cong_ty_id,
             (SELECT COUNT(*) FROM phieu_giao_nhan_ct ct WHERE ct.phieu_id = p.id) AS so_luong_ccdc,
@@ -88,8 +89,8 @@ phieuGiaoNhan.get("/", async (c) => {
 phieuGiaoNhan.get("/:id", async (c) => {
   const id = c.req.param("id");
   const phieu = await c.env.DB.prepare(
-    `SELECT p.*, nv.ten_nv AS nhan_vien_ten, nv2.ten_nv AS nhan_vien_nhan_moi_ten,
-            kt.ten_kho AS tu_kho_ten, kd.ten_kho AS den_kho_ten, kt.cong_ty_id AS tu_cong_ty_id, kd.cong_ty_id AS den_cong_ty_id,
+    `SELECT p.*, ${TEN_NV("nv")} AS nhan_vien_ten, ${TEN_NV("nv2")} AS nhan_vien_nhan_moi_ten,
+            ${TEN_KHO("kt")} AS tu_kho_ten, ${TEN_KHO("kd")} AS den_kho_ten, kt.cong_ty_id AS tu_cong_ty_id, kd.cong_ty_id AS den_cong_ty_id,
             (SELECT x.cong_ty_id FROM phieu_giao_nhan_ct q JOIN ccdc x ON x.id = q.ccdc_id WHERE q.phieu_id = p.id LIMIT 1) AS ts_cong_ty_id
      FROM phieu_giao_nhan p
      LEFT JOIN nhan_vien nv ON nv.ma_nv = p.nhan_vien_id

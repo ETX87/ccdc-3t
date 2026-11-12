@@ -407,11 +407,12 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
         tong_tien: p.tong_tien,
         trang_thai: TRANG_THAI_CK[p.trang_thai]?.label ?? p.trang_thai,
         nguoi_lap: p.nguoi_lap,
+        ghi_chu: p.ghi_chu ?? "",
         ngay: p.created_at,
       })),
       `Phieu_tieu_hao_${filter.thang || homNayVN()}.xlsx`,
       "Phieu tieu hao",
-      { ma_phieu: t("Mã phiếu"), loai: t("Loại"), tu: t("Từ"), den: t("Đến"), hang: t("Hàng"), tong_sl: t("Tổng SL"), tong_tien: t("Tổng tiền"), trang_thai: t("Trạng thái"), nguoi_lap: t("Người lập"), ngay: t("Ngày") },
+      { ma_phieu: t("Mã phiếu"), loai: t("Loại"), tu: t("Từ"), den: t("Đến"), hang: t("Hàng"), tong_sl: t("Tổng SL"), tong_tien: t("Tổng tiền"), trang_thai: t("Trạng thái"), nguoi_lap: t("Người lập"), ghi_chu: t("Ghi chú"), ngay: t("Ngày") },
     );
   }
 
@@ -728,7 +729,6 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                   <option value="">{t("-- Chọn kho --")}</option>
                   {khoDichHopLe.map((k) => (
                     <option key={k.id} value={k.id}>
-                      {k.cong_ty_id !== congTyNguon ? `[${k.cong_ty_ma ?? ""}] ` : ""}
                       {k.ten_kho} ({LOAI_KHO[k.loai]})
                     </option>
                   ))}

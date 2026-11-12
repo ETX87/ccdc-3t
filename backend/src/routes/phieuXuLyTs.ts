@@ -6,7 +6,7 @@ import { nowVN } from "../lib/vnTime";
 import { coCongTy, laHcns, laKeToan, laNguoiLap, laThuKho, trongNhom } from "../lib/quyen";
 import { sinhMaPhieu, TIEN_TO_XU_LY } from "../lib/maPhieu";
 import { dkTaiSan, layPhamVi } from "../lib/phamVi";
-import { TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
+import { NV_THEO_EMAIL, TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
 
 // Phieu xu ly TAI SAN CO DINH can Ke toan duyet (thay phieu_thanh_ly, quyet dinh user 2026-09-23):
 //   Nhap mua : TS moi tao ('Cho duyet nhap') -> KT duyet -> 'Trong kho' tai kho HCNS; tu choi -> vo hieu hoa.
@@ -83,7 +83,7 @@ phieuXuLyTs.get("/", async (c) => {
 
 phieuXuLyTs.get("/:id", async (c) => {
   const id = c.req.param("id");
-  const row = await c.env.DB.prepare("SELECT * FROM phieu_xu_ly_ts WHERE id = ?").bind(id).first();
+  const row = await c.env.DB.prepare(`SELECT p.*, ${NV_THEO_EMAIL("p.nguoi_de_xuat", "nguoi_de_xuat")} FROM phieu_xu_ly_ts p WHERE p.id = ?`).bind(id).first();
   if (!row) return c.json({ error: "NOT_FOUND" }, 404);
   const ct = await congTyPhieu(c.env.DB, id ?? "");
   if (ct != null && !coCongTy(c.get("user"), ct)) return c.json({ error: "FORBIDDEN" }, 403);
@@ -98,7 +98,7 @@ phieuXuLyTs.get("/:id", async (c) => {
     )
       .bind(id)
       .all(),
-    c.env.DB.prepare(`SELECT trang_thai, nguoi_xu_ly, ngay_xu_ly, ghi_chu FROM phieu_xu_ly_ts_log WHERE phieu_id = ? ORDER BY id ASC`).bind(id).all(),
+    c.env.DB.prepare(`SELECT l.trang_thai, l.nguoi_xu_ly, l.ngay_xu_ly, l.ghi_chu, ${NV_THEO_EMAIL("l.nguoi_xu_ly", "nguoi_xu_ly")} FROM phieu_xu_ly_ts_log l WHERE l.phieu_id = ? ORDER BY l.id ASC`).bind(id).all(),
   ]);
   return c.json({ row, items, log });
 });

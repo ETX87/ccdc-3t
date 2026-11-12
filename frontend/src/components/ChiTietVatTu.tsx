@@ -12,6 +12,7 @@ import { MucTonBadge, SuaTonToiThieuVt, type MucTon } from "./TonToiThieu";
 import { useAuth } from "../auth/AuthContext";
 import { isHcns } from "../lib/nhan";
 import { boDau } from "./ChonLoc";
+import { NvLink } from "./LienKet";
 import { exportRowsToExcel } from "../lib/exportExcel";
 import { fmtNgayGio, fmtSo } from "../lib/format";
 import { LOAI_KHO, thongBaoLoi, TRANG_THAI_CK } from "../lib/nhan";
@@ -161,7 +162,7 @@ export function VatTuModal({ id, onClose, onMoPhieu }: { id: string; onClose: ()
 
   const tg = d?.tong;
   return (
-    <Modal size="lg" title={d ? `${d.vt.ten_vt}` : t("Chi tiết vật tư")} onClose={onClose}>
+    <Modal size="xl" title={d ? `${d.vt.ten_vt}` : t("Chi tiết vật tư")} onClose={onClose}>
       {loi && <div className="alert alert-error">{loi}</div>}
       {!d && !loi && <div className="empty-state">{t("Đang tải…")}</div>}
       {d && tg && (
@@ -391,7 +392,8 @@ export function VatTuModal({ id, onClose, onMoPhieu }: { id: string; onClose: ()
                             </div>
                           </td>
                           <td data-label={t("Từ → Đến")}>
-                            {x.tu ?? "-"} → <b>{x.den ?? (x.kieu === "dieu_chinh" ? t("Tại chính kho này") : "-")}</b>
+                            {x.tu ?? "-"} →{" "}
+                            <b>{x.den_nhan_vien_id ? <NvLink ma={x.den_nhan_vien_id} ten={x.den} /> : (x.den ?? (x.kieu === "dieu_chinh" ? t("Tại chính kho này") : "-"))}</b>
                             {x.khac_cong_ty && <div className="muted small">{t("Chuyển giữa 2 công ty")}</div>}
                           </td>
                           <td data-label={t("Số lượng")} style={{ textAlign: "right" }}>
@@ -438,7 +440,7 @@ export function VatTuModal({ id, onClose, onMoPhieu }: { id: string; onClose: ()
                     {tNn.dongTrang.map((x) => (
                       <tr key={`${x.ma_nv ?? x.ten}`} className="row-clickable" title={t("Xem các phiếu cấp cho người này")} onClick={() => (setLocKieu("cap_phat"), setLocKho(""), setTim(x.ten), setTab("lich-su"))}>
                         <td data-label={t("Người nhận")}>
-                          <b>{tS(x.ten)}</b>
+                          <b>{x.ma_nv ? <NvLink ma={x.ma_nv} ten={x.ten} /> : tS(x.ten)}</b>
                           <div className="muted small">{[x.ma_nv, x.bo_phan].filter(Boolean).join(" · ") || t("Ngoài danh bạ")}</div>
                         </td>
                         <td data-label={t("Số lượng")} style={{ textAlign: "right" }}>

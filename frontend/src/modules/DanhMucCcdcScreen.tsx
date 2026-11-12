@@ -1,4 +1,5 @@
 import { t } from "../lib/i18n";
+import { NvLink } from "../components/LienKet";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArchiveRestore, Box, ChevronDown, Download, Edit, FolderPlus, Plus, QrCode, Search, Store, Trash2, User } from "lucide-react";
 import { api } from "../api/client";
@@ -595,7 +596,7 @@ export function DanhMucCcdcScreen() {
                         {r.nguoi_dang_giu_ten ? (
                           <span className="icon-text">
                             <User size={13} className="text-teal" />
-                            {r.nguoi_dang_giu_ten}
+                            <NvLink ma={r.nguoi_dang_giu} ten={r.nguoi_dang_giu_ten} />
                           </span>
                         ) : r.ten_kho ? (
                           <span className="icon-text text-secondary">

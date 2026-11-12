@@ -7,7 +7,7 @@ import { laKhoTon, laKhoPhatChung, coCongTy, getKho, khoPhuTrach, laBenNhan, laH
 import { nvThuocCongTy } from "../lib/nvCongTy";
 import { sinhMaPhieu } from "../lib/maPhieu";
 import { layPhamVi } from "../lib/phamVi";
-import { TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
+import { NV_THEO_EMAIL, TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
 
 const phieuGiaoNhan = new Hono<{ Bindings: Env }>();
 phieuGiaoNhan.use("*", verifySessionMiddleware, loadUser);
@@ -91,7 +91,8 @@ phieuGiaoNhan.get("/:id", async (c) => {
   const phieu = await c.env.DB.prepare(
     `SELECT p.*, ${TEN_NV("nv")} AS nhan_vien_ten, ${TEN_NV("nv2")} AS nhan_vien_nhan_moi_ten,
             ${TEN_KHO("kt")} AS tu_kho_ten, ${TEN_KHO("kd")} AS den_kho_ten, kt.cong_ty_id AS tu_cong_ty_id, kd.cong_ty_id AS den_cong_ty_id,
-            (SELECT x.cong_ty_id FROM phieu_giao_nhan_ct q JOIN ccdc x ON x.id = q.ccdc_id WHERE q.phieu_id = p.id LIMIT 1) AS ts_cong_ty_id
+            (SELECT x.cong_ty_id FROM phieu_giao_nhan_ct q JOIN ccdc x ON x.id = q.ccdc_id WHERE q.phieu_id = p.id LIMIT 1) AS ts_cong_ty_id,
+            ${NV_THEO_EMAIL("p.nguoi_lap", "nguoi_lap")}, ${NV_THEO_EMAIL("p.nguoi_xac_nhan", "nguoi_xac_nhan")}
      FROM phieu_giao_nhan p
      LEFT JOIN nhan_vien nv ON nv.ma_nv = p.nhan_vien_id
      LEFT JOIN nhan_vien nv2 ON nv2.ma_nv = p.nhan_vien_nhan_moi_id
@@ -106,8 +107,9 @@ phieuGiaoNhan.get("/:id", async (c) => {
   if (![phieu.tu_cong_ty_id, phieu.den_cong_ty_id, phieu.ts_cong_ty_id].some((ct) => coCongTy(user, ct))) return c.json({ error: "FORBIDDEN" }, 403);
 
   const { results: items } = await c.env.DB.prepare(
-    `SELECT ct.id, ct.ccdc_id, c.ten_ccdc, ct.tinh_trang_ghi_nhan, ct.ghi_chu
-     FROM phieu_giao_nhan_ct ct JOIN ccdc c ON c.id = ct.ccdc_id
+    `SELECT ct.id, ct.ccdc_id, c.ten_ccdc, ct.tinh_trang_ghi_nhan, ct.ghi_chu, c.nguyen_gia, c.trang_thai_hien_tai, c.so_seri,
+            c.nguoi_dang_giu, ${TEN_NV("h")} AS nguoi_dang_giu_ten
+     FROM phieu_giao_nhan_ct ct JOIN ccdc c ON c.id = ct.ccdc_id LEFT JOIN nhan_vien h ON h.ma_nv = c.nguoi_dang_giu
      WHERE ct.phieu_id = ?`,
   )
     .bind(id)

@@ -1,5 +1,6 @@
 import { t } from "../lib/i18n";
-import type { ReactNode } from "react";
+import { useContext, type ReactNode } from "react";
+import { ChiTietCtx } from "./LienKet";
 import {
   AlarmClock,
   AlertTriangle,
@@ -70,17 +71,33 @@ export function KhoTag({ ten, loai }: { ten: ReactNode; loai?: string | null }) 
   );
 }
 
-/** Ten nguoi kem vong chu cai dau. */
-export function NguoiTag({ ten }: { ten?: string | null }) {
+/** Ten nguoi kem vong chu cai dau. Co `ma` (ma NV) -> bam mo ho so nhan vien (popup chi tiet). */
+export function NguoiTag({ ten, ma }: { ten?: string | null; ma?: string | null }) {
+  const ctx = useContext(ChiTietCtx);
   if (!ten) return <span className="muted">-</span>;
-  const tu = ten.trim().split(/\s+/);
+  const tu = ten.replace(/^\s*\[[^\]]*\]\s*/, "").trim().split(/\s+/);
   const chu = (tu.length > 1 ? tu[tu.length - 1][0] : tu[0][0])?.toUpperCase() ?? "?";
-  return (
-    <span className="nb-tag">
+  const noiDung = (
+    <>
       <span className="nb-avatar">{chu}</span>
       <span className="nb-tag-ten">{ten}</span>
-    </span>
+    </>
   );
+  if (ma && ctx)
+    return (
+      <button
+        type="button"
+        className="nb-tag nb-tag-link"
+        title={t("Mở hồ sơ nhân viên")}
+        onClick={(e) => {
+          e.stopPropagation();
+          ctx.moNhanVien(ma);
+        }}
+      >
+        {noiDung}
+      </button>
+    );
+  return <span className="nb-tag">{noiDung}</span>;
 }
 
 const GIO = 3600 * 1000;

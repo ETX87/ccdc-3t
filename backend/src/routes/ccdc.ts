@@ -9,7 +9,7 @@ import { dkTaiSan, layPhamViXemTon } from "../lib/phamVi";
 import { sinhMaPhieu } from "../lib/maPhieu";
 import { docTrang, layTrang } from "../lib/phanTrang";
 import { chuanTen, danhGiaTon, tonTaiSan } from "../lib/tonToiThieu";
-import { TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
+import { NV_THEO_EMAIL, TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
 
 const ccdc = new Hono<{ Bindings: Env }>();
 ccdc.use("*", verifySessionMiddleware, loadUser);
@@ -210,7 +210,8 @@ ccdc.get("/:id", async (c) => {
   if (!coCongTy(c.get("user"), row.cong_ty_id)) return c.json({ error: "FORBIDDEN" }, 403);
 
   const { results: lichSu } = await c.env.DB.prepare(
-    `SELECT p.id AS phieu_id, p.ma_phieu, p.loai_phieu, p.ngay_lap, p.nguoi_lap, p.nhan_vien_id,
+    `SELECT p.id AS phieu_id, p.ma_phieu, p.loai_phieu, p.ngay_lap, p.nguoi_lap, p.nhan_vien_id, p.da_xac_nhan, p.xac_nhan_luc,
+            p.trang_thai_duyet, ${NV_THEO_EMAIL("p.nguoi_lap", "nguoi_lap")},
             ${TEN_NV("nv")} AS nhan_vien_ten, p.nhan_vien_nhan_moi_id, ${TEN_NV("nv2")} AS nhan_vien_nhan_moi_ten,
             ${TEN_KHO("kt")} AS tu_kho_ten, ${TEN_KHO("kd")} AS den_kho_ten,
             ct.tinh_trang_ghi_nhan, ct.ghi_chu
@@ -228,14 +229,24 @@ ccdc.get("/:id", async (c) => {
 
   // Lich su phieu Ke toan duyet (nhap mua / bao hong / thanh ly / tieu huy) cua TS nay.
   const { results: xuLy } = await c.env.DB.prepare(
-    `SELECT p.id AS phieu_id, p.ma_phieu, p.loai, p.trang_thai, p.ly_do, p.ngay_de_xuat, p.nguoi_de_xuat
+    `SELECT p.id AS phieu_id, p.ma_phieu, p.loai, p.trang_thai, p.ly_do, p.ngay_de_xuat, p.nguoi_de_xuat, p.ma_eo, p.gia_tri_thu_hoi,
+            ${NV_THEO_EMAIL("p.nguoi_de_xuat", "nguoi_de_xuat")}
      FROM phieu_xu_ly_ts_ct ct JOIN phieu_xu_ly_ts p ON p.id = ct.phieu_id
      WHERE ct.ccdc_id = ? ORDER BY p.ngay_de_xuat DESC`,
   )
     .bind(id)
     .all();
 
-  return c.json({ row, lich_su: lichSu, xu_ly: xuLy });
+  // Lich su kiem ke cua TS (moi lan ghi nhan trong cac dot) - nguoi giu thuc te + nguoi kiem ke bam mo ho so.
+  const { results: kiemKe } = await c.env.DB.prepare(
+    `SELECT k.id, k.dot_kiem_ke_id, d.ten_dot, d.ma_phieu, k.tinh_trang_thuc_te, k.nguoi_dang_giu_thuc_te, ${TEN_NV("h")} AS nguoi_giu_ten,
+            k.ghi_chu, k.nguoi_kiem_ke, k.kiem_ke_luc, ${NV_THEO_EMAIL("k.nguoi_kiem_ke", "nguoi_kiem_ke")}
+     FROM kiem_ke_ct k LEFT JOIN dot_kiem_ke d ON d.id = k.dot_kiem_ke_id LEFT JOIN nhan_vien h ON h.ma_nv = k.nguoi_dang_giu_thuc_te
+     WHERE k.ccdc_id = ? ORDER BY k.kiem_ke_luc DESC`,
+  )
+    .bind(id)
+    .all();
+  return c.json({ row, lich_su: lichSu, xu_ly: xuLy, kiem_ke: kiemKe });
 });
 
 interface Body {

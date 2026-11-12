@@ -438,7 +438,7 @@ export function BaoCaoTieuHaoNv({ res, soThang, cheDo, onCheDo }: { res: TieuHao
                   {tNv.dongTrang.map((r) => (
                     <tr key={r.nguoi_key} className={`row-clickable${batThuong(r.gia_tri) ? " row-chu-y" : ""}`} title={t("Xem chi tiết vật tư đã nhận")} onClick={() => setChiTiet(r)}>
                       <td data-label={t("Nhân viên")}>
-                        <NguoiTag ten={r.ten_nv} />
+                        <NguoiTag ten={r.ten_nv} ma={r.ma_nv} />
                         <div className="muted small">
                           {r.ma_nv ?? t("Ngoài danh bạ")}
                           {r.chuc_vu ? ` · ${r.chuc_vu}` : ""}

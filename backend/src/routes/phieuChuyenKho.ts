@@ -9,7 +9,7 @@ import { ghepVatTu } from "../lib/ghepVatTu";
 import { sinhMaPhieu, TIEN_TO_CHUYEN_KHO } from "../lib/maPhieu";
 import { dkPhieuKho, layPhamVi, type PhamVi } from "../lib/phamVi";
 import { docTrang, layTrang } from "../lib/phanTrang";
-import { boNhanCongTy, TEN_KHO, TEN_NV } from "../lib/nhanCongTy";
+import { NV_THEO_EMAIL, TEN_KHO, TEN_NV, boNhanCongTy } from "../lib/nhanCongTy";
 
 /**
  * Phieu nguoi dung duoc xem: kho trong pham vi + phieu minh lap + phieu cap cho nhom minh (ban than/cap duoi),
@@ -163,7 +163,8 @@ phieuChuyenKho.get("/:id", async (c) => {
             (SELECT g.ma_phieu FROM phieu_chuyen_kho g WHERE g.id = p.gui_lai_tu) AS gui_lai_tu_ma,
             (SELECT g.id FROM phieu_chuyen_kho g WHERE g.gui_lai_tu = p.id) AS da_gui_lai_id,
             (SELECT g.ma_phieu FROM phieu_chuyen_kho g WHERE g.gui_lai_tu = p.id) AS da_gui_lai_ma,
-            kt.cong_ty_id AS tu_cong_ty_id, kd.cong_ty_id AS den_cong_ty_id, ctt.ma AS tu_cong_ty_ma, ctd.ma AS den_cong_ty_ma
+            kt.cong_ty_id AS tu_cong_ty_id, kd.cong_ty_id AS den_cong_ty_id, ctt.ma AS tu_cong_ty_ma, ctd.ma AS den_cong_ty_ma,
+            ${NV_THEO_EMAIL("p.nguoi_lap", "nguoi_lap")}
      FROM phieu_chuyen_kho p
      LEFT JOIN cong_ty ctt ON ctt.id = (SELECT cong_ty_id FROM kho WHERE id = p.tu_kho_id)
      LEFT JOIN cong_ty ctd ON ctd.id = (SELECT cong_ty_id FROM kho WHERE id = p.den_kho_id)
@@ -184,7 +185,7 @@ phieuChuyenKho.get("/:id", async (c) => {
     )
       .bind(id)
       .all(),
-    c.env.DB.prepare(`SELECT trang_thai, nguoi_xu_ly, ngay_xu_ly, ghi_chu FROM phieu_chuyen_kho_log WHERE phieu_id = ? ORDER BY id ASC`)
+    c.env.DB.prepare(`SELECT l.trang_thai, l.nguoi_xu_ly, l.ngay_xu_ly, l.ghi_chu, ${NV_THEO_EMAIL("l.nguoi_xu_ly", "nguoi_xu_ly")} FROM phieu_chuyen_kho_log l WHERE l.phieu_id = ? ORDER BY l.id ASC`)
       .bind(id)
       .all(),
   ]);

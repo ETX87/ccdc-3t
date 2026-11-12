@@ -298,6 +298,13 @@ khoản Google THẬT do Admin kết nối (thẻ "Lưu trữ hóa đơn…" ở
   đang giữ, tiêu hao theo mặt hàng, lịch sử cấp phát tiêu hao, lịch sử giao nhận TS. Quyền = phạm vi tìm kiếm (chính mình /
   `pv.toanBo` / `pv.nhomMaNv`) + NV thuộc công ty tài khoản; dữ liệu lọc theo công ty đang xem. "Đã nhận (tiêu dùng)" =
   phiếu Cấp phát NV `Da giao` + `da_xac_nhan` (tiêu hao cấp cho NV coi như dùng hết).
+- **UI chi tiết thống nhất** (2026-11-12): MỌI popup chi tiết (phiếu tiêu hao / giao nhận / xử lý, tài sản, vật tư, nhân viên)
+  95% màn (`Modal size="xl"`), mở chồng nhau qua `useChiTiet()` (context ở `components/LienKet.tsx`, KHÔNG định nghĩa lại
+  trong ChiTiet.tsx). Thông tin liên quan bấm được bằng `NvLink` / `PhieuLink` / `TsLink` / `VtLink` (LienKet.tsx) hoặc
+  `NguoiTag ma=` (NoiBat) — tên NV ở bảng mới PHẢI truyền mã để mở hồ sơ. Phiếu + tài sản có `LuongNgang` (luồng quy trình
+  ngang + nút "Xem chi tiết" xổ thông tin phụ / nhật ký; nút thao tác để ngoài) — mốc tính trong `mocPhieu` / `mocTaiSan`
+  (ChiTiet.tsx). Người lập / xử lý / kiểm kê là EMAIL → backend trả thêm `<x>_nv`, `<x>_ten` qua `NV_THEO_EMAIL(cot, x)`
+  (lib/nhanCongTy.ts). `GET /ccdc/:id` trả thêm `kiem_ke`; lịch sử tài sản gộp giao nhận + xử lý + kiểm kê (`lichSuTaiSan`).
 - **`components/BangLoc.tsx`** = bảng kiểu Excel dùng chung (lọc theo kiểu cột chữ/chọn/ngày/số + sắp xếp trên tiêu đề, đếm
   dòng sau lọc, xoá lọc, xuất Excel dòng đang lọc, phân trang 50) — LỌC Ở TRÌNH DUYỆT, chỉ cho bảng đã tải đủ dữ liệu.
   Bảng mới dùng component này; các bảng cũ chưa chuyển (bảng phân trang server cần gửi lọc lên server).

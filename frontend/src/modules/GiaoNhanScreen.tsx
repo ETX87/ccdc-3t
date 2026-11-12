@@ -1,4 +1,6 @@
 import { t } from "../lib/i18n";
+import { NvLink } from "../components/LienKet";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeftRight, CalendarDays, ChevronDown, Laptop, Plus, UserCheck } from "lucide-react";
 import { api } from "../api/client";
@@ -49,6 +51,8 @@ interface PhieuRow {
   ma_phieu: string | null;
   loai_phieu: string;
   nhan_vien_ten: string | null;
+  nhan_vien_id: string | null;
+  nhan_vien_nhan_moi_id: string | null;
   nhan_vien_nhan_moi_ten: string | null;
   tu_kho_id: number | null;
   tu_kho_ten: string | null;
@@ -71,10 +75,12 @@ const MO_TA_LOAI: Record<Loai, string> = {
   "Chuyen kho": "kho → kho",
 };
 
-function tuDen(p: PhieuRow): [string | null, string | null] {
-  if (p.loai_phieu === "Cap phat") return [p.tu_kho_ten, p.nhan_vien_ten];
-  if (p.loai_phieu === "Thu hoi") return [p.nhan_vien_ten, p.den_kho_ten];
-  if (p.loai_phieu === "Dieu chuyen") return [p.nhan_vien_ten, p.nhan_vien_nhan_moi_ten];
+/** Tu / den cua phieu - nhan vien bam mo ho so nhan vien. */
+function tuDen(p: PhieuRow): [ReactNode, ReactNode] {
+  const giu = p.nhan_vien_ten ? <NvLink ma={p.nhan_vien_id} ten={p.nhan_vien_ten} /> : null;
+  if (p.loai_phieu === "Cap phat") return [p.tu_kho_ten, giu];
+  if (p.loai_phieu === "Thu hoi") return [giu, p.den_kho_ten];
+  if (p.loai_phieu === "Dieu chuyen") return [giu, p.nhan_vien_nhan_moi_ten ? <NvLink ma={p.nhan_vien_nhan_moi_id} ten={p.nhan_vien_nhan_moi_ten} /> : null];
   return [p.tu_kho_ten, p.den_kho_ten];
 }
 

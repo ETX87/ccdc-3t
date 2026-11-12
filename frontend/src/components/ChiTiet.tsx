@@ -1,5 +1,5 @@
 import { t, tS } from "../lib/i18n";
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { Modal } from "./Modal";
@@ -29,30 +29,19 @@ import type { AppUser } from "../types";
 import { ChonLoc } from "./ChonLoc";
 import { VatTuModal } from "./ChiTietVatTu";
 import { NhanVienModal } from "./ChiTietNhanVien";
+import { ChiTietCtx, NvLink, PhieuLink, TsLink, VtLink, useChiTiet, type LoaiPhieu } from "./LienKet";
+import { LuongNgang, type Moc } from "./LuongNgang";
+import { BangLoc, type CotBang } from "./BangLoc";
+import { LoaiChip } from "./NoiBat";
+import { useKhiThayDoi } from "../lib/suKien";
 
 // Popup chi tiet dung chung toan app: mo tu ma phieu / ma tai san o bat ky dau (tim kiem, chuong, bang
 // viec, canh bao, quet QR). Nut thao tac chi hien khi nguoi dung dung vai tro; server van kiem lai.
 
-export type LoaiPhieu = "chuyen_kho" | "giao_nhan" | "xu_ly";
+export type { LoaiPhieu } from "./LienKet";
+export { useChiTiet } from "./LienKet";
 
 type Dang = { kind: "phieu"; loai: LoaiPhieu; id: string } | { kind: "tai_san"; id: string } | { kind: "vat_tu"; id: string } | { kind: "nhan_vien"; id: string };
-
-interface ChiTietApi {
-  moPhieu: (loai: LoaiPhieu, id: string) => void;
-  moTaiSan: (id: string) => void;
-  /** Ho so 1 vat tu tieu hao: ton tung kho, lich su phieu, nguoi nhan (components/ChiTietVatTu.tsx). */
-  moVatTu: (id: string) => void;
-  /** Ho so 1 nhan vien (popup 95%): tai san dang giu, tieu hao duoc cap, lich su (components/ChiTietNhanVien.tsx). */
-  moNhanVien: (maNv: string) => void;
-}
-
-const Ctx = createContext<ChiTietApi | null>(null);
-
-export function useChiTiet() {
-  const ctx = useContext(Ctx);
-  if (!ctx) throw new Error("useChiTiet phai dung trong ChiTietProvider");
-  return ctx;
-}
 
 export function ChiTietProvider({ children }: { children: ReactNode }) {
   // Chong popup: mo popup tu trong popup (vd phieu trong ho so vat tu) -> Back / Dong quay ve popup truoc. Moi popup
@@ -82,7 +71,7 @@ export function ChiTietProvider({ children }: { children: ReactNode }) {
   }, []);
   const dang = chong[chong.length - 1];
   return (
-    <Ctx.Provider value={{ moPhieu, moTaiSan, moVatTu, moNhanVien }}>
+    <ChiTietCtx.Provider value={{ moPhieu, moTaiSan, moVatTu, moNhanVien }}>
       {children}
       {dang?.kind === "phieu" && <PhieuModal key={`p:${dang.id}`} loai={dang.loai} id={dang.id} onClose={dong} />}
       {dang?.kind === "tai_san" && <TaiSanModal key={`t:${dang.id}`} id={dang.id} onClose={dong} />}
@@ -90,7 +79,7 @@ export function ChiTietProvider({ children }: { children: ReactNode }) {
         <NhanVienModal key={`n:${dang.id}`} ma={dang.id} onClose={dong} onMoPhieu={moPhieu} onMoTaiSan={moTaiSan} onMoVatTu={moVatTu} />
       )}
       {dang?.kind === "vat_tu" && <VatTuModal key={`v:${dang.id}`} id={dang.id} onClose={dong} onMoPhieu={(id) => moPhieu("chuyen_kho", id)} />}
-    </Ctx.Provider>
+    </ChiTietCtx.Provider>
   );
 }
 
@@ -99,9 +88,9 @@ type Row = Record<string, unknown>;
 const s = (v: unknown) => (v == null ? "" : String(v));
 const n = (v: unknown) => (typeof v === "number" ? v : Number(v ?? 0));
 
-function ThongTin({ items }: { items: [string, ReactNode][] }) {
+function ThongTin({ items, cot }: { items: [string, ReactNode][]; cot?: number }) {
   return (
-    <div className="info-grid">
+    <div className="info-grid" style={cot ? { gridTemplateColumns: `repeat(${cot}, minmax(0, 1fr))` } : undefined}>
       {items
         .filter(([, v]) => v !== null && v !== undefined && v !== "")
         .map(([k, v]) => (
@@ -128,7 +117,7 @@ function NhatKy({ log, nhan }: { log: Row[]; nhan: Record<string, { label: strin
             <div>
               <div className="strong">{nhan[s(l.trang_thai)]?.label ?? s(l.trang_thai)}</div>
               <div className="muted small">
-                {fmtNgayGio(s(l.ngay_xu_ly))} · {s(l.nguoi_xu_ly)}
+                {fmtNgayGio(s(l.ngay_xu_ly))} · <NvLink ma={s(l.nguoi_xu_ly_nv) || null} ten={s(l.nguoi_xu_ly_ten) || s(l.nguoi_xu_ly)} />
                 {l.ghi_chu ? ` · ${tS(s(l.ghi_chu))}` : ""}
               </div>
             </div>
@@ -308,9 +297,100 @@ function ThanhHanhDong({ ds, onDone }: { ds: HanhDong[]; onDone: () => void }) {
   );
 }
 
+// ---- Luong quy trinh ngang cua tung loai phieu (quy uoc UI chi tiet): moc + gio lay tu nhat ky phieu.
+function mocPhieu(loai: LoaiPhieu, row: Row, log: Row[]): Moc[] {
+  const ten = (l: Row | undefined) => (l ? s(l.nguoi_xu_ly_ten) || s(l.nguoi_xu_ly) : null);
+  const tim = (...tt: string[]) => [...log].reverse().find((l) => tt.includes(s(l.trang_thai)));
+  const ttHt = s(row.trang_thai);
+  const ds: Moc[] = [];
+  if (loai === "chuyen_kho") {
+    const loaiCk = s(row.loai);
+    const lienCt = row.den_cong_ty_id != null && n(row.den_cong_ty_id) !== n(row.tu_cong_ty_id);
+    const tieuDung = loaiCk === "Cap phat NV" && row.den_kho_loai === "Tieu hao";
+    ds.push({ nhan: t("Lập phiếu"), tt: "xong", luc: s(row.created_at), nguoi: s(row.nguoi_lap_ten) || s(row.nguoi_lap) });
+    const coKt = loaiCk === "Nhap mua" || loaiCk === "Dieu chinh" || lienCt;
+    if (coKt) {
+      const tc = tim("Ke toan tu choi");
+      const qua = !["Cho ke toan duyet", "Ke toan tu choi", "Da huy"].includes(ttHt);
+      const l = qua ? log.find((x) => !["Cho ke toan duyet", "Ke toan tu choi"].includes(s(x.trang_thai))) : tc;
+      ds.push({
+        nhan: ttHt === "Ke toan tu choi" ? t("KT từ chối") : t("Kế toán duyệt"),
+        tt: qua ? "xong" : ttHt === "Ke toan tu choi" ? "loi" : ttHt === "Cho ke toan duyet" ? "dang" : "bo-qua",
+        luc: qua || ttHt === "Ke toan tu choi" ? s(l?.ngay_xu_ly) : null,
+        nguoi: qua || ttHt === "Ke toan tu choi" ? ten(l) : null,
+        ghiChu: ttHt === "Ke toan tu choi" ? s(tc?.ghi_chu) : null,
+      });
+    }
+    if (loaiCk === "Nhap mua") {
+      const l = tim("Da nhan");
+      ds.push({ nhan: t("Vào kho HCNS"), tt: ttHt === "Da nhan" ? "xong" : ttHt === "Da huy" ? "bo-qua" : "cho", luc: s(l?.ngay_xu_ly) || null });
+    } else if (loaiCk === "Dieu chinh") {
+      const l = tim("Da dieu chinh");
+      ds.push({ nhan: t("Đã điều chỉnh tồn"), tt: ttHt === "Da dieu chinh" ? "xong" : ttHt === "Da huy" ? "bo-qua" : "cho", luc: s(l?.ngay_xu_ly) || null });
+    } else if (loaiCk === "Chuyen kho") {
+      const xuat = tim("Dang chuyen");
+      const daXuat = ["Dang chuyen", "Da nhan", "Bi tu choi"].includes(ttHt);
+      ds.push({ nhan: t("Xuất kho, đang chuyển"), tt: daXuat ? "xong" : ttHt === "Da huy" ? "bo-qua" : "cho", luc: daXuat ? s(xuat?.ngay_xu_ly) || s(row.created_at) : null, nguoi: ten(xuat) });
+      const nhan = tim("Da nhan", "Bi tu choi");
+      ds.push({
+        nhan: ttHt === "Bi tu choi" ? t("Kho nhận từ chối") : t("Kho nhận xác nhận"),
+        tt: ttHt === "Da nhan" ? "xong" : ttHt === "Bi tu choi" ? "loi" : ttHt === "Dang chuyen" ? "dang" : ttHt === "Da huy" ? "bo-qua" : "cho",
+        luc: s(nhan?.ngay_xu_ly) || null,
+        nguoi: ten(nhan),
+        ghiChu: ttHt === "Bi tu choi" ? s(nhan?.ghi_chu) : null,
+      });
+    } else {
+      const giao = tim("Da giao");
+      ds.push({ nhan: tieuDung ? t("Xuất tiêu dùng") : t("Giao cho nhân viên"), tt: ttHt === "Da giao" ? "xong" : ttHt === "Da huy" ? "bo-qua" : "cho", luc: s(giao?.ngay_xu_ly) || s(row.created_at) });
+      if (!tieuDung && !row.nguoi_nhan_ten_tu_do)
+        ds.push({
+          nhan: t("NV xác nhận đã nhận"),
+          tt: n(row.da_xac_nhan) ? "xong" : ttHt === "Da giao" ? "dang" : "cho",
+          luc: n(row.da_xac_nhan) ? s(row.xac_nhan_luc) : null,
+          nguoi: s(row.den_nhan_vien_ten) || null,
+        });
+    }
+    if (ttHt === "Da huy") ds.push({ nhan: t("Đã hủy"), tt: "loi", luc: s(tim("Da huy")?.ngay_xu_ly) || null, nguoi: ten(tim("Da huy")) });
+  } else if (loai === "giao_nhan") {
+    ds.push({ nhan: t("Lập phiếu"), tt: "xong", luc: s(row.ngay_lap), nguoi: s(row.nguoi_lap_ten) || s(row.nguoi_lap) });
+    const duyet = s(row.trang_thai_duyet);
+    if (duyet)
+      ds.push({
+        nhan: duyet === "Ke toan tu choi" ? t("KT từ chối") : t("Kế toán duyệt chuyển công ty"),
+        tt: duyet === "Da duyet" ? "xong" : duyet === "Ke toan tu choi" ? "loi" : "dang",
+      });
+    ds.push({
+      nhan: s(row.loai_phieu) === "Thu hoi" || s(row.loai_phieu) === "Chuyen kho" ? t("Kho nhận xác nhận") : t("Nhân viên xác nhận"),
+      tt: n(row.da_xac_nhan) ? "xong" : !duyet || duyet === "Da duyet" ? "dang" : "cho",
+      luc: n(row.da_xac_nhan) ? s(row.xac_nhan_luc) : null,
+      nguoi: s(row.nguoi_xac_nhan_ten) || s(row.nguoi_xac_nhan) || null,
+    });
+  } else {
+    const lx = s(row.loai);
+    ds.push({ nhan: lx === "Bao hong" ? t("Báo hỏng") : t("Đề xuất"), tt: "xong", luc: s(row.ngay_de_xuat), nguoi: s(row.nguoi_de_xuat_ten) || s(row.nguoi_de_xuat) });
+    const kt = tim("Da duyet", "Tu choi", "Da hoan tat");
+    ds.push({
+      nhan: ttHt === "Tu choi" ? t("KT từ chối") : t("Kế toán duyệt"),
+      tt: ttHt === "Cho ke toan duyet" ? "dang" : ttHt === "Tu choi" ? "loi" : "xong",
+      luc: ttHt === "Cho ke toan duyet" ? null : s(kt?.ngay_xu_ly) || null,
+      nguoi: ttHt === "Cho ke toan duyet" ? null : ten(kt),
+      ghiChu: ttHt === "Tu choi" ? s(kt?.ghi_chu) : null,
+    });
+    if (lx === "Thanh ly" || lx === "Tieu huy") {
+      const ht = tim("Da hoan tat");
+      ds.push({
+        nhan: lx === "Thanh ly" ? t("Hoàn tất thanh lý") : t("Hoàn tất tiêu hủy"),
+        tt: ttHt === "Da hoan tat" ? "xong" : ttHt === "Da duyet" ? "dang" : ttHt === "Tu choi" ? "bo-qua" : "cho",
+        luc: s(ht?.ngay_xu_ly) || null,
+        nguoi: ten(ht),
+      });
+    }
+  }
+  return ds;
+}
+
 function PhieuModal({ loai, id, onClose }: { loai: LoaiPhieu; id: string; onClose: () => void }) {
   const auth = useAuth();
-  const { moTaiSan, moPhieu } = useChiTiet();
   const [dangSua, setDangSua] = useState(false);
   const [data, setData] = useState<{ row: Row; items: Row[]; log?: Row[] } | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -323,38 +403,46 @@ function PhieuModal({ loai, id, onClose }: { loai: LoaiPhieu; id: string; onClos
       .catch((e) => setErr(thongBaoLoi(e, t("Không tải được phiếu."))));
   }, [url]);
   useEffect(load, [load]);
+  useKhiThayDoi(load);
 
   const user = auth.status === "authenticated" ? auth.user : null;
   const row = data?.row;
+  const items = data?.items ?? [];
   let tieuDe = t("Phiếu");
   let trangThai: { label: string; tone: Tone } | null = null;
-  let info: [string, ReactNode][] = [];
+  let chinh: [string, ReactNode][] = [];
+  let phu: [string, ReactNode][] = [];
+  const nguoiLap = row ? <NvLink ma={s(row.nguoi_lap_nv) || null} ten={s(row.nguoi_lap_ten) || s(row.nguoi_lap)} /> : null;
   if (row) {
     const ma = s(row.ma_phieu) || s(row.id);
     if (loai === "chuyen_kho") {
       const lienCt = row.den_cong_ty_id != null && n(row.den_cong_ty_id) !== n(row.tu_cong_ty_id);
       const tieuDung = row.loai === "Cap phat NV" && row.den_kho_loai === "Tieu hao";
-      const lienKet = (ma2: unknown, id2: unknown) =>
-        ma2 ? (
-          <span className="code-link" onClick={() => moPhieu("chuyen_kho", s(id2))}>
-            {s(ma2)}
-          </span>
-        ) : (
-          ""
-        );
       tieuDe = `${lienCt ? t("Chuyển công ty") : tieuDung ? t("Xuất tiêu dùng") : (LOAI_PHIEU_CK[s(row.loai)] ?? s(row.loai))} · ${ma}`;
       trangThai = TRANG_THAI_CK[s(row.trang_thai)] ?? { label: s(row.trang_thai), tone: "neutral" };
-      info = [
-        [t("Công ty"), lienCt ? `${s(row.tu_cong_ty_ma)} → ${s(row.den_cong_ty_ma)}` : ""],
-        [row.loai === "Dieu chinh" ? t("Kho điều chỉnh") : t("Từ kho"), s(row.tu_kho_ten)],
-        [t("Đến"), s(row.den_kho_ten) || s(row.den_nhan_vien_ten) || s(row.nguoi_nhan_ten_tu_do)],
-        [t("Gửi lại từ phiếu"), lienKet(row.gui_lai_tu_ma, row.gui_lai_tu)],
-        [t("Đã gửi lại bằng phiếu"), lienKet(row.da_gui_lai_ma, row.da_gui_lai_id)],
-        [t("Nhà cung cấp"), s(row.nha_cung_cap)],
-        [t("Người lập"), s(row.nguoi_lap)],
+      const tongSl = items.reduce((a, it) => a + n(it.so_luong), 0);
+      const tongTien = items.reduce((a, it) => a + n(it.thanh_tien), 0);
+      chinh = [
+        [row.loai === "Dieu chinh" ? t("Kho điều chỉnh") : row.loai === "Nhap mua" ? t("Nhà cung cấp → kho") : t("Từ kho"), row.loai === "Nhap mua" ? `${s(row.nha_cung_cap) || "-"} → ${s(row.den_kho_ten)}` : s(row.tu_kho_ten)],
+        [
+          t("Đến"),
+          row.loai === "Nhap mua" || row.loai === "Dieu chinh" ? "" : row.den_nhan_vien_id ? (
+            <NvLink ma={s(row.den_nhan_vien_id)} ten={s(row.den_nhan_vien_ten)} />
+          ) : (
+            s(row.den_kho_ten) || (row.nguoi_nhan_ten_tu_do ? t("{x} (ngoài danh bạ)", { x: s(row.nguoi_nhan_ten_tu_do) }) : "")
+          ),
+        ],
+        [t("Người lập"), nguoiLap],
         [t("Ngày lập"), fmtNgayGio(s(row.created_at))],
+        [t("Tổng"), t("{a} mặt hàng · SL {b} · {c}", { a: items.length, b: fmtSo(tongSl, 2), c: fmtGiaTri(tongTien) })],
+      ];
+      phu = [
+        [t("Công ty"), lienCt ? `${s(row.tu_cong_ty_ma)} → ${s(row.den_cong_ty_ma)}` : s(row.tu_cong_ty_ma)],
+        [t("Gửi lại từ phiếu"), row.gui_lai_tu ? <PhieuLink loai="chuyen_kho" id={s(row.gui_lai_tu)} ma={s(row.gui_lai_tu_ma)} /> : ""],
+        [t("Đã gửi lại bằng phiếu"), row.da_gui_lai_id ? <PhieuLink loai="chuyen_kho" id={s(row.da_gui_lai_id)} ma={s(row.da_gui_lai_ma)} /> : ""],
         [t("NV xác nhận"), row.loai === "Cap phat NV" && !tieuDung ? (n(row.da_xac_nhan) ? t("Đã xác nhận {x}", { x: fmtNgayGio(s(row.xac_nhan_luc)) }) : t("Chưa xác nhận")) : ""],
         [t("Ghi chú"), s(row.ghi_chu)],
+        [t("Mã hệ thống"), s(row.id)],
       ];
     } else if (loai === "giao_nhan") {
       const lienCt = row.trang_thai_duyet != null;
@@ -367,32 +455,93 @@ function PhieuModal({ loai, id, onClose }: { loai: LoaiPhieu; id: string; onClos
             : n(row.da_xac_nhan)
               ? { label: t("Đã xác nhận"), tone: "success" }
               : { label: t("Chờ xác nhận"), tone: "warning" };
-      info = [
-        [t("Từ"), s(row.tu_kho_ten) || s(row.nhan_vien_ten)],
-        [t("Đến"), s(row.den_kho_ten) || s(row.nhan_vien_nhan_moi_ten) || (row.loai_phieu === "Cap phat" ? s(row.nhan_vien_ten) : "")],
-        [t("Người lập"), s(row.nguoi_lap)],
+      const lp = s(row.loai_phieu);
+      const nvGiu = <NvLink ma={s(row.nhan_vien_id) || null} ten={s(row.nhan_vien_ten)} />;
+      const nvMoi = <NvLink ma={s(row.nhan_vien_nhan_moi_id) || null} ten={s(row.nhan_vien_nhan_moi_ten)} />;
+      chinh = [
+        [t("Từ"), lp === "Cap phat" || lp === "Chuyen kho" ? s(row.tu_kho_ten) : nvGiu],
+        [t("Đến"), lp === "Cap phat" ? nvGiu : lp === "Dieu chuyen" ? nvMoi : s(row.den_kho_ten)],
+        [t("Người lập"), nguoiLap],
         [t("Ngày lập"), fmtNgayGio(s(row.ngay_lap))],
+        [t("Tổng"), t("{a} tài sản · {b}", { a: items.length, b: fmtGiaTri(items.reduce((a, it) => a + n(it.nguyen_gia), 0)) })],
+      ];
+      phu = [
         [t("Xác nhận lúc"), n(row.da_xac_nhan) ? fmtNgayGio(s(row.xac_nhan_luc)) : ""],
+        [t("Người xác nhận"), row.nguoi_xac_nhan ? <NvLink ma={s(row.nguoi_xac_nhan_nv) || null} ten={s(row.nguoi_xac_nhan_ten) || s(row.nguoi_xac_nhan)} /> : ""],
         [t("Ghi chú"), s(row.ghi_chu)],
+        [t("Mã hệ thống"), s(row.id)],
       ];
     } else {
       tieuDe = `${LOAI_XU_LY[s(row.loai)] ?? s(row.loai)} · ${ma}`;
       trangThai = TRANG_THAI_XU_LY[s(row.trang_thai)] ?? { label: s(row.trang_thai), tone: "neutral" };
-      info = [
+      chinh = [
         [t("Lý do"), s(row.ly_do)],
-        [t("Mã EO"), s(row.ma_eo)],
-        [t("Người đề xuất"), s(row.nguoi_de_xuat)],
+        [t("Người đề xuất"), <NvLink key="nd" ma={s(row.nguoi_de_xuat_nv) || null} ten={s(row.nguoi_de_xuat_ten) || s(row.nguoi_de_xuat)} />],
         [t("Ngày đề xuất"), fmtNgayGio(s(row.ngay_de_xuat))],
+        [t("Mã EO"), s(row.ma_eo)],
+        [t("Tổng"), t("{a} tài sản · {b}", { a: items.length, b: fmtGiaTri(items.reduce((a, it) => a + n(it.nguyen_gia), 0)) })],
+      ];
+      phu = [
         [t("Giá trị thu hồi"), row.gia_tri_thu_hoi != null ? fmtGiaTri(n(row.gia_tri_thu_hoi)) : ""],
         [t("Ghi chú"), s(row.ghi_chu)],
+        [t("Mã hệ thống"), s(row.id)],
       ];
     }
   }
 
-  const items = data?.items ?? [];
+  const cotItems = useMemo<CotBang<Row>[]>(() => {
+    if (loai === "chuyen_kho")
+      return [
+        { key: "ma", nhan: t("Mã"), kieu: "chu", giaTri: (it) => s(it.vt_id) },
+        { key: "ten", nhan: t("Tên vật tư"), kieu: "chu", giaTri: (it) => s(it.ten_vt), hien: (it) => <VtLink id={s(it.vt_id)} ten={s(it.ten_vt)} /> },
+        {
+          key: "sl",
+          nhan: t("Số lượng"),
+          kieu: "so",
+          canPhai: true,
+          giaTri: (it) => n(it.so_luong) * (it.dau != null && n(it.dau) < 0 ? -1 : 1),
+          hien: (it) => (
+            <span className={it.dau != null ? (n(it.dau) > 0 ? "text-teal" : "text-red") : ""}>
+              {it.dau != null ? (n(it.dau) > 0 ? "+" : "−") : ""}
+              {fmtSo(n(it.so_luong), 2)} {s(it.don_vi_tinh)}
+            </span>
+          ),
+        },
+        { key: "dg", nhan: t("Đơn giá"), kieu: "so", canPhai: true, giaTri: (it) => (it.don_gia != null ? n(it.don_gia) : ""), hien: (it) => (it.don_gia != null ? fmtSo(n(it.don_gia)) : "-") },
+        { key: "tt", nhan: t("Thành tiền"), kieu: "so", canPhai: true, giaTri: (it) => (it.thanh_tien != null ? n(it.thanh_tien) : ""), hien: (it) => (it.thanh_tien != null ? fmtSo(n(it.thanh_tien)) : "-") },
+      ];
+    const chung: CotBang<Row>[] = [
+      { key: "ma", nhan: t("Mã tài sản"), kieu: "chu", giaTri: (it) => s(it.ccdc_id), hien: (it) => <TsLink id={s(it.ccdc_id)} /> },
+      { key: "ten", nhan: t("Tên tài sản"), kieu: "chu", giaTri: (it) => s(it.ten_ccdc) },
+    ];
+    const trangThaiHt: CotBang<Row> = {
+      key: "ht",
+      nhan: t("Trạng thái hiện tại"),
+      kieu: "chon",
+      giaTri: (it) => TRANG_THAI_TS[s(it.trang_thai_hien_tai)]?.label ?? s(it.trang_thai_hien_tai),
+    };
+    const gia: CotBang<Row> = { key: "gia", nhan: t("Nguyên giá"), kieu: "so", canPhai: true, giaTri: (it) => n(it.nguyen_gia), hien: (it) => (it.nguyen_gia != null ? fmtSo(n(it.nguyen_gia)) : "-") };
+    if (loai === "giao_nhan")
+      return [
+        ...chung,
+        { key: "tinh", nhan: t("Tình trạng ghi nhận"), kieu: "chon", giaTri: (it) => s(it.tinh_trang_ghi_nhan) },
+        trangThaiHt,
+        { key: "giu", nhan: t("Người giữ hiện tại"), kieu: "chu", giaTri: (it) => s(it.nguoi_dang_giu_ten), hien: (it) => <NvLink ma={s(it.nguoi_dang_giu) || null} ten={s(it.nguoi_dang_giu_ten)} /> },
+        gia,
+      ];
+    return [
+      ...chung,
+      { key: "truoc", nhan: t("Trạng thái trước"), kieu: "chon", giaTri: (it) => TRANG_THAI_TS[s(it.trang_thai_truoc)]?.label ?? s(it.trang_thai_truoc) },
+      { key: "giu", nhan: t("Người giữ trước"), kieu: "chu", giaTri: (it) => s(it.nguoi_giu_truoc_ten), hien: (it) => <NvLink ma={s(it.nguoi_giu_truoc) || null} ten={s(it.nguoi_giu_truoc_ten)} /> },
+      { key: "kho", nhan: t("Kho trước"), kieu: "chon", giaTri: (it) => s(it.kho_truoc_ten) },
+      trangThaiHt,
+      gia,
+    ];
+  }, [loai]);
+
   return (
     <Modal
-      size="lg"
+      size="xl"
       onClose={onClose}
       title={
         <span className="title-with-badge">
@@ -415,63 +564,16 @@ function PhieuModal({ loai, id, onClose }: { loai: LoaiPhieu; id: string; onClos
       )}
       {row && !dangSua && (
         <>
-          <ThongTin items={info} />
-          <div className="section-title" style={{ marginTop: 14 }}>
-            {loai === "chuyen_kho" ? t("Vật tư") : t("Tài sản")} ({items.length})
-          </div>
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                {loai === "chuyen_kho" ? (
-                  <tr>
-                    <th>{t("Mã")}</th>
-                    <th>{t("Tên vật tư")}</th>
-                    <th className="num">{t("Số lượng")}</th>
-                    <th className="num">{t("Đơn giá")}</th>
-                    <th className="num">{t("Thành tiền")}</th>
-                  </tr>
-                ) : (
-                  <tr>
-                    <th>{t("Mã tài sản")}</th>
-                    <th>{t("Tên tài sản")}</th>
-                    <th>{loai === "xu_ly" ? t("Trạng thái hiện tại") : t("Tình trạng ghi nhận")}</th>
-                  </tr>
-                )}
-              </thead>
-              <tbody>
-                {items.map((it, i) =>
-                  loai === "chuyen_kho" ? (
-                    <tr key={i}>
-                      <td>{s(it.vt_id)}</td>
-                      <td>{s(it.ten_vt)}</td>
-                      <td className={`num${it.dau != null ? (n(it.dau) > 0 ? " text-teal" : " text-red") : ""}`}>
-                        {it.dau != null ? (n(it.dau) > 0 ? "+" : "−") : ""}
-                        {fmtSo(n(it.so_luong), 2)} {s(it.don_vi_tinh)}
-                      </td>
-                      <td className="num">{it.don_gia != null ? fmtSo(n(it.don_gia)) : "-"}</td>
-                      <td className="num">{it.thanh_tien != null ? fmtSo(n(it.thanh_tien)) : "-"}</td>
-                    </tr>
-                  ) : (
-                    <tr key={i}>
-                      <td>
-                        <span className="code-link" onClick={() => moTaiSan(s(it.ccdc_id))}>
-                          {s(it.ccdc_id)}
-                        </span>
-                      </td>
-                      <td>{s(it.ten_ccdc)}</td>
-                      <td>
-                        {loai === "xu_ly"
-                          ? (TRANG_THAI_TS[s(it.trang_thai_hien_tai)]?.label ?? s(it.trang_thai_hien_tai))
-                          : s(it.tinh_trang_ghi_nhan) || "-"}
-                      </td>
-                    </tr>
-                  ),
-                )}
-              </tbody>
-            </table>
-          </div>
-          <DinhKem doiTuong={loai} id={id} nhacHoaDon={row.loai === "Nhap mua"} />
-          {data.log && <NhatKy log={data.log} nhan={loai === "chuyen_kho" ? TRANG_THAI_CK : TRANG_THAI_XU_LY} />}
+          <LuongNgang
+            moc={mocPhieu(loai, row, data.log ?? [])}
+            chiTiet={
+              <>
+                <ThongTin items={phu} />
+                {data.log && <NhatKy log={data.log} nhan={loai === "chuyen_kho" ? TRANG_THAI_CK : TRANG_THAI_XU_LY} />}
+              </>
+            }
+          />
+          {user && <ThanhHanhDong ds={tinhHanhDong(loai, row, user)} onDone={load} />}
           {user && loai === "chuyen_kho" && (row.loai === "Nhap mua" || row.loai === "Chuyen kho") && coQuyenSuaCk(row, user) && (
             <div className="modal-actions" style={{ marginTop: 10, justifyContent: "flex-start" }}>
               <button type="button" className="btn btn-outline" onClick={() => setDangSua(true)}>
@@ -479,20 +581,141 @@ function PhieuModal({ loai, id, onClose }: { loai: LoaiPhieu; id: string; onClos
               </button>
             </div>
           )}
-          {user && <ThanhHanhDong ds={tinhHanhDong(loai, row, user)} onDone={load} />}
+          <div style={{ marginTop: 12 }}>
+            <ThongTin items={chinh} cot={5} />
+          </div>
+          <div className="section-title" style={{ marginTop: 14 }}>
+            {loai === "chuyen_kho" ? t("Vật tư") : t("Tài sản")} ({items.length})
+          </div>
+          <BangLoc
+            cot={cotItems}
+            rows={items}
+            rowKey={(it, i) => `${s(it.vt_id) || s(it.ccdc_id)}-${i}`}
+            tenFile={`Phieu_${(s(row.ma_phieu) || s(row.id)).replace(/[^\w-]+/g, "_")}.xlsx`}
+          />
+          <DinhKem doiTuong={loai} id={id} nhacHoaDon={row.loai === "Nhap mua"} />
         </>
       )}
     </Modal>
   );
 }
 
+// ---- Ho so tai san: luong vong doi (nhap -> trong kho -> su dung -> ket thuc) + lich su gop (giao nhan, xu ly, kiem ke).
+interface DongLs {
+  key: string;
+  ngay: string;
+  nhom: string;
+  loaiGoc: string;
+  nhanLoai: string;
+  phieu: { loai: LoaiPhieu; id: string; ma: string } | null;
+  maTxt: string;
+  tu: { ma: string | null; ten: string };
+  den: { ma: string | null; ten: string };
+  chiTiet: string;
+  nguoi: { ma: string | null; ten: string };
+}
+
+function lichSuTaiSan(data: { lich_su: Row[]; xu_ly: Row[]; kiem_ke?: Row[] }): DongLs[] {
+  const ds: DongLs[] = [];
+  for (const p of data.lich_su) {
+    const lp = s(p.loai_phieu);
+    const nvGiu = { ma: s(p.nhan_vien_id) || null, ten: s(p.nhan_vien_ten) };
+    const kho = (x: unknown) => ({ ma: null, ten: s(x) });
+    ds.push({
+      key: `g${s(p.phieu_id)}`,
+      ngay: s(p.ngay_lap),
+      nhom: t("Giao nhận"),
+      loaiGoc: p.trang_thai_duyet != null ? "Chuyen cong ty" : lp,
+      nhanLoai: p.trang_thai_duyet != null ? t("Chuyển công ty") : (LOAI_GIAO_NHAN[lp] ?? lp),
+      phieu: { loai: "giao_nhan", id: s(p.phieu_id), ma: s(p.ma_phieu) },
+      maTxt: s(p.ma_phieu) || s(p.phieu_id),
+      tu: lp === "Cap phat" || lp === "Chuyen kho" ? kho(p.tu_kho_ten) : nvGiu,
+      den: lp === "Cap phat" ? nvGiu : lp === "Dieu chuyen" ? { ma: s(p.nhan_vien_nhan_moi_id) || null, ten: s(p.nhan_vien_nhan_moi_ten) } : kho(p.den_kho_ten),
+      chiTiet: [n(p.da_xac_nhan) ? t("Đã xác nhận {x}", { x: fmtNgayGio(s(p.xac_nhan_luc)) }) : t("Chưa xác nhận"), s(p.tinh_trang_ghi_nhan), s(p.ghi_chu)].filter(Boolean).join(" · "),
+      nguoi: { ma: s(p.nguoi_lap_nv) || null, ten: s(p.nguoi_lap_ten) || s(p.nguoi_lap) },
+    });
+  }
+  for (const p of data.xu_ly) {
+    ds.push({
+      key: `x${s(p.phieu_id)}`,
+      ngay: s(p.ngay_de_xuat),
+      nhom: t("Kế toán duyệt"),
+      loaiGoc: s(p.loai),
+      nhanLoai: LOAI_XU_LY[s(p.loai)] ?? s(p.loai),
+      phieu: { loai: "xu_ly", id: s(p.phieu_id), ma: s(p.ma_phieu) },
+      maTxt: s(p.ma_phieu) || s(p.phieu_id),
+      tu: { ma: null, ten: "" },
+      den: { ma: null, ten: "" },
+      chiTiet: [TRANG_THAI_XU_LY[s(p.trang_thai)]?.label ?? s(p.trang_thai), s(p.ly_do), p.ma_eo ? t("Mã EO {x}", { x: s(p.ma_eo) }) : "", p.gia_tri_thu_hoi != null ? t("Thu hồi {x}", { x: fmtGiaTri(n(p.gia_tri_thu_hoi)) }) : ""]
+        .filter(Boolean)
+        .join(" · "),
+      nguoi: { ma: s(p.nguoi_de_xuat_nv) || null, ten: s(p.nguoi_de_xuat_ten) || s(p.nguoi_de_xuat) },
+    });
+  }
+  for (const k of data.kiem_ke ?? []) {
+    ds.push({
+      key: `k${s(k.id)}`,
+      ngay: s(k.kiem_ke_luc),
+      nhom: t("Kiểm kê"),
+      loaiGoc: "Kiem ke",
+      nhanLoai: t("Kiểm kê"),
+      phieu: null,
+      maTxt: s(k.ma_phieu) || s(k.ten_dot),
+      tu: { ma: null, ten: "" },
+      den: { ma: s(k.nguoi_dang_giu_thuc_te) || null, ten: s(k.nguoi_giu_ten) },
+      chiTiet: [s(k.ten_dot), TINH_TRANG_KIEM_KE[s(k.tinh_trang_thuc_te)]?.label ?? s(k.tinh_trang_thuc_te), s(k.ghi_chu)].filter(Boolean).join(" · "),
+      nguoi: { ma: s(k.nguoi_kiem_ke_nv) || null, ten: s(k.nguoi_kiem_ke_ten) || s(k.nguoi_kiem_ke) },
+    });
+  }
+  return ds.sort((a, b) => b.ngay.localeCompare(a.ngay));
+}
+
+const COT_LS: CotBang<DongLs>[] = [
+  { key: "ngay", nhan: t("Ngày"), kieu: "ngay", giaTri: (r) => r.ngay, hien: (r) => fmtNgayGio(r.ngay) },
+  { key: "nhom", nhan: t("Nhóm"), kieu: "chon", giaTri: (r) => r.nhom },
+  { key: "loai", nhan: t("Loại"), kieu: "chon", giaTri: (r) => r.nhanLoai, hien: (r) => <LoaiChip loai={r.loaiGoc} nhan={r.nhanLoai} /> },
+  { key: "ma", nhan: t("Mã phiếu / đợt"), kieu: "chu", giaTri: (r) => r.maTxt, hien: (r) => (r.phieu ? <PhieuLink loai={r.phieu.loai} id={r.phieu.id} ma={r.phieu.ma} /> : r.maTxt) },
+  { key: "tu", nhan: t("Từ"), kieu: "chu", giaTri: (r) => r.tu.ten, hien: (r) => (r.tu.ten ? <NvLink ma={r.tu.ma} ten={r.tu.ten} /> : "-") },
+  { key: "den", nhan: t("Đến / người giữ"), kieu: "chu", giaTri: (r) => r.den.ten, hien: (r) => (r.den.ten ? <NvLink ma={r.den.ma} ten={r.den.ten} /> : "-") },
+  { key: "ct", nhan: t("Chi tiết"), kieu: "chu", giaTri: (r) => r.chiTiet },
+  { key: "nguoi", nhan: t("Người lập / thực hiện"), kieu: "chon", giaTri: (r) => r.nguoi.ten, hien: (r) => <NvLink ma={r.nguoi.ma} ten={r.nguoi.ten} /> },
+];
+
+/** Vong doi tai san tren luong ngang - moc dang dung = trang thai hien tai. */
+function mocTaiSan(row: Row, ls: DongLs[]): Moc[] {
+  const tt = s(row.trang_thai_hien_tai);
+  const tim = (...loai: string[]) => ls.find((d) => loai.includes(d.loaiGoc));
+  const nhap = [...ls].reverse().find((d) => d.loaiGoc === "Nhap mua");
+  const suDung = tim("Cap phat", "Dieu chuyen");
+  const thuHoi = tim("Thu hoi");
+  const ketThuc = tim("Thanh ly", "Tieu huy");
+  const daKetThuc = tt === "Da thanh ly" || tt === "Da tieu huy";
+  const choKetThuc = tt === "Cho thanh ly" || tt === "Cho tieu huy";
+  const hong = tt === "Hong" || tt === "Dang bao tri" || tt === "Cho duyet bao hong";
+  return [
+    { nhan: t("Nhập mua"), tt: "xong", luc: nhap?.ngay ?? s(row.created_at), nguoi: nhap?.nguoi.ten },
+    { nhan: tt === "Cho duyet nhap" ? t("Chờ KT duyệt nhập") : t("Vào kho"), tt: tt === "Cho duyet nhap" ? "dang" : tt === "Trong kho" ? "dang" : "xong", luc: tt === "Trong kho" ? (thuHoi?.ngay ?? null) : null },
+    {
+      nhan: hong ? (TRANG_THAI_TS[tt]?.label ?? tt) : t("Cấp phát sử dụng"),
+      tt: hong ? "loi" : tt === "Dang cap phat" ? "dang" : suDung ? "xong" : tt === "Cho duyet nhap" || tt === "Trong kho" ? "cho" : "bo-qua",
+      luc: suDung?.ngay ?? null,
+      nguoi: tt === "Dang cap phat" ? s(row.nguoi_dang_giu_ten) || null : null,
+    },
+    {
+      nhan: daKetThuc || choKetThuc ? (TRANG_THAI_TS[tt]?.label ?? tt) : t("Thanh lý / tiêu hủy"),
+      tt: daKetThuc ? "xong" : choKetThuc ? "dang" : "cho",
+      luc: ketThuc?.ngay ?? null,
+      nguoi: ketThuc?.nguoi.ten,
+    },
+  ];
+}
+
 // ---------------------------------------------------------------------------------------------
 function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
   const auth = useAuth();
-  const { moPhieu } = useChiTiet();
   const { reload } = useDuLieuChung();
   const user = auth.status === "authenticated" ? auth.user : null;
-  const [data, setData] = useState<{ row: Row; lich_su: Row[]; xu_ly: Row[] } | null>(null);
+  const [data, setData] = useState<{ row: Row; lich_su: Row[]; xu_ly: Row[]; kiem_ke?: Row[] } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [form, setForm] = useState<"bao-hong" | "kiem-ke" | "thanh-ly" | null>(null);
@@ -506,11 +729,13 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
 
   const load = useCallback(() => {
     api
-      .get<{ row: Row; lich_su: Row[]; xu_ly: Row[] }>(`/ccdc/${encodeURIComponent(id)}`)
+      .get<{ row: Row; lich_su: Row[]; xu_ly: Row[]; kiem_ke?: Row[] }>(`/ccdc/${encodeURIComponent(id)}`)
       .then(setData)
       .catch((e) => setErr((e as { status?: number }).status === 404 ? t("Không tìm thấy tài sản có mã \"{id}\".", { id }) : thongBaoLoi(e, t("Không tải được tài sản."))));
   }, [id]);
   useEffect(load, [load]);
+  useKhiThayDoi(load);
+  const ls = useMemo(() => (data ? lichSuTaiSan(data) : []), [data]);
   useEffect(() => {
     import("qrcode").then((Q) => Q.toDataURL(id, { margin: 1, width: 160 })).then(setQr).catch(() => setQr(null));
   }, [id]);
@@ -552,7 +777,7 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
 
   return (
     <Modal
-      size="lg"
+      size="xl"
       onClose={onClose}
       title={
         <span className="title-with-badge">
@@ -565,14 +790,24 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
       {!data && !err && <div className="empty-state">{t("Đang tải…")}</div>}
       {row && (
         <>
-          <div className="asset-head">
+          <LuongNgang moc={mocTaiSan(row, ls)} />
+          <div className="asset-head" style={{ marginTop: 12 }}>
             {qr && <img src={qr} alt={`QR ${id}`} className="asset-qr" />}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="asset-name">{s(row.ten_ccdc)}</div>
               <ThongTin
                 items={[
                   [t("Nhóm"), s(row.ten_nhom)],
-                  [t("Vị trí"), s(row.nguoi_dang_giu_ten) ? t("Đang giữ: {x}", { x: s(row.nguoi_dang_giu_ten) }) : s(row.ten_kho)],
+                  [
+                    t("Vị trí"),
+                    row.nguoi_dang_giu ? (
+                      <>
+                        {t("Đang giữ:")} <NvLink ma={s(row.nguoi_dang_giu)} ten={s(row.nguoi_dang_giu_ten)} />
+                      </>
+                    ) : (
+                      s(row.ten_kho)
+                    ),
+                  ],
                   [t("Nguyên giá"), row.nguyen_gia != null ? t("{x}đ", { x: fmtSo(n(row.nguyen_gia)) }) : ""],
                   [t("Tình trạng"), TINH_TRANG_TS[s(row.tinh_trang)] ?? s(row.tinh_trang)],
                   [t("Số seri"), s(row.so_seri)],
@@ -738,56 +973,10 @@ function TaiSanModal({ id, onClose }: { id: string; onClose: () => void }) {
             </div>
           )}
 
-          {(data.xu_ly.length > 0 || data.lich_su.length > 0) && (
-            <>
-              <div className="section-title" style={{ marginTop: 16 }}>
-                {t("Lịch sử")}
-              </div>
-              <div className="table-scroll">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>{t("Mã phiếu")}</th>
-                      <th>{t("Loại")}</th>
-                      <th>{t("Chi tiết")}</th>
-                      <th>{t("Ngày")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.xu_ly.map((p) => (
-                      <tr key={`x${s(p.phieu_id)}`}>
-                        <td>
-                          <span className="code-link" onClick={() => moPhieu("xu_ly", s(p.phieu_id))}>
-                            {s(p.ma_phieu) || s(p.phieu_id).slice(0, 8)}
-                          </span>
-                        </td>
-                        <td>{LOAI_XU_LY[s(p.loai)] ?? s(p.loai)}</td>
-                        <td>
-                          {TRANG_THAI_XU_LY[s(p.trang_thai)]?.label ?? s(p.trang_thai)}
-                          {p.ly_do ? ` · ${s(p.ly_do)}` : ""}
-                        </td>
-                        <td>{fmtNgayGio(s(p.ngay_de_xuat))}</td>
-                      </tr>
-                    ))}
-                    {data.lich_su.map((p) => (
-                      <tr key={`g${s(p.phieu_id)}`}>
-                        <td>
-                          <span className="code-link" onClick={() => moPhieu("giao_nhan", s(p.phieu_id))}>
-                            {s(p.ma_phieu) || s(p.phieu_id).slice(0, 8)}
-                          </span>
-                        </td>
-                        <td>{LOAI_GIAO_NHAN[s(p.loai_phieu)] ?? s(p.loai_phieu)}</td>
-                        <td>
-                          {[s(p.tu_kho_ten) || s(p.nhan_vien_ten), s(p.den_kho_ten) || s(p.nhan_vien_nhan_moi_ten)].filter(Boolean).join(" → ")}
-                        </td>
-                        <td>{fmtNgayGio(s(p.ngay_lap))}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
+          <div className="section-title" style={{ marginTop: 16 }}>
+            {t("Lịch sử tài sản ({n})", { n: ls.length })}
+          </div>
+          <BangLoc cot={COT_LS} rows={ls} rowKey={(r) => r.key} tenFile={`Lich_su_${id.replace(/[^\w-]+/g, "_")}.xlsx`} rong={t("Chưa có phát sinh.")} />
         </>
       )}
     </Modal>

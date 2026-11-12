@@ -1,4 +1,5 @@
 import { t } from "../lib/i18n";
+import { NvLink } from "../components/LienKet";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Download, ListChecks, Plus, QrCode, Search } from "lucide-react";
 import { api } from "../api/client";
@@ -652,7 +653,7 @@ function ChiTietDot({ dot, onBack, onDoi }: { dot: DotRow; onBack: () => void; o
                       <td data-label={t("Tên tài sản")}>{c.ten_ccdc}</td>
                       <td data-label={t("Trạng thái")}>{TRANG_THAI_TS[c.trang_thai_hien_tai]?.label ?? c.trang_thai_hien_tai}</td>
                       <td data-label={t("Vị trí")} className="text-secondary">
-                        {c.nguoi_dang_giu_ten ?? c.ten_kho ?? "-"}
+                        {c.nguoi_dang_giu_ten ? <NvLink ma={c.nguoi_dang_giu} ten={c.nguoi_dang_giu_ten} /> : (c.ten_kho ?? "-")}
                       </td>
                       {moDot && hc && (
                         <td data-label={t("Ghi nhận")} style={{ textAlign: "right" }}>

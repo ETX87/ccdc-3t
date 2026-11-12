@@ -1,4 +1,5 @@
 import { t, tS } from "../lib/i18n";
+import { NvLink } from "../components/LienKet";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AlertTriangle, Archive, BarChart2, Building2, ChevronDown, ClipboardList, Download, Package, Search, ShieldCheck, Trash2, Users } from "lucide-react";
 import { api } from "../api/client";
@@ -717,7 +718,7 @@ export function BaoCaoScreen() {
                             {r.ma_nv}
                           </td>
                           <td data-label={t("Họ tên")} className="strong">
-                            {r.ten_nv}
+                            <NvLink ma={r.ma_nv} ten={r.ten_nv} />
                             {!r.dang_lam_viec && <StatusBadge label={t("Đã nghỉ")} tone="danger" />}
                           </td>
                           <td data-label={t("Bộ phận")} className="text-secondary">

@@ -131,7 +131,7 @@ function SoLuongPhieu({ p }: { p: PhieuRow }) {
 function denLabel(p: PhieuRow) {
   if (p.loai === "Dieu chinh") return <span className="muted small">{t("Tại chính kho này (không chuyển đi)")}</span>;
   if (p.den_kho_ten) return <KhoTag ten={p.den_kho_ten} loai={p.den_kho_loai} />;
-  if (p.den_nhan_vien_ten) return <NguoiTag ten={p.den_nhan_vien_ten} />;
+  if (p.den_nhan_vien_ten) return <NguoiTag ten={p.den_nhan_vien_ten} ma={p.den_nhan_vien_id} />;
   if (p.nguoi_nhan_ten_tu_do) return <NguoiTag ten={t("{nguoi_nhan_ten_tu_do} (ngoài danh bạ)", { nguoi_nhan_ten_tu_do: p.nguoi_nhan_ten_tu_do })} />;
   return "-";
 }

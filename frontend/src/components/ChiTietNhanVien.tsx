@@ -9,6 +9,7 @@ import { LoaiChip, TienTe } from "./NoiBat";
 import { fmtNgayGio, fmtSo } from "../lib/format";
 import { LOAI_GIAO_NHAN, thongBaoLoi, TINH_TRANG_TS, TRANG_THAI_CK, TRANG_THAI_TS } from "../lib/nhan";
 import { useKhiThayDoi } from "../lib/suKien";
+import { NvLink, PhieuLink, TsLink, VtLink } from "./LienKet";
 
 // Ho so 1 nhan vien (2026-11-12, user: tim nhan vien -> mo thang chi tiet, popup 95% man hinh): thong tin, tai san dang
 // giu, tieu hao duoc cap phat (gop theo mat hang + tung lan), lich su giao nhan tai san. Moi bang loc / sap xep tung cot
@@ -70,6 +71,8 @@ interface GiaoNhan {
   nguyen_gia: number | null;
   huong: "nhan" | "tra";
   doi_tac: string | null;
+  nhan_vien_id: string | null;
+  nhan_vien_nhan_moi_id: string | null;
 }
 interface TieuHao {
   phieu_id: string;
@@ -181,9 +184,9 @@ export function NhanVienModal({
   const cotTh = useMemo<CotBang<TieuHao>[]>(
     () => [
       { key: "ngay", nhan: t("Ngày"), kieu: "ngay", giaTri: (r) => r.created_at, hien: (r) => fmtNgayGio(r.created_at) },
-      { key: "ma", nhan: t("Mã phiếu"), kieu: "chu", giaTri: (r) => r.ma_phieu ?? r.phieu_id, hien: (r) => <span className="code-link">{r.ma_phieu ?? r.phieu_id.slice(0, 8)}</span> },
+      { key: "ma", nhan: t("Mã phiếu"), kieu: "chu", giaTri: (r) => r.ma_phieu ?? r.phieu_id, hien: (r) => <PhieuLink loai="chuyen_kho" id={r.phieu_id} ma={r.ma_phieu} /> },
       { key: "kho", nhan: t("Kho xuất"), kieu: "chon", giaTri: (r) => r.tu_kho },
-      { key: "vt", nhan: t("Vật tư"), kieu: "chu", giaTri: (r) => `${r.ten_vt} (${r.vt_id})`, hien: (r) => r.ten_vt },
+      { key: "vt", nhan: t("Vật tư"), kieu: "chu", giaTri: (r) => `${r.ten_vt} (${r.vt_id})`, hien: (r) => <VtLink id={r.vt_id} ten={r.ten_vt} /> },
       { key: "nhom", nhan: t("Nhóm"), kieu: "chon", giaTri: (r) => r.ten_nhom ?? "" },
       { key: "sl", nhan: t("SL"), kieu: "so", canPhai: true, giaTri: (r) => r.so_luong, hien: (r) => `${fmtSo(r.so_luong, 2)} ${r.don_vi_tinh ?? ""}` },
       { key: "dg", nhan: t("Đơn giá"), kieu: "so", canPhai: true, giaTri: (r) => r.don_gia ?? "", hien: (r) => (r.don_gia != null ? fmtSo(r.don_gia) : "-") },
@@ -208,7 +211,7 @@ export function NhanVienModal({
   const cotGn = useMemo<CotBang<GiaoNhan>[]>(
     () => [
       { key: "ngay", nhan: t("Ngày"), kieu: "ngay", giaTri: (r) => r.ngay_lap, hien: (r) => fmtNgayGio(r.ngay_lap) },
-      { key: "ma", nhan: t("Mã phiếu"), kieu: "chu", giaTri: (r) => r.ma_phieu ?? r.phieu_id, hien: (r) => <span className="code-link">{r.ma_phieu ?? r.phieu_id.slice(0, 8)}</span> },
+      { key: "ma", nhan: t("Mã phiếu"), kieu: "chu", giaTri: (r) => r.ma_phieu ?? r.phieu_id, hien: (r) => <PhieuLink loai="giao_nhan" id={r.phieu_id} ma={r.ma_phieu} /> },
       { key: "loai", nhan: t("Loại"), kieu: "chon", giaTri: (r) => LOAI_GIAO_NHAN[r.loai_phieu] ?? r.loai_phieu, hien: (r) => <LoaiChip loai={r.loai_phieu} nhan={LOAI_GIAO_NHAN[r.loai_phieu] ?? r.loai_phieu} /> },
       {
         key: "huong",
@@ -217,13 +220,16 @@ export function NhanVienModal({
         giaTri: (r) => (r.huong === "nhan" ? t("Nhận vào") : t("Trả ra")),
         hien: (r) => <StatusBadge label={r.huong === "nhan" ? t("Nhận vào") : t("Trả ra")} tone={r.huong === "nhan" ? "success" : "neutral"} />,
       },
-      { key: "dt", nhan: t("Từ / đến"), kieu: "chu", giaTri: (r) => r.doi_tac ?? "" },
-      { key: "ts", nhan: t("Tài sản"), kieu: "chu", giaTri: (r) => `${r.ten_ccdc} (${r.ccdc_id})`, hien: (r) => (
-        <>
-          {r.ten_ccdc}
-          <div className="muted small">{r.ccdc_id}</div>
-        </>
-      ) },
+      {
+        key: "dt",
+        nhan: t("Từ / đến"),
+        kieu: "chu",
+        giaTri: (r) => r.doi_tac ?? "",
+        // Dieu chuyen: doi tac la nhan vien (nguoi giu cu / nguoi nhan moi) -> bam mo ho so.
+        hien: (r) =>
+          r.loai_phieu === "Dieu chuyen" ? <NvLink ma={r.huong === "nhan" ? r.nhan_vien_id : r.nhan_vien_nhan_moi_id} ten={r.doi_tac} /> : (r.doi_tac ?? "-"),
+      },
+      { key: "ts", nhan: t("Tài sản"), kieu: "chu", giaTri: (r) => `${r.ten_ccdc} (${r.ccdc_id})`, hien: (r) => <TsLink id={r.ccdc_id} ten={r.ten_ccdc} /> },
       { key: "gia", nhan: t("Nguyên giá"), kieu: "so", canPhai: true, giaTri: (r) => r.nguyen_gia ?? 0, hien: (r) => <TienTe so={r.nguyen_gia} /> },
       {
         key: "xn",
@@ -258,7 +264,7 @@ export function NhanVienModal({
             </div>
             <div className="info-item">
               <div className="info-label">{t("Quản lý trực tiếp")}</div>
-              <div className="info-value">{nv.quan_ly_ten ? `${nv.quan_ly_ten} (${nv.quan_ly_id})` : "-"}</div>
+              <div className="info-value">{nv.quan_ly_id ? <NvLink ma={nv.quan_ly_id} ten={`${nv.quan_ly_ten ?? ""} (${nv.quan_ly_id})`} /> : "-"}</div>
             </div>
             <div className="info-item">
               <div className="info-label">{t("Liên hệ / tài khoản")}</div>

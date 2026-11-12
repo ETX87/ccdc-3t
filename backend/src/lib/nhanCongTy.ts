@@ -19,3 +19,11 @@ export const TEN_NV = (a: string) => `('[' || ${MA_CT_NV(a)} || '] ' || ${a}.ten
 
 /** Bo nhan "[..] " dau chuoi (vd ten kho dan tu file Excel xuat ra) de so khop voi ten goc. */
 export const boNhanCongTy = (s: string) => s.replace(/^\s*\[[^\]]*\]\s*/, "");
+
+/**
+ * SQL: ma NV + ten (co nhan cong ty) cua TAI KHOAN email o cot `cot` (nguoi lap / nguoi xu ly / nguoi kiem ke) - de giao
+ * dien bam ten mo ho so nhan vien. Tai khoan chua lien ket ho so -> NULL. Tra 2 cot `${ten}_nv`, `${ten}_ten`.
+ */
+export const NV_THEO_EMAIL = (cot: string, ten: string) =>
+  `(SELECT e.ma_nv FROM nhan_vien e WHERE e.email_dang_nhap = ${cot} ORDER BY e.dang_lam_viec DESC LIMIT 1) AS ${ten}_nv,
+   (SELECT ${TEN_NV("e")} FROM nhan_vien e WHERE e.email_dang_nhap = ${cot} ORDER BY e.dang_lam_viec DESC LIMIT 1) AS ${ten}_ten`;

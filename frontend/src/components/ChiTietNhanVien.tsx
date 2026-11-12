@@ -9,7 +9,7 @@ import { LoaiChip, TienTe } from "./NoiBat";
 import { fmtNgayGio, fmtSo } from "../lib/format";
 import { LOAI_GIAO_NHAN, thongBaoLoi, TINH_TRANG_TS, TRANG_THAI_CK, TRANG_THAI_TS } from "../lib/nhan";
 import { useKhiThayDoi } from "../lib/suKien";
-import { NvLink, PhieuLink, TsLink, VtLink } from "./LienKet";
+import { NvLink, PhieuLink, TsLink, useChiTiet, VtLink } from "./LienKet";
 
 // Ho so 1 nhan vien (2026-11-12, user: tim nhan vien -> mo thang chi tiet, popup 95% man hinh): thong tin, tai san dang
 // giu, tieu hao duoc cap phat (gop theo mat hang + tung lan), lich su giao nhan tai san. Moi bang loc / sap xep tung cot
@@ -44,6 +44,22 @@ interface DuLieu {
   giao_nhan: GiaoNhan[];
   tieu_hao: TieuHao[];
   tieu_hao_theo_vt: TheoVt[];
+  nhan_su: NhanSu[];
+}
+interface NhanSu {
+  ma_nv: string;
+  ten_nv: string;
+  bo_phan: string | null;
+  chuc_vu: string | null;
+  sdt: string | null;
+  email_dang_nhap: string | null;
+  cap: number;
+  quan_ly_id: string | null;
+  quan_ly_ten: string | null;
+  so_cap_duoi: number;
+  so_ts: number;
+  gia_tri_ts: number;
+  so_phieu_th: number;
 }
 interface TaiSan {
   id: string;
@@ -104,7 +120,7 @@ interface TheoVt {
   lan_dau: string;
   lan_cuoi: string;
 }
-type Tab = "tai-san" | "tieu-hao-vt" | "tieu-hao" | "giao-nhan";
+type Tab = "tai-san" | "tieu-hao-vt" | "tieu-hao" | "giao-nhan" | "nhan-su";
 
 export function NhanVienModal({
   ma,
@@ -119,6 +135,7 @@ export function NhanVienModal({
   onMoTaiSan: (id: string) => void;
   onMoVatTu: (id: string) => void;
 }) {
+  const { moNhanVien: onMoNhanVien } = useChiTiet();
   const [d, setD] = useState<DuLieu | null>(null);
   const [loi, setLoi] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("tai-san");
@@ -243,6 +260,29 @@ export function NhanVienModal({
     [],
   );
 
+  const cotNs = useMemo<CotBang<NhanSu>[]>(
+    () => [
+      { key: "ma", nhan: t("Mã NV"), kieu: "chu", giaTri: (r) => r.ma_nv },
+      { key: "ten", nhan: t("Họ tên"), kieu: "chu", giaTri: (r) => r.ten_nv, hien: (r) => <NvLink ma={r.ma_nv} ten={r.ten_nv} /> },
+      {
+        key: "cap",
+        nhan: t("Cấp"),
+        kieu: "chon",
+        giaTri: (r) => (r.cap === 1 ? t("Trực tiếp") : t("Gián tiếp (cấp {n})", { n: r.cap })),
+        hien: (r) => <StatusBadge label={r.cap === 1 ? t("Trực tiếp") : t("Gián tiếp (cấp {n})", { n: r.cap })} tone={r.cap === 1 ? "success" : "neutral"} />,
+      },
+      { key: "ql", nhan: t("Quản lý trực tiếp"), kieu: "chon", giaTri: (r) => r.quan_ly_ten ?? "", hien: (r) => <NvLink ma={r.quan_ly_id} ten={r.quan_ly_ten} /> },
+      { key: "bp", nhan: t("Bộ phận"), kieu: "chon", giaTri: (r) => r.bo_phan ?? "" },
+      { key: "cv", nhan: t("Chức vụ"), kieu: "chon", giaTri: (r) => r.chuc_vu ?? "" },
+      { key: "lh", nhan: t("Liên hệ"), kieu: "chu", giaTri: (r) => [r.sdt, r.email_dang_nhap].filter(Boolean).join(" · ") },
+      { key: "cd", nhan: t("Cấp dưới"), kieu: "so", canPhai: true, giaTri: (r) => r.so_cap_duoi },
+      { key: "ts", nhan: t("TS đang giữ"), kieu: "so", canPhai: true, giaTri: (r) => r.so_ts },
+      { key: "gt", nhan: t("Giá trị TS"), kieu: "so", canPhai: true, giaTri: (r) => r.gia_tri_ts, hien: (r) => <TienTe so={r.gia_tri_ts} /> },
+      { key: "th", nhan: t("Phiếu tiêu hao"), kieu: "so", canPhai: true, giaTri: (r) => r.so_phieu_th },
+    ],
+    [],
+  );
+
   const nv = d?.nv;
   const tg = d?.tong;
   return (
@@ -319,6 +359,7 @@ export function NhanVienModal({
               { key: "tieu-hao-vt", label: t("Tiêu hao theo mặt hàng"), count: d.tieu_hao_theo_vt.length },
               { key: "tieu-hao", label: t("Lịch sử cấp phát tiêu hao"), count: d.tieu_hao.length },
               { key: "giao-nhan", label: t("Lịch sử giao nhận tài sản"), count: d.giao_nhan.length },
+              ...(d.nhan_su.length ? [{ key: "nhan-su" as Tab, label: t("Danh sách nhân sự"), count: d.nhan_su.length }] : []),
             ]}
           />
           <div style={{ marginTop: 10 }}>
@@ -337,6 +378,20 @@ export function NhanVienModal({
                 rowClass={(r) => (r.trang_thai === "Da giao" && !r.da_xac_nhan ? "row-chu-y" : "")}
                 tenFile={`${ten("Lich_su_cap_phat_tieu_hao")}.xlsx`}
                 rong={t("Chưa được cấp phát tiêu hao.")}
+              />
+            )}
+            {tab === "nhan-su" && (
+              <BangLoc
+                cot={cotNs}
+                rows={d.nhan_su}
+                rowKey={(r) => r.ma_nv}
+                onRowClick={(r) => onMoNhanVien(r.ma_nv)}
+                tenFile={`${ten("Nhan_su_dang_quan_ly")}.xlsx`}
+                congCu={
+                  <span className="muted small">
+                    {t("{a} trực tiếp · {b} gián tiếp", { a: d.nhan_su.filter((x) => x.cap === 1).length, b: d.nhan_su.filter((x) => x.cap > 1).length })}
+                  </span>
+                }
               />
             )}
             {tab === "giao-nhan" && (

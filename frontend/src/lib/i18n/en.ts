@@ -1812,4 +1812,12 @@ export const EN: Record<string, string> = {
   "Đến / người giữ": "To / holder",
   "đang chờ {x}h": "waiting {x}h",
   "đang chờ": "waiting",
+  "Cấp": "Level",
+  "Danh sách nhân sự": "Staff managed",
+  "Giá trị TS": "Asset value",
+  "Gián tiếp (cấp {n})": "Indirect (level {n})",
+  "Liên hệ": "Contact",
+  "Phiếu tiêu hao": "Consumable slips",
+  "Trực tiếp": "Direct",
+  "{a} trực tiếp · {b} gián tiếp": "{a} direct · {b} indirect",
 };

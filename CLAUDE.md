@@ -295,7 +295,8 @@ khoản Google THẬT do Admin kết nối (thẻ "Lưu trữ hóa đơn…" ở
   Thêm màn mới = thêm `MenuChild` vào đúng menu mẹ (`duocMoTab` đọc từ children).
 - **Hồ sơ nhân viên** (`components/ChiTietNhanVien.tsx`, `GET /nhan-vien/:ma/ho-so`, `useChiTiet().moNhanVien(ma)`): popup
   95% màn (`Modal size="xl"`), mở từ tìm kiếm trên cùng (nhóm Nhân viên xếp ĐẦU) và tên NV ở màn Nhân viên. Tab: tài sản
-  đang giữ, tiêu hao theo mặt hàng, lịch sử cấp phát tiêu hao, lịch sử giao nhận TS. Quyền = phạm vi tìm kiếm (chính mình /
+  đang giữ, tiêu hao theo mặt hàng, lịch sử cấp phát tiêu hao, lịch sử giao nhận TS, "Danh sách nhân sự" (cấp dưới trực tiếp +
+  gián tiếp, CTE đệ quy theo `quan_ly_id` ≤ 6 cấp, chỉ hiện khi có). Quyền = phạm vi tìm kiếm (chính mình /
   `pv.toanBo` / `pv.nhomMaNv`) + NV thuộc công ty tài khoản; dữ liệu lọc theo công ty đang xem. "Đã nhận (tiêu dùng)" =
   phiếu Cấp phát NV `Da giao` + `da_xac_nhan` (tiêu hao cấp cho NV coi như dùng hết).
 - **UI chi tiết thống nhất** (2026-11-12): MỌI popup chi tiết (phiếu tiêu hao / giao nhận / xử lý, tài sản, vật tư, nhân viên)

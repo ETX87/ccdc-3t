@@ -240,7 +240,7 @@ nhanVien.get("/:ma_nv/ho-so", async (c) => {
   const pv = await layPhamVi(db, user);
   if (ma !== user.ma_nv && !pv.toanBo && !pv.nhomMaNv.includes(ma)) return c.json({ error: "FORBIDDEN" }, 403);
   const ctXem = JSON.stringify(user.cong_ty_xem);
-  const [nvR, cts, ts, gn, th] = await db.batch<Record<string, unknown>>([
+  const [nvR, cts, ts, gn, th, cd] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
         `SELECT n.ma_nv, n.ten_nv, n.bo_phan, n.chuc_vu, n.sdt, n.email_dang_nhap, n.dang_lam_viec, n.ma_etx, n.cong_ty_id,
@@ -282,6 +282,30 @@ nhanVien.get("/:ma_nv/ho-so", async (c) => {
          JOIN kho k ON k.id = p.tu_kho_id LEFT JOIN nhom_ccdc nh ON nh.id = v.nhom_id
          WHERE p.loai = 'Cap phat NV' AND p.den_nhan_vien_id = ?1 AND k.cong_ty_id IN (SELECT value FROM json_each(?2))
          ORDER BY p.created_at DESC LIMIT 5000`,
+      )
+      .bind(ma, ctXem),
+    // Nhan su dang quan ly (2026-11-12): cap duoi truc tiep + gian tiep (de quy theo quan_ly_id, toi da 6 cap), dang lam
+    // viec, thuoc cong ty dang xem; kem so TS dang giu + gia tri, so phieu tieu hao duoc cap.
+    db
+      .prepare(
+        `WITH RECURSIVE cay(ma_nv, cap, duong) AS (
+           SELECT ma_nv, 1, '/' || ma_nv || '/' FROM nhan_vien WHERE quan_ly_id = ?1 AND dang_lam_viec = 1
+           UNION ALL
+           SELECT n.ma_nv, cay.cap + 1, cay.duong || n.ma_nv || '/' FROM nhan_vien n JOIN cay ON n.quan_ly_id = cay.ma_nv
+           WHERE n.dang_lam_viec = 1 AND cay.cap < 6 AND instr(cay.duong, '/' || n.ma_nv || '/') = 0
+         )
+         SELECT n.ma_nv, ${TEN_NV("n")} AS ten_nv, n.bo_phan, n.chuc_vu, n.sdt, n.email_dang_nhap, MIN(cay.cap) AS cap,
+                n.quan_ly_id, ql.ten_nv AS quan_ly_ten,
+                (SELECT COUNT(*) FROM nhan_vien x WHERE x.quan_ly_id = n.ma_nv AND x.dang_lam_viec = 1) AS so_cap_duoi,
+                (SELECT COUNT(*) FROM ccdc c WHERE c.nguoi_dang_giu = n.ma_nv AND c.vo_hieu_hoa = 0
+                   AND c.trang_thai_hien_tai NOT IN ('Da thanh ly', 'Da tieu huy') AND c.cong_ty_id IN (SELECT value FROM json_each(?2))) AS so_ts,
+                (SELECT COALESCE(SUM(c.nguyen_gia), 0) FROM ccdc c WHERE c.nguoi_dang_giu = n.ma_nv AND c.vo_hieu_hoa = 0
+                   AND c.trang_thai_hien_tai NOT IN ('Da thanh ly', 'Da tieu huy') AND c.cong_ty_id IN (SELECT value FROM json_each(?2))) AS gia_tri_ts,
+                (SELECT COUNT(*) FROM phieu_chuyen_kho p JOIN kho k ON k.id = p.tu_kho_id WHERE p.loai = 'Cap phat NV' AND p.trang_thai = 'Da giao'
+                   AND p.den_nhan_vien_id = n.ma_nv AND k.cong_ty_id IN (SELECT value FROM json_each(?2))) AS so_phieu_th
+         FROM cay JOIN nhan_vien n ON n.ma_nv = cay.ma_nv LEFT JOIN nhan_vien ql ON ql.ma_nv = n.quan_ly_id
+         WHERE n.ma_nv IN (SELECT ma_nv FROM v_nv_cong_ty WHERE cong_ty_id IN (SELECT value FROM json_each(?2)))
+         GROUP BY n.ma_nv ORDER BY cap, n.ten_nv`,
       )
       .bind(ma, ctXem),
   ]);
@@ -333,6 +357,7 @@ nhanVien.get("/:ma_nv/ho-so", async (c) => {
     giao_nhan: giaoNhan,
     tieu_hao: tieuHao,
     tieu_hao_theo_vt: [...theoVt.values()].sort((a, b) => b.lan_cuoi.localeCompare(a.lan_cuoi)),
+    nhan_su: cd.results,
     cap_nhat_luc: nowVN(),
   });
 });

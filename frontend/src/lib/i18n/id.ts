@@ -1812,4 +1812,12 @@ export const ID: Record<string, string> = {
   "Đến / người giữ": "Ke / pemegang",
   "đang chờ {x}h": "menunggu {x}j",
   "đang chờ": "menunggu",
+  "Cấp": "Tingkat",
+  "Danh sách nhân sự": "Daftar karyawan",
+  "Giá trị TS": "Nilai aset",
+  "Gián tiếp (cấp {n})": "Tidak langsung (tingkat {n})",
+  "Liên hệ": "Kontak",
+  "Phiếu tiêu hao": "Slip barang habis pakai",
+  "Trực tiếp": "Langsung",
+  "{a} trực tiếp · {b} gián tiếp": "{a} langsung · {b} tidak langsung",
 };

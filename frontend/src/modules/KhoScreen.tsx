@@ -6,7 +6,6 @@ import { useAuth, useRefreshUser } from "../auth/AuthContext";
 import { Modal } from "../components/Modal";
 import { PageHeader } from "../components/PageHeader";
 import { KpiCard } from "../components/KpiCard";
-import { FilterTabs } from "../components/FilterTabs";
 import { StatusBadge } from "../components/StatusBadge";
 import { useNav } from "../lib/navigation";
 import { duocMoTab } from "../lib/menu";
@@ -186,19 +185,7 @@ export function KhoScreen() {
   return (
     <div className="dashboard-container">
       <PageHeader
-        title={t("Kho & tồn")}
-        filters={
-          quanTriKho ? (
-            <FilterTabs<Tab>
-              value={tab}
-              onChange={setTab}
-              tabs={[
-                { key: "ton", label: t("Tồn theo kho") },
-                { key: "cau-hinh", label: t("Cấu hình kho & thủ kho") },
-              ]}
-            />
-          ) : undefined
-        }
+        title={tab === "cau-hinh" ? t("Kho & thủ kho") : t("Kho & tồn")}
         capNhatLuc={tongHop?.cap_nhat_luc}
         onRefresh={load}
         dangTai={dangTai}

@@ -6,7 +6,6 @@ import { api } from "../api/client";
 import { PageHeader } from "../components/PageHeader";
 import { KpiCard } from "../components/KpiCard";
 import { KhoFilter } from "../components/KhoFilter";
-import { FilterTabs } from "../components/FilterTabs";
 import { StatusBadge } from "../components/StatusBadge";
 import { useChiTiet } from "../components/ChiTiet";
 import { exportRowsToExcel } from "../lib/exportExcel";
@@ -466,7 +465,7 @@ export function BaoCaoScreen() {
   return (
     <div className="dashboard-container">
       <PageHeader
-        title={t("Báo cáo")}
+        title={subTabs.find((x) => x.key === tab)?.label ?? t("Báo cáo")}
         filters={
           <>
             {tab !== "theo-cong-ty" && tab !== "tieu-dung" && <KhoFilter value={khoId} onChange={setKhoId} />}
@@ -484,7 +483,6 @@ export function BaoCaoScreen() {
       />
       {loi && <div className="alert alert-error">{loi}</div>}
 
-      <FilterTabs<SubTab> value={tab} onChange={doiTab} tabs={subTabs} />
 
       {!d && !loi && <div className="content-card task-empty">{t("Đang tải báo cáo…")}</div>}
 

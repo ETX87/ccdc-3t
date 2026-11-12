@@ -28,19 +28,22 @@ import {
 import type { AppUser } from "../types";
 import { ChonLoc } from "./ChonLoc";
 import { VatTuModal } from "./ChiTietVatTu";
+import { NhanVienModal } from "./ChiTietNhanVien";
 
 // Popup chi tiet dung chung toan app: mo tu ma phieu / ma tai san o bat ky dau (tim kiem, chuong, bang
 // viec, canh bao, quet QR). Nut thao tac chi hien khi nguoi dung dung vai tro; server van kiem lai.
 
 export type LoaiPhieu = "chuyen_kho" | "giao_nhan" | "xu_ly";
 
-type Dang = { kind: "phieu"; loai: LoaiPhieu; id: string } | { kind: "tai_san"; id: string } | { kind: "vat_tu"; id: string };
+type Dang = { kind: "phieu"; loai: LoaiPhieu; id: string } | { kind: "tai_san"; id: string } | { kind: "vat_tu"; id: string } | { kind: "nhan_vien"; id: string };
 
 interface ChiTietApi {
   moPhieu: (loai: LoaiPhieu, id: string) => void;
   moTaiSan: (id: string) => void;
   /** Ho so 1 vat tu tieu hao: ton tung kho, lich su phieu, nguoi nhan (components/ChiTietVatTu.tsx). */
   moVatTu: (id: string) => void;
+  /** Ho so 1 nhan vien (popup 95%): tai san dang giu, tieu hao duoc cap, lich su (components/ChiTietNhanVien.tsx). */
+  moNhanVien: (maNv: string) => void;
 }
 
 const Ctx = createContext<ChiTietApi | null>(null);
@@ -64,6 +67,7 @@ export function ChiTietProvider({ children }: { children: ReactNode }) {
   const moPhieu = useCallback((loai: LoaiPhieu, id: string) => mo({ kind: "phieu", loai, id }), [mo]);
   const moTaiSan = useCallback((id: string) => mo({ kind: "tai_san", id }), [mo]);
   const moVatTu = useCallback((id: string) => mo({ kind: "vat_tu", id }), [mo]);
+  const moNhanVien = useCallback((id: string) => mo({ kind: "nhan_vien", id }), [mo]);
   const dong = useCallback(() => {
     if ((window.history.state as { popup?: number } | null)?.popup) window.history.back();
     else setChong((cu) => cu.slice(0, -1));
@@ -78,10 +82,13 @@ export function ChiTietProvider({ children }: { children: ReactNode }) {
   }, []);
   const dang = chong[chong.length - 1];
   return (
-    <Ctx.Provider value={{ moPhieu, moTaiSan, moVatTu }}>
+    <Ctx.Provider value={{ moPhieu, moTaiSan, moVatTu, moNhanVien }}>
       {children}
       {dang?.kind === "phieu" && <PhieuModal key={`p:${dang.id}`} loai={dang.loai} id={dang.id} onClose={dong} />}
       {dang?.kind === "tai_san" && <TaiSanModal key={`t:${dang.id}`} id={dang.id} onClose={dong} />}
+      {dang?.kind === "nhan_vien" && (
+        <NhanVienModal key={`n:${dang.id}`} ma={dang.id} onClose={dong} onMoPhieu={moPhieu} onMoTaiSan={moTaiSan} onMoVatTu={moVatTu} />
+      )}
       {dang?.kind === "vat_tu" && <VatTuModal key={`v:${dang.id}`} id={dang.id} onClose={dong} onMoPhieu={(id) => moPhieu("chuyen_kho", id)} />}
     </Ctx.Provider>
   );

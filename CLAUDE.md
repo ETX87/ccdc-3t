@@ -287,6 +287,21 @@ khoản Google THẬT do Admin kết nối (thẻ "Lưu trữ hóa đơn…" ở
   loại kho), `NguoiTag`, `NgayCho` (ngày + tuổi chờ, >24h vàng, >48h đỏ), `SoTon` (âm đỏ, 0 xám), `TienTe`. Dòng cần xử
   lý: `row-canh-bao` (viền đỏ) / `row-chu-y` (viền vàng). Màu theo Ý NGHĨA: đỏ = phải xử lý, vàng = sắp tới hạn.
 
+## Menu 2 lớp + hồ sơ nhân viên + bảng kiểu Excel (2026-11-12)
+
+- **Menu** (`lib/menu.ts`): Tổng quan / Việc cần làm / Cảnh báo ở trên cùng, còn lại là MENU MẸ (Tài sản cố định, Vật tư
+  tiêu hao, Kho, Báo cáo, Cấu hình) — bấm mới xổ menu con, chỉ mở 1 menu mẹ 1 lúc, tự mở menu mẹ chứa màn đang xem
+  (`Layout.tsx`). Menu con có `icon`, `phan` (tiêu đề phần trong Báo cáo); số đỏ menu mẹ = tổng menu con khi thu gọn.
+  Thêm màn mới = thêm `MenuChild` vào đúng menu mẹ (`duocMoTab` đọc từ children).
+- **Hồ sơ nhân viên** (`components/ChiTietNhanVien.tsx`, `GET /nhan-vien/:ma/ho-so`, `useChiTiet().moNhanVien(ma)`): popup
+  95% màn (`Modal size="xl"`), mở từ tìm kiếm trên cùng (nhóm Nhân viên xếp ĐẦU) và tên NV ở màn Nhân viên. Tab: tài sản
+  đang giữ, tiêu hao theo mặt hàng, lịch sử cấp phát tiêu hao, lịch sử giao nhận TS. Quyền = phạm vi tìm kiếm (chính mình /
+  `pv.toanBo` / `pv.nhomMaNv`) + NV thuộc công ty tài khoản; dữ liệu lọc theo công ty đang xem. "Đã nhận (tiêu dùng)" =
+  phiếu Cấp phát NV `Da giao` + `da_xac_nhan` (tiêu hao cấp cho NV coi như dùng hết).
+- **`components/BangLoc.tsx`** = bảng kiểu Excel dùng chung (lọc theo kiểu cột chữ/chọn/ngày/số + sắp xếp trên tiêu đề, đếm
+  dòng sau lọc, xoá lọc, xuất Excel dòng đang lọc, phân trang 50) — LỌC Ở TRÌNH DUYỆT, chỉ cho bảng đã tải đủ dữ liệu.
+  Bảng mới dùng component này; các bảng cũ chưa chuyển (bảng phân trang server cần gửi lọc lên server).
+
 ## Đa ngôn ngữ VI / EN / ID (2026-10-07)
 
 `frontend/src/lib/i18n.ts`, kiểu gettext: **khoá = chính chuỗi tiếng Việt gốc** — `t("Tổng quan")`,

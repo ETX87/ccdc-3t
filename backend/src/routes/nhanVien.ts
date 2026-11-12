@@ -10,6 +10,7 @@ import { coCongTy, congTyLoc, congTyTao, duocThemNvVaoCongTy, khoPhuTrach, laHcn
 import type { AppUser } from "../types";
 import { congTyCuaNv, lenhTaoKhoQl, NV_THUOC_CT } from "../lib/nvCongTy";
 import { TEN_NV } from "../lib/nhanCongTy";
+import { layPhamVi } from "../lib/phamVi";
 
 /** Ho so ton tai + nguoi dung la HCNS/Admin 1 trong cac cong ty cua ho so (da phap nhan, nhan vien kiem nhiem). */
 async function nvQuanTri(db: D1Database, user: AppUser, maNv: string) {
@@ -227,6 +228,113 @@ nhanVien.get("/cong-ty-khac", async (c) => {
       };
     });
   return c.json({ rows });
+});
+
+// GET /:ma_nv/ho-so - HO SO 1 nhan vien tren 1 man (2026-11-12, user: tim nhan vien -> mo thang chi tiet): thong tin, tai
+// san dang giu, tieu hao duoc cap phat (tung lan + gop theo mat hang), lich su giao nhan tai san. Quyen: chinh minh,
+// Admin/KT/HCNS (cong ty dang xem), QL voi nhom cua minh - cung pham vi o tim kiem. Du lieu loc theo cong ty dang xem.
+nhanVien.get("/:ma_nv/ho-so", async (c) => {
+  const db = c.env.DB;
+  const user = c.get("user");
+  const ma = c.req.param("ma_nv") ?? "";
+  const pv = await layPhamVi(db, user);
+  if (ma !== user.ma_nv && !pv.toanBo && !pv.nhomMaNv.includes(ma)) return c.json({ error: "FORBIDDEN" }, 403);
+  const ctXem = JSON.stringify(user.cong_ty_xem);
+  const [nvR, cts, ts, gn, th] = await db.batch<Record<string, unknown>>([
+    db
+      .prepare(
+        `SELECT n.ma_nv, n.ten_nv, n.bo_phan, n.chuc_vu, n.sdt, n.email_dang_nhap, n.dang_lam_viec, n.ma_etx, n.cong_ty_id,
+                n.quan_ly_id, ql.ten_nv AS quan_ly_ten, n.updated_at
+         FROM nhan_vien n LEFT JOIN nhan_vien ql ON ql.ma_nv = n.quan_ly_id WHERE n.ma_nv = ?`,
+      )
+      .bind(ma),
+    db.prepare("SELECT v.cong_ty_id AS id, ct.ma, ct.ten FROM v_nv_cong_ty v JOIN cong_ty ct ON ct.id = v.cong_ty_id WHERE v.ma_nv = ?").bind(ma),
+    db
+      .prepare(
+        `SELECT c.id, c.ten_ccdc, n.ten_nhom, c.trang_thai_hien_tai, c.tinh_trang, c.so_seri, c.nguyen_gia, c.ngay_mua, c.han_bao_hanh,
+                ct.ma AS cong_ty_ma,
+                (SELECT MAX(g.ngay_lap) FROM phieu_giao_nhan_ct x JOIN phieu_giao_nhan g ON g.id = x.phieu_id
+                 WHERE x.ccdc_id = c.id AND (g.nhan_vien_id = ?1 AND g.loai_phieu = 'Cap phat' OR g.nhan_vien_nhan_moi_id = ?1)) AS ngay_nhan
+         FROM ccdc c LEFT JOIN nhom_ccdc n ON n.id = c.nhom_id LEFT JOIN cong_ty ct ON ct.id = c.cong_ty_id
+         WHERE c.nguoi_dang_giu = ?1 AND c.vo_hieu_hoa = 0 AND c.trang_thai_hien_tai NOT IN ('Da thanh ly', 'Da tieu huy')
+           AND c.cong_ty_id IN (SELECT value FROM json_each(?2))
+         ORDER BY c.ten_ccdc, c.id`,
+      )
+      .bind(ma, ctXem),
+    db
+      .prepare(
+        `SELECT g.id AS phieu_id, g.ma_phieu, g.loai_phieu, g.ngay_lap, g.da_xac_nhan, g.xac_nhan_luc, g.nguoi_lap, g.ghi_chu,
+                g.nhan_vien_id, g.nhan_vien_nhan_moi_id, ${TEN_NV("a")} AS nv_giu_ten, ${TEN_NV("b")} AS nv_moi_ten,
+                kt.ten_kho AS tu_kho, kd.ten_kho AS den_kho, x.ccdc_id, c.ten_ccdc, c.nguyen_gia
+         FROM phieu_giao_nhan g JOIN phieu_giao_nhan_ct x ON x.phieu_id = g.id JOIN ccdc c ON c.id = x.ccdc_id
+         LEFT JOIN nhan_vien a ON a.ma_nv = g.nhan_vien_id LEFT JOIN nhan_vien b ON b.ma_nv = g.nhan_vien_nhan_moi_id
+         LEFT JOIN kho kt ON kt.id = g.tu_kho_id LEFT JOIN kho kd ON kd.id = g.den_kho_id
+         WHERE (g.nhan_vien_id = ?1 OR g.nhan_vien_nhan_moi_id = ?1) AND c.cong_ty_id IN (SELECT value FROM json_each(?2))
+         ORDER BY g.ngay_lap DESC LIMIT 5000`,
+      )
+      .bind(ma, ctXem),
+    db
+      .prepare(
+        `SELECT p.id AS phieu_id, p.ma_phieu, p.created_at, p.trang_thai, p.da_xac_nhan, p.xac_nhan_luc, p.nguoi_lap, p.ghi_chu,
+                k.ten_kho AS tu_kho, ct.vt_id, v.ten_vt, v.don_vi_tinh, nh.ten_nhom, ct.so_luong, ct.don_gia,
+                COALESCE(ct.thanh_tien, ct.so_luong * COALESCE(ct.don_gia, v.don_gia_tham_khao)) AS thanh_tien
+         FROM phieu_chuyen_kho p JOIN phieu_chuyen_kho_ct ct ON ct.phieu_id = p.id JOIN vt_tieu_hao v ON v.id = ct.vt_id
+         JOIN kho k ON k.id = p.tu_kho_id LEFT JOIN nhom_ccdc nh ON nh.id = v.nhom_id
+         WHERE p.loai = 'Cap phat NV' AND p.den_nhan_vien_id = ?1 AND k.cong_ty_id IN (SELECT value FROM json_each(?2))
+         ORDER BY p.created_at DESC LIMIT 5000`,
+      )
+      .bind(ma, ctXem),
+  ]);
+  const nv = nvR.results[0];
+  if (!nv) return c.json({ error: "NOT_FOUND" }, 404);
+  if (ma !== user.ma_nv && !(cts.results as { id: number }[]).some((x) => user.cong_ty_ids.includes(x.id))) return c.json({ error: "FORBIDDEN" }, 403);
+
+  const N = (v: unknown) => Number(v ?? 0) || 0;
+  // Huong giao nhan voi CHINH nhan vien nay: nhan vao / tra ra.
+  const giaoNhan = gn.results.map((r) => {
+    const loai = String(r.loai_phieu);
+    const nhanVao = loai === "Cap phat" || (loai === "Dieu chuyen" && r.nhan_vien_nhan_moi_id === ma);
+    return {
+      ...r,
+      huong: nhanVao ? "nhan" : "tra",
+      doi_tac: loai === "Dieu chuyen" ? (nhanVao ? r.nv_giu_ten : r.nv_moi_ten) : loai === "Cap phat" ? r.tu_kho : r.den_kho,
+    };
+  });
+  // Tieu hao: phieu 'Da giao' moi co hieu luc (tieu hao het khi giao); da_xac_nhan = NV da bam nhan.
+  const tieuHao = th.results;
+  const hieuLuc = tieuHao.filter((r) => r.trang_thai === "Da giao");
+  const theoVt = new Map<string, { vt_id: string; ten_vt: unknown; don_vi_tinh: unknown; ten_nhom: unknown; so_luong: number; so_lan: number; gia_tri: number; da_nhan: number; cho_xac_nhan: number; lan_dau: string; lan_cuoi: string }>();
+  for (const r of hieuLuc) {
+    const k = String(r.vt_id);
+    const x = theoVt.get(k) ?? { vt_id: k, ten_vt: r.ten_vt, don_vi_tinh: r.don_vi_tinh, ten_nhom: r.ten_nhom, so_luong: 0, so_lan: 0, gia_tri: 0, da_nhan: 0, cho_xac_nhan: 0, lan_dau: String(r.created_at), lan_cuoi: String(r.created_at) };
+    x.so_luong += N(r.so_luong);
+    x.so_lan++;
+    x.gia_tri += N(r.thanh_tien);
+    if (r.da_xac_nhan) x.da_nhan += N(r.so_luong);
+    else x.cho_xac_nhan += N(r.so_luong);
+    if (String(r.created_at) < x.lan_dau) x.lan_dau = String(r.created_at);
+    if (String(r.created_at) > x.lan_cuoi) x.lan_cuoi = String(r.created_at);
+    theoVt.set(k, x);
+  }
+  const phieuCho = new Set(hieuLuc.filter((r) => !r.da_xac_nhan).map((r) => r.phieu_id));
+  return c.json({
+    nv: { ...nv, cong_ty: cts.results },
+    tong: {
+      ts_so: ts.results.length,
+      ts_gia_tri: ts.results.reduce((s, r) => s + N(r.nguyen_gia), 0),
+      ts_cho_xac_nhan: gn.results.filter((r, i) => giaoNhan[i].huong === "nhan" && !r.da_xac_nhan).length,
+      th_so_phieu: new Set(hieuLuc.map((r) => r.phieu_id)).size,
+      th_so_mat_hang: theoVt.size,
+      th_gia_tri: hieuLuc.reduce((s, r) => s + N(r.thanh_tien), 0),
+      th_phieu_cho_xac_nhan: phieuCho.size,
+      th_lan_cuoi: hieuLuc[0]?.created_at ?? null,
+    },
+    tai_san: ts.results,
+    giao_nhan: giaoNhan,
+    tieu_hao: tieuHao,
+    tieu_hao_theo_vt: [...theoVt.values()].sort((a, b) => b.lan_cuoi.localeCompare(a.lan_cuoi)),
+    cap_nhat_luc: nowVN(),
+  });
 });
 
 nhanVien.get("/:ma_nv", async (c) => {

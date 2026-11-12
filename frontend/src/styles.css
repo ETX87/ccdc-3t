@@ -1907,3 +1907,38 @@ td.o-link:hover { background: #f0f9ff; }
 .nb-nhap { color: #0F766E; font-weight: 700; font-variant-numeric: tabular-nums; }
 .nb-xuat { color: #C2410C; font-weight: 700; font-variant-numeric: tabular-nums; }
 .task-table tfoot .nb-tong td { background: #F8FAFC; font-weight: 700; border-top: 2px solid #E2E8F0; }
+
+/* Menu 2 lop (2026-11-12): menu me theo nghiep vu, bam moi xo menu con. */
+.sidebar-me-ngan { height: 1px; margin: 8px 14px; background: rgba(255, 255, 255, 0.12); }
+.sidebar-nav-item.sidebar-me .nav-icon { opacity: 0.95; }
+.sidebar-nhom-tscd .sidebar-me .nav-icon { color: #9fe7ff; }
+.sidebar-nhom-tieu-hao .sidebar-me .nav-icon { color: #ffd88a; }
+.sidebar-nhom-kho .sidebar-me .nav-icon { color: #a7f3d0; }
+.sidebar-nhom-bao-cao .sidebar-me .nav-icon { color: #d8c4ff; }
+.sidebar-nav-item.sidebar-me.chua-hien-tai .nav-label { font-weight: 700; }
+.sidebar-subnav-phan { margin: 6px 0 2px -14px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
+.sidebar-subnav-nhan { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.sidebar-subnav-icon { flex: 0 0 auto; opacity: 0.75; }
+.sidebar-subnav-item.active .sidebar-subnav-icon { opacity: 1; }
+.sidebar-subnav-item:has(.sidebar-subnav-icon)::before { display: none; }
+.sidebar-subnav:has(.sidebar-subnav-icon) { padding-left: 30px; }
+
+/* Popup 95% man hinh (ho so nhan vien) */
+.modal-box.modal-xl { max-width: 95vw; width: 95vw; height: 95vh; max-height: 95vh; }
+@media (max-width: 600px) { .modal-box.modal-xl { width: 100%; height: auto; max-height: 94dvh; } }
+
+/* BangLoc - bang kieu Excel: loc + sap xep tren tieu de cot */
+.bang-loc-cong-cu { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.bang-loc-th { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.bang-loc-sx { display: inline-flex; align-items: center; gap: 4px; border: none; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; text-transform: inherit; letter-spacing: inherit; }
+.bang-loc-sx .bang-loc-mo { opacity: 0.35; }
+.bang-loc-sx:hover .bang-loc-mo { opacity: 0.8; }
+.bang-loc-nut { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: none; border-radius: 4px; background: none; color: #94a3b8; cursor: pointer; padding: 0; }
+.bang-loc-nut:hover { background: #e2e8f0; color: #334155; }
+.bang-loc-nut.on { background: #e0f2fe; color: #0284c7; }
+.bang-loc-th-loc { background: #f0f9ff; }
+.bang-loc-pop { position: fixed; z-index: 2000; width: 260px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.16); padding: 10px; display: flex; flex-direction: column; gap: 4px; }
+.bang-loc-pop input[type="text"], .bang-loc-pop input[type="date"], .bang-loc-pop input[type="number"] { width: 100%; }
+.bang-loc-pop-tieu-de { font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px; }
+.bang-loc-ds { max-height: 240px; overflow: auto; display: flex; flex-direction: column; gap: 2px; }
+.bang-loc-ds .check-label { display: flex; gap: 6px; align-items: center; font-size: 13px; }

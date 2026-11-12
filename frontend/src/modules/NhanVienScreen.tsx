@@ -13,6 +13,7 @@ import { exportRowsToExcel } from "../lib/exportExcel";
 import { fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { useNav } from "../lib/navigation";
 import { GoiYNvCongTyKhac } from "../components/GoiYNvCongTyKhac";
+import { useChiTiet } from "../components/ChiTiet";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { thongBaoLoi } from "../lib/nhan";
 import { DoiMaNhanVienModal } from "./DoiMaNhanVienModal";
@@ -83,6 +84,7 @@ const LOI_FORM: Record<string, string> = {
 // Nhan vien & so do quan ly: danh sach NV (dong bo ETX + nhap tay), gan quan ly truc tiep (tu tao kho QL),
 // lien ket tai khoan dang nhap, xem tai san dang giu. Sua / them / nghi viec: Admin + HCNS.
 export function NhanVienScreen() {
+  const { moNhanVien } = useChiTiet();
   const auth = useAuth();
   const { params, navigate } = useNav();
   const canEdit = auth.status === "authenticated" && (auth.user.vai_tro === "Admin" || auth.user.vai_tro === "HCNS");
@@ -478,7 +480,9 @@ export function NhanVienScreen() {
                   </td>
                   <td data-label={t("Họ tên")}>
                     <div className="cell-stack">
-                      <span className="strong">{r.ten_nv}</span>
+                      <button type="button" className="so-link strong" title={t("Mở hồ sơ: tài sản, tiêu hao, lịch sử")} onClick={() => moNhanVien(r.ma_nv)}>
+                        {r.ten_nv}
+                      </button>
                       {nhieuCt && (
                         <span className="muted small">
                           {" "}

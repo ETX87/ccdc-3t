@@ -24,7 +24,7 @@ const TEN_LOAI_PHIEU = (p: KetQua["phieu"][number]) =>
 export function GlobalSearch() {
   const auth = useAuth();
   const { navigate } = useNav();
-  const { moPhieu, moTaiSan, moVatTu } = useChiTiet();
+  const { moPhieu, moTaiSan, moVatTu, moNhanVien } = useChiTiet();
   const [q, setQ] = useState("");
   const [kq, setKq] = useState<KetQua | null>(null);
   const [open, setOpen] = useState(false);
@@ -65,7 +65,6 @@ export function GlobalSearch() {
   }
 
   const tong = kq ? kq.tai_san.length + kq.vat_tu.length + kq.nhan_vien.length + kq.phieu.length : 0;
-  const moNhanVien = duocMoTab(user, "nhan-vien") ? "nhan-vien" : duocMoTab(user, "bao-cao") ? "bao-cao" : null;
 
   return (
     <div className={`topbar-search-wrap ${moRong ? "expanded" : ""}`}>
@@ -100,6 +99,26 @@ export function GlobalSearch() {
           <div className="search-results">
             {dangTai && !kq && <div className="search-empty">{t("Đang tìm…")}</div>}
             {kq && tong === 0 && !dangTai && <div className="search-empty">{t("Không tìm thấy kết quả cho")} "{q.trim()}".</div>}
+            {kq && kq.nhan_vien.length > 0 && (
+              <div className="search-group">
+                <div className="search-group-title">{t("Nhân viên")}</div>
+                {kq.nhan_vien.map((n) => (
+                  <button
+                    key={n.id}
+                    type="button"
+                    className="search-item"
+                    onClick={() => {
+                      dong();
+                      moNhanVien(n.id);
+                    }}
+                  >
+                    <span className="search-item-code">{n.id}</span>
+                    <span className="search-item-main">{n.ten}</span>
+                    <span className="search-item-sub">{n.bo_phan ? `${n.bo_phan} · ` : ""}{t("Hồ sơ: tài sản, tiêu hao, lịch sử")}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             {kq && kq.tai_san.length > 0 && (
               <div className="search-group">
                 <div className="search-group-title">{t("Tài sản")}</div>
@@ -158,27 +177,6 @@ export function GlobalSearch() {
                     <span className="search-item-code">{v.id}</span>
                     <span className="search-item-main">{v.ten}</span>
                     <span className="search-item-sub">{t("Tồn kho, lịch sử")}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {kq && kq.nhan_vien.length > 0 && moNhanVien && (
-              <div className="search-group">
-                <div className="search-group-title">{t("Nhân viên")}</div>
-                {kq.nhan_vien.map((n) => (
-                  <button
-                    key={n.id}
-                    type="button"
-                    className="search-item"
-                    onClick={() => {
-                      dong();
-                      if (moNhanVien === "nhan-vien") navigate("nhan-vien", { q: n.id });
-                      else navigate("bao-cao", { tab: "theo-nhan-vien", q: n.id });
-                    }}
-                  >
-                    <span className="search-item-code">{n.id}</span>
-                    <span className="search-item-main">{n.ten}</span>
-                    {n.bo_phan && <span className="search-item-sub">{n.bo_phan}</span>}
                   </button>
                 ))}
               </div>

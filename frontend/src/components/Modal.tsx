@@ -11,7 +11,7 @@ export function Modal({
   title: ReactNode;
   onClose: () => void;
   children: ReactNode;
-  size?: "md" | "lg";
+  size?: "md" | "lg" | "xl";
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -21,7 +21,7 @@ export function Modal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className={`modal-box ${size === "lg" ? "modal-lg" : ""}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div className={`modal-box ${size === "lg" ? "modal-lg" : size === "xl" ? "modal-xl" : ""}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="modal-head">
           <div className="modal-title">{title}</div>
           <button type="button" className="modal-close" onClick={onClose} aria-label={t("Đóng")}>

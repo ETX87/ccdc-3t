@@ -14,7 +14,7 @@ import {
   Boxes,
   Building2,
   Network,
-  PieChart,
+  Settings,
   ShieldCheck,
   Tags,
   UserRound,
@@ -41,32 +41,27 @@ export interface MenuChild {
   label: string;
   tab: TabKey;
   params?: NavParams;
+  icon?: typeof Home;
+  /** Tieu de phan nho trong danh sach con (vd Bao cao: "Tai san co dinh" / "Tieu hao"). */
+  phan?: string;
   /** Muc mac dinh cua tab khi URL chua co params.tab (de to sang dung 1 muc). */
   macDinh?: boolean;
-  /** So do cua muc con (menu_badges) - muc cha chi hien tong khi dang dong. */
+  /** So do cua muc con (menu_badges) - muc cha hien TONG khi dang dong. */
   badgeKey?: string;
   /** Tham so them khi bam luc co so do (vd loc san phieu cho duyet). */
   badgeParams?: NavParams;
   show: (u: AppUser) => boolean;
 }
 
-/** Nhom menu (tieu de + mau rieng tren sidebar) - tach ro TSCD / tieu hao / kho / bao cao / cau hinh. */
+/** Nhom menu (mau rieng tren sidebar). */
 export type NhomMenu = "chung" | "tscd" | "tieu-hao" | "kho" | "bao-cao" | "cau-hinh";
-export const NHOM_MENU: Record<NhomMenu, string> = {
-  chung: "",
-  tscd: t("Tài sản cố định"),
-  "tieu-hao": t("Vật tư tiêu hao"),
-  kho: t("Kho"),
-  "bao-cao": t("Báo cáo"),
-  "cau-hinh": t("Cấu hình"),
-};
 
 export interface MenuItem {
   key: string;
   label: string;
   icon: typeof Home;
   nhom: NhomMenu;
-  /** Muc don: mo tab nay. Muc co con: mo/dong danh sach con. */
+  /** Muc don: mo tab nay. Muc me (co children): bam de xo / thu danh sach con. */
   tab?: TabKey;
   params?: NavParams;
   macDinh?: boolean;
@@ -86,75 +81,102 @@ export function khopMuc(m: { tab?: TabKey; params?: NavParams; macDinh?: boolean
 
 const moiNguoi = () => true;
 const xemKhoTieuHao = (u: AppUser) => laQuanTri(u) || coKho(u);
-const bc = (label: string, tab: string, show: (u: AppUser) => boolean = moiNguoi, macDinh = false): MenuChild => ({
+const bc = (label: string, tab: string, phan: string, show: (u: AppUser) => boolean = xemTongHop, macDinh = false): MenuChild => ({
   label,
   tab: "bao-cao",
   params: { tab },
+  phan,
   macDinh,
   show,
 });
 
+// Menu 2 lop (2026-11-12, user yeu cau): vai muc chung o tren cung, con lai la MENU ME theo nghiep vu - bam menu me
+// moi xo ra menu con (sidebar chi mo 1 menu me 1 luc, tu mo menu me chua man dang xem).
+const PHAN_TSCD = t("Tài sản cố định");
+const PHAN_TH = t("Vật tư tiêu hao");
 export const MENU: MenuItem[] = [
-  // ---- chung
   { key: "tong-quan", nhom: "chung", label: t("Tổng quan"), icon: Home, tab: "tong-quan", show: xemTongHop },
   { key: "viec-can-lam", nhom: "chung", label: t("Việc cần làm"), icon: ClipboardCheck, tab: "viec-can-lam", badgeKey: "viec-can-lam", show: moiNguoi },
   { key: "canh-bao", nhom: "chung", label: t("Cảnh báo"), icon: Bell, tab: "canh-bao", badgeKey: "canh-bao", show: xemTongHop },
-  // ---- tai san co dinh
-  { key: "tai-san", nhom: "tscd", label: t("Danh mục tài sản"), icon: Laptop, tab: "tai-san", show: (u) => xemTongHop(u) || xemTon(u) },
-  { key: "ca-nhan", nhom: "tscd", label: t("Tài sản của tôi"), icon: UserRound, tab: "ca-nhan", show: moiNguoi },
-  { key: "nhom", nhom: "tscd", label: t("Nhóm của tôi"), icon: Users, tab: "nhom", show: coNhom },
-  { key: "giao-nhan", nhom: "tscd", label: t("Cấp phát & điều chuyển"), icon: ArrowLeftRight, tab: "giao-nhan", badgeKey: "giao-nhan", show: (u) => laQuanTri(u) || coKho(u) || coNhom(u) },
-  { key: "bao-hong", nhom: "tscd", label: t("Báo hỏng"), icon: Wrench, tab: "bao-hong", badgeKey: "bao-hong", show: moiNguoi },
-  { key: "thanh-ly", nhom: "tscd", label: t("Thanh lý & tiêu hủy"), icon: Trash2, tab: "thanh-ly", badgeKey: "thanh-ly", show: laQuanTri },
-  { key: "kiem-ke", nhom: "tscd", label: t("Kiểm kê"), icon: ClipboardList, tab: "kiem-ke", badgeKey: "kiem-ke", show: laQuanTri },
-  // ---- vat tu tieu hao
   {
-    key: "cap-phat",
-    nhom: "tieu-hao",
-    label: t("Phiếu cấp phát & chuyển kho"),
-    icon: Package,
-    tab: "cap-phat",
-    params: { tab: "phieu" },
-    macDinh: true,
-    badgeKey: "cap-phat",
-    badgeParams: { trang_thai: "Cho ke toan duyet", thang: "" },
-    show: xemKhoTieuHao,
-  },
-  { key: "ton-tieu-hao", nhom: "tieu-hao", label: t("Tồn kho tiêu hao"), icon: Boxes, tab: "cap-phat", params: { tab: "ton-kho" }, show: (u) => xemKhoTieuHao(u) || xemTon(u) },
-  { key: "danh-muc-vt", nhom: "tieu-hao", label: t("Danh mục vật tư"), icon: Tags, tab: "cap-phat", params: { tab: "danh-muc" }, show: xemKhoTieuHao },
-  // ---- kho
-  { key: "kho", nhom: "kho", label: t("Kho & tồn"), icon: Store, tab: "kho", params: { tab: "ton" }, macDinh: true, badgeKey: "kho", show: (u) => laQuanTri(u) || coKho(u) || xemTon(u) },
-  // ---- bao cao
-  {
-    key: "bao-cao-tscd",
-    nhom: "bao-cao",
-    label: t("Báo cáo tài sản cố định"),
-    icon: BarChart2,
-    show: xemTongHop,
+    key: "tscd",
+    nhom: "tscd",
+    label: t("Tài sản cố định"),
+    icon: Laptop,
+    show: moiNguoi,
     children: [
-      bc(t("Tổng hợp"), "tong-quan", moiNguoi, true),
-      bc(t("Theo công ty"), "theo-cong-ty", (u) => laQuanTri(u) && u.cong_ty.length > 1),
-      bc(t("Theo nhân viên"), "theo-nhan-vien"),
-      bc(t("Theo bộ phận"), "theo-bo-phan"),
-      bc(t("Sắp hết bảo hành"), "sap-het-bao-hanh"),
-      bc(t("Chênh lệch kiểm kê"), "kiem-ke-chenh-lech"),
-      bc(t("Đã thanh lý / tiêu hủy"), "da-thanh-ly"),
+      { label: t("Danh mục tài sản"), icon: Laptop, tab: "tai-san", show: (u) => xemTongHop(u) || xemTon(u) },
+      { label: t("Tài sản của tôi"), icon: UserRound, tab: "ca-nhan", show: moiNguoi },
+      { label: t("Nhóm của tôi"), icon: Users, tab: "nhom", show: coNhom },
+      { label: t("Cấp phát & điều chuyển"), icon: ArrowLeftRight, tab: "giao-nhan", badgeKey: "giao-nhan", show: (u) => laQuanTri(u) || coKho(u) || coNhom(u) },
+      { label: t("Báo hỏng"), icon: Wrench, tab: "bao-hong", badgeKey: "bao-hong", show: moiNguoi },
+      { label: t("Thanh lý & tiêu hủy"), icon: Trash2, tab: "thanh-ly", badgeKey: "thanh-ly", show: laQuanTri },
+      { label: t("Kiểm kê"), icon: ClipboardList, tab: "kiem-ke", badgeKey: "kiem-ke", show: laQuanTri },
     ],
   },
   {
-    key: "bao-cao-tieu-hao",
-    nhom: "bao-cao",
-    label: t("Báo cáo tiêu hao"),
-    icon: PieChart,
-    show: xemTongHop,
-    children: [bc(t("Tiêu dùng văn phòng"), "tieu-dung"), bc(t("Tiêu hao cấp cho NV"), "tieu-hao-nv")],
+    key: "tieu-hao",
+    nhom: "tieu-hao",
+    label: t("Vật tư tiêu hao"),
+    icon: Package,
+    show: moiNguoi,
+    children: [
+      {
+        label: t("Phiếu cấp phát & chuyển kho"),
+        icon: Package,
+        tab: "cap-phat",
+        params: { tab: "phieu" },
+        macDinh: true,
+        badgeKey: "cap-phat",
+        badgeParams: { trang_thai: "Cho ke toan duyet", thang: "" },
+        show: xemKhoTieuHao,
+      },
+      { label: t("Tồn kho tiêu hao"), icon: Boxes, tab: "cap-phat", params: { tab: "ton-kho" }, show: (u) => xemKhoTieuHao(u) || xemTon(u) },
+      { label: t("Danh mục vật tư"), icon: Tags, tab: "cap-phat", params: { tab: "danh-muc" }, show: xemKhoTieuHao },
+    ],
   },
-  // ---- cau hinh
-  { key: "kho-cau-hinh", nhom: "cau-hinh", label: t("Kho & thủ kho"), icon: Warehouse, tab: "kho", params: { tab: "cau-hinh" }, show: laHcnsHoacAdmin },
-  { key: "nhan-vien", nhom: "cau-hinh", label: t("Nhân viên & sơ đồ quản lý"), icon: Network, tab: "nhan-vien", show: laQuanTri },
-  { key: "tai-khoan", nhom: "cau-hinh", label: t("Tài khoản & phân quyền"), icon: ShieldCheck, tab: "tai-khoan", show: (u) => u.vai_tro === "Admin" },
-  { key: "cong-ty", nhom: "cau-hinh", label: t("Công ty (pháp nhân)"), icon: Building2, tab: "cong-ty", show: (u) => u.vai_tro === "Admin" },
-  { key: "bao-cao-email", nhom: "cau-hinh", label: t("Báo cáo email định kỳ"), icon: Mail, tab: "bao-cao-email", show: laHcnsHoacAdmin },
+  {
+    key: "kho",
+    nhom: "kho",
+    label: t("Kho"),
+    icon: Store,
+    show: moiNguoi,
+    children: [
+      { label: t("Kho & tồn"), icon: Store, tab: "kho", params: { tab: "ton" }, macDinh: true, badgeKey: "kho", show: (u) => laQuanTri(u) || coKho(u) || xemTon(u) },
+      { label: t("Kho & thủ kho"), icon: Warehouse, tab: "kho", params: { tab: "cau-hinh" }, show: laHcnsHoacAdmin },
+    ],
+  },
+  {
+    key: "bao-cao",
+    nhom: "bao-cao",
+    label: t("Báo cáo"),
+    icon: BarChart2,
+    show: xemTongHop,
+    children: [
+      bc(t("Tổng hợp"), "tong-quan", PHAN_TSCD, xemTongHop, true),
+      bc(t("Theo công ty"), "theo-cong-ty", PHAN_TSCD, (u) => laQuanTri(u) && u.cong_ty.length > 1),
+      bc(t("Theo nhân viên"), "theo-nhan-vien", PHAN_TSCD),
+      bc(t("Theo bộ phận"), "theo-bo-phan", PHAN_TSCD),
+      bc(t("Sắp hết bảo hành"), "sap-het-bao-hanh", PHAN_TSCD),
+      bc(t("Chênh lệch kiểm kê"), "kiem-ke-chenh-lech", PHAN_TSCD),
+      bc(t("Đã thanh lý / tiêu hủy"), "da-thanh-ly", PHAN_TSCD),
+      bc(t("Tiêu dùng văn phòng"), "tieu-dung", PHAN_TH),
+      bc(t("Tiêu hao cấp cho NV"), "tieu-hao-nv", PHAN_TH),
+    ],
+  },
+  {
+    key: "cau-hinh",
+    nhom: "cau-hinh",
+    label: t("Cấu hình"),
+    icon: Settings,
+    show: moiNguoi,
+    children: [
+      { label: t("Nhân viên & sơ đồ quản lý"), icon: Network, tab: "nhan-vien", show: laQuanTri },
+      { label: t("Tài khoản & phân quyền"), icon: ShieldCheck, tab: "tai-khoan", show: (u) => u.vai_tro === "Admin" },
+      { label: t("Công ty (pháp nhân)"), icon: Building2, tab: "cong-ty", show: (u) => u.vai_tro === "Admin" },
+      { label: t("Báo cáo email định kỳ"), icon: Mail, tab: "bao-cao-email", show: laHcnsHoacAdmin },
+    ],
+  },
 ];
 
 /** Menu da loc theo nguoi dung (bo muc/con khong duoc xem, bo nhom khong con con nao). */

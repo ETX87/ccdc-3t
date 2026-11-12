@@ -5,7 +5,7 @@ import { ChevronDown, ChevronRight, Menu as MenuIcon } from "lucide-react";
 import { useAuth, useRefreshUser } from "../auth/AuthContext";
 import { api } from "../api/client";
 import { useNav } from "../lib/navigation";
-import { khopMuc, menuCua, NHOM_MENU, type MenuItem } from "../lib/menu";
+import { khopMuc, menuCua, type MenuItem } from "../lib/menu";
 import { tenVaiTro } from "../lib/nhan";
 import { Avatar } from "../components/Avatar";
 import { useDuLieuChung } from "../lib/duLieuChung";
@@ -20,30 +20,34 @@ import { CaiDatAppButton } from "../components/CaiDatAppButton";
 function SidebarItem({
   item,
   badges,
+  open,
+  onToggle,
   onPicked,
 }: {
   item: MenuItem;
   badges: Record<string, number>;
+  open: boolean;
+  onToggle: () => void;
   onPicked: () => void;
 }) {
   const { tab, params, navigate } = useNav();
   const chuaTabHienTai = !!item.children?.some((c) => khopMuc(c, tab, params));
-  const [open, setOpen] = useState(chuaTabHienTai);
-  useEffect(() => {
-    if (chuaTabHienTai) setOpen(true);
-  }, [chuaTabHienTai]);
-
   const Icon = item.icon;
-  const badge = item.badgeKey ? badges[item.badgeKey] ?? 0 : 0;
+  // Menu me: so do = tong so do cac menu con (chi hien khi dang thu gon).
+  const badge = item.children
+    ? item.children.reduce((s, c) => s + (c.badgeKey ? badges[c.badgeKey] ?? 0 : 0), 0)
+    : item.badgeKey
+      ? badges[item.badgeKey] ?? 0
+      : 0;
   const active = item.tab ? khopMuc(item, tab, params) : chuaTabHienTai && !open;
 
   return (
     <>
       <button
         type="button"
-        className={`sidebar-nav-item ${active ? "active" : ""}`}
+        className={`sidebar-nav-item ${active ? "active" : ""} ${item.children ? "sidebar-me" : ""} ${chuaTabHienTai ? "chua-hien-tai" : ""}`}
         onClick={() => {
-          if (item.children) setOpen(!open);
+          if (item.children) onToggle();
           else if (item.tab) {
             navigate(item.tab, badge > 0 && item.badgeParams ? { ...item.params, ...item.badgeParams } : item.params);
             onPicked();
@@ -62,22 +66,28 @@ function SidebarItem({
       </button>
       {item.children && open && (
         <div className="sidebar-subnav">
-          {item.children.map((c) => {
+          {item.children.map((c, i) => {
             const on = khopMuc(c, tab, params);
             const soCon = c.badgeKey ? badges[c.badgeKey] ?? 0 : 0;
+            const IconCon = c.icon;
             return (
-              <button
-                key={c.label}
-                type="button"
-                className={`sidebar-subnav-item ${on ? "active" : ""}`}
-                onClick={() => {
-                  navigate(c.tab, soCon > 0 ? { ...c.params, ...c.badgeParams } : c.params);
-                  onPicked();
-                }}
-              >
-                <span>{c.label}</span>
-                {soCon > 0 && <span className="nav-badge-red">{soCon > 99 ? "99+" : soCon}</span>}
-              </button>
+              <div key={`${c.tab}-${c.params?.tab ?? ""}`} style={{ display: "contents" }}>
+                {c.phan && c.phan !== item.children![i - 1]?.phan && <div className="sidebar-subnav-phan">{c.phan}</div>}
+                <button
+                  type="button"
+                  className={`sidebar-subnav-item ${on ? "active" : ""}`}
+                  onClick={() => {
+                    navigate(c.tab, soCon > 0 ? { ...c.params, ...c.badgeParams } : c.params);
+                    onPicked();
+                  }}
+                >
+                  <span className="sidebar-subnav-nhan">
+                    {IconCon && <IconCon size={14} className="sidebar-subnav-icon" />}
+                    {c.label}
+                  </span>
+                  {soCon > 0 && <span className="nav-badge-red">{soCon > 99 ? "99+" : soCon}</span>}
+                </button>
+              </div>
             );
           })}
         </div>
@@ -93,10 +103,17 @@ export function Layout({ children }: { children: ReactNode }) {
   const { badges } = useDuLieuChung();
   const [userMenu, setUserMenu] = useState(false);
   const [drawer, setDrawer] = useState(false);
+  const { tab, params } = useNav();
+  // Chi mo 1 menu me 1 luc; tu mo menu me chua man dang xem (doi man tu menu khac / link / Back).
+  const [moMe, setMoMe] = useState<string | null>(null);
+  const menu = state.status === "authenticated" ? menuCua(state.user) : [];
+  const meHienTai = menu.find((m) => m.children?.some((c) => khopMuc(c, tab, params)))?.key ?? null;
+  useEffect(() => {
+    if (meHienTai) setMoMe(meHienTai);
+  }, [meHienTai]);
 
   if (state.status !== "authenticated") return null;
   const user = state.user;
-  const menu = menuCua(user);
 
   async function logout() {
     try {
@@ -121,13 +138,14 @@ export function Layout({ children }: { children: ReactNode }) {
         <nav className="sidebar-nav">
           {menu.map((item, i) => (
             <div key={item.key} className={`sidebar-nhom-${item.nhom}`}>
-              {item.nhom !== "chung" && item.nhom !== menu[i - 1]?.nhom && (
-                <div className={`sidebar-section sidebar-section-${item.nhom}`}>
-                  <span className="sidebar-section-dot" />
-                  {NHOM_MENU[item.nhom]}
-                </div>
-              )}
-              <SidebarItem item={item} badges={badges} onPicked={() => setDrawer(false)} />
+              {item.children && !menu[i - 1]?.children && <div className="sidebar-me-ngan" />}
+              <SidebarItem
+                item={item}
+                badges={badges}
+                open={moMe === item.key}
+                onToggle={() => setMoMe(moMe === item.key ? null : item.key)}
+                onPicked={() => setDrawer(false)}
+              />
             </div>
           ))}
           <CaiDatAppButton onDone={() => setDrawer(false)} />

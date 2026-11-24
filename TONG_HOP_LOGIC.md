@@ -87,3 +87,7 @@ nhân viên, báo cáo email tuần (HTML + Excel) gửi 20h tối thứ 5.
 ## 10. Tài liệu liên quan
 
 `CLAUDE.md` (chi tiết kỹ thuật), `AGENT_INSTRUCTIONS.md`, `DESIGN_SYSTEM.md`, `DEPLOY.md`, `SRS_tong_hop.md`, `nhat_ky_lam_viec.md`.
+
+## Cửa sổ thông tin eOffice (popup Giám đốc)
+
+`GET /api/cua-so` (không cần đăng nhập) → Worker gọi `csApi` eOffice bằng secret `CUA_SO_KHOA`, đệm 60 giây, kèm tranh SVG. Frontend `CuaSoThongTin` hiện mỗi lần mở app (và khi quay lại sau ≥ 10 phút ẩn), nút "Vào app" khoá theo `khoaNutGiay`. Lỗi / chậm / chưa có khoá → không hiện, vào app bình thường. Cùng 1 bộ mã ở mọi app hệ DVBH (bản gốc ở linh-kien-app).

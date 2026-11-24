@@ -21,6 +21,7 @@ import congTy from "./routes/congTy";
 import baoCaoEmail, { guiBaoCaoDinhKy } from "./routes/baoCaoEmail";
 import { chupSoLieu } from "./lib/thongKe";
 import { nowVN } from "./lib/vnTime";
+import { layCuaSoThongTin } from "./lib/cuaSoThongTin";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -36,6 +37,9 @@ app.onError((err, c) => {
 });
 
 app.get("/api/health", (c) => c.json({ ok: true }));
+
+// Cua so thong tin eOffice (2026-11-24, lib/cuaSoThongTin.ts): khong can dang nhap - hien ca o man dang nhap.
+app.get("/api/cua-so", async (c) => c.json(await layCuaSoThongTin(c.env.CUA_SO_KHOA)));
 
 app.route("/api/auth", auth);
 app.route("/api/admin/users", adminUsers);

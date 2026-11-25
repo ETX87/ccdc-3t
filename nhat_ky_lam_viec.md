@@ -3,6 +3,16 @@
 > Mỗi đợt làm việc 1 mục, **mới nhất ở trên**: ngày, phiên bản, yêu cầu, đã làm gì, kiểm thử gì, việc còn dở. Chỉ ghi thêm, không xoá mục cũ.
 > Không ghi tài khoản, mật khẩu, khoá hay mô tả lỗ hổng bảo mật vào file này (repo có thể công khai).
 
+## 25/11/2026 — v1.008: Cột Ghi chú trong các bảng phiếu / tài sản
+
+**Yêu cầu (nguyên văn):** "trong danh sách import tiêu hao hoặc tài sản đều có ghi chú => bổ sung các cột ghi chú này trong các table liên qua, tương tự khi tải file danh sách về cũng phải có cột ghi chú".
+
+**Đã làm:** thêm cột "Ghi chú" (cắt 2 dòng, rê chuột xem đủ — component `GhiChuO`) vào bảng: Phiếu cấp phát & chuyển kho (tiêu hao), Danh mục tài sản, Cấp phát & điều chuyển TSCĐ, Lịch sử trong hồ sơ vật tư. File Excel lịch sử vật tư thêm cột Ghi chú (Excel phiếu tiêu hao và danh mục tài sản đã có sẵn). Backend không đổi (các API đã trả `ghi_chu`).
+
+**Kiểm thử:** typecheck 0 lỗi; chạy local trên bản sao dữ liệu: 4 bảng hiện cột Ghi chú, phiếu tiêu hao / tài sản hiện đúng nội dung ghi chú cũ, không lỗi console.
+
+**Còn dở:** màn Cấp phát & điều chuyển TSCĐ chưa có nút Xuất Excel (không thuộc yêu cầu lần này).
+
 ## 24/11/2026 — Tách CLAUDE.md thành bản rút gọn + CLAUDE-full.md (không đổi code)
 
 - Yêu cầu (Trợ lý Mây theo lời Giám đốc): CLAUDE.md ~47 KB làm phiên Claude đám mây nặng bộ nhớ → rút dưới ~10 KB, chi tiết sang tệp riêng.

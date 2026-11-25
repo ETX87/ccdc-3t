@@ -58,6 +58,7 @@
 - Phiếu chờ KT: người lập / HCNS sửa hoặc huỷ; bị từ chối thì sửa xong tự gửi lại. Phiếu bị bên nhận từ chối: gửi lại hoặc đánh dấu đã xử lý.
 - Chống xuất vượt tồn khi 2 phiếu cùng lúc (`batch_guard` ép rollback cả lô).
 - Import Excel phiếu tiêu hao: kiểm quyền + tồn cộng dồn cả file; có lỗi thì không tạo phiếu nào.
+- Ghi chú người lập (nhập tay / cột Ghi chú khi import) hiện ở cột Ghi chú của danh sách phiếu tiêu hao, phiếu giao nhận TSCĐ, danh mục TSCĐ, lịch sử hồ sơ vật tư và có trong file Excel xuất của các danh sách đó.
 - Mã tự sinh: vật tư `TS<công ty>-000123`; TSCĐ `TS<công ty>-<dòng hàng 6 số>-<chiếc 3 số>` (cùng tên = cùng dòng hàng).
 
 ## 6. Tồn tối thiểu, cảnh báo, việc cần làm

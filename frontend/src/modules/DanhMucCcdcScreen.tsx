@@ -21,7 +21,7 @@ import { useNav } from "../lib/navigation";
 import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTriDong, fmtNgay, fmtSo, homNayVN } from "../lib/format";
 import { isHcns, laKhoTon, thongBaoLoi, TINH_TRANG_TS, TRANG_THAI_TS } from "../lib/nhan";
-import { TienTe } from "../components/NoiBat";
+import { GhiChuO, TienTe } from "../components/NoiBat";
 import { ChonLoc } from "../components/ChonLoc";
 import { QuanLyNhomModal } from "../components/QuanLyNhomModal";
 import { TonToiThieuTsModal } from "../components/TonToiThieu";
@@ -543,19 +543,20 @@ export function DanhMucCcdcScreen() {
                 <th style={{ width: "18%" }}>{t("Vị trí / Người giữ")}</th>
                 <th style={{ width: "11%", textAlign: "right" }}>{t("Nguyên giá")}</th>
                 <th style={{ width: "12%", textAlign: "center" }}>{t("Trạng thái")}</th>
+                <th>{t("Ghi chú")}</th>
                 <th style={{ width: "8%", textAlign: "right" }}>{t("Thao tác")}</th>
               </tr>
             </thead>
             <tbody>
               {rows === null ? (
                 <tr>
-                  <td colSpan={8} className="task-empty">
+                  <td colSpan={9} className="task-empty">
                     {t("Đang tải dữ liệu…")}
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="task-empty">
+                  <td colSpan={9} className="task-empty">
                     {t("Không tìm thấy tài sản nào.")}
                   </td>
                 </tr>
@@ -612,6 +613,9 @@ export function DanhMucCcdcScreen() {
                       </td>
                       <td data-label={t("Trạng thái")} style={{ textAlign: "center" }}>
                         <StatusBadge label={st.label} tone={st.tone} />
+                      </td>
+                      <td data-label={t("Ghi chú")}>
+                        <GhiChuO text={r.ghi_chu} />
                       </td>
                       <td data-label={t("Thao tác")} style={{ textAlign: "right" }}>
                         {canEdit && (

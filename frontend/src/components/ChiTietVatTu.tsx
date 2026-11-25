@@ -7,7 +7,7 @@ import { StatusBadge } from "./StatusBadge";
 import { FilterTabs } from "./FilterTabs";
 import { ChonLoc } from "./ChonLoc";
 import { PhanTrang, useTrangKhach } from "./PhanTrang";
-import { KhoTag, LoaiChip, SoTon, TienTe } from "./NoiBat";
+import { GhiChuO, KhoTag, LoaiChip, SoTon, TienTe } from "./NoiBat";
 import { MucTonBadge, SuaTonToiThieuVt, type MucTon } from "./TonToiThieu";
 import { useAuth } from "../auth/AuthContext";
 import { isHcns } from "../lib/nhan";
@@ -153,10 +153,11 @@ export function VatTuModal({ id, onClose, onMoPhieu }: { id: string; onClose: ()
         thanh_tien: x.thanh_tien,
         trang_thai: TRANG_THAI_CK[x.trang_thai]?.label ?? x.trang_thai,
         nguoi_lap: x.nguoi_lap ?? "",
+        ghi_chu: x.ghi_chu ?? "",
       })),
       `lich-su_${d.vt.id}.xlsx`,
       t("Lịch sử"),
-      { ngay: t("Ngày"), ma_phieu: t("Mã phiếu"), loai: t("Loại"), tu: t("Từ"), den: t("Đến"), so_luong: t("Số lượng"), don_gia: t("Đơn giá"), thanh_tien: t("Thành tiền"), trang_thai: t("Trạng thái"), nguoi_lap: t("Người lập") },
+      { ngay: t("Ngày"), ma_phieu: t("Mã phiếu"), loai: t("Loại"), tu: t("Từ"), den: t("Đến"), so_luong: t("Số lượng"), don_gia: t("Đơn giá"), thanh_tien: t("Thành tiền"), trang_thai: t("Trạng thái"), nguoi_lap: t("Người lập"), ghi_chu: t("Ghi chú") },
     );
   }
 
@@ -364,12 +365,13 @@ export function VatTuModal({ id, onClose, onMoPhieu }: { id: string; onClose: ()
                       <th style={{ textAlign: "right" }}>{khoChon != null ? t("Vào (+) / Ra (−)") : t("Số lượng")}</th>
                       <th style={{ textAlign: "right" }}>{t("Thành tiền")}</th>
                       <th>{t("Trạng thái")}</th>
+                      <th>{t("Ghi chú")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {lichSu.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="task-empty">
+                        <td colSpan={7} className="task-empty">
                           {t("Không có phiếu khớp bộ lọc.")}
                         </td>
                       </tr>
@@ -405,6 +407,9 @@ export function VatTuModal({ id, onClose, onMoPhieu }: { id: string; onClose: ()
                           </td>
                           <td data-label={t("Trạng thái")}>
                             <StatusBadge label={tt?.label ?? x.trang_thai} tone={tt?.tone ?? "neutral"} />
+                          </td>
+                          <td data-label={t("Ghi chú")}>
+                            <GhiChuO text={x.ghi_chu} />
                           </td>
                         </tr>
                       );

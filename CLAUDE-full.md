@@ -289,6 +289,11 @@ khoản Google THẬT do Admin kết nối (thẻ "Lưu trữ hóa đơn…" ở
 - **Làm nổi bật dữ liệu bảng** (`components/NoiBat.tsx`): `LoaiChip` (loại phiếu: icon + màu), `KhoTag` (icon màu theo
   loại kho), `NguoiTag`, `NgayCho` (ngày + tuổi chờ, >24h vàng, >48h đỏ), `SoTon` (âm đỏ, 0 xám), `TienTe`. Dòng cần xử
   lý: `row-canh-bao` (viền đỏ) / `row-chu-y` (viền vàng). Màu theo Ý NGHĨA: đỏ = phải xử lý, vàng = sắp tới hạn.
+- **Cột Ghi chú trong bảng** (2026-11-25, user: "trong danh sách import tiêu hao hoặc tài sản đều có ghi chú => bổ sung các cột
+  ghi chú này trong các table liên quan, tương tự khi tải file danh sách về"): `GhiChuO` (NoiBat.tsx, class `.nb-ghi-chu` cắt 2
+  dòng, rê chuột xem đủ) ở cột cuối các bảng: phiếu tiêu hao (ChuyenKhoScreen), danh mục TSCĐ (DanhMucCcdcScreen), phiếu giao nhận
+  TSCĐ (GiaoNhanScreen), lịch sử trong hồ sơ vật tư (ChiTietVatTu). Xuất Excel của phiếu tiêu hao, danh mục TSCĐ, lịch sử vật tư
+  đều có cột Ghi chú. Bảng mới hiển thị phiếu / tài sản có `ghi_chu` → thêm cột này + cột Excel tương ứng.
 
 ## Menu 2 lớp + hồ sơ nhân viên + bảng kiểu Excel (2026-11-12)
 

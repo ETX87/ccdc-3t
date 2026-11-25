@@ -19,7 +19,7 @@ import { baoThayDoi, useKhiThayDoi } from "../lib/suKien";
 import { fmtGiaTriDong, fmtNgayGio, fmtSo, homNayVN } from "../lib/format";
 import { LOAI_KHO, LOAI_PHIEU_CK, TRANG_THAI_CK, isHcns, laKhoPhatChung, laKhoTon, nvThuocCt, thongBaoLoi } from "../lib/nhan";
 import type { LoaiKho } from "../types";
-import { KhoTag, LoaiChip, NgayCho, NguoiTag, soGioTu, TienTe } from "../components/NoiBat";
+import { GhiChuO, KhoTag, LoaiChip, NgayCho, NguoiTag, soGioTu, TienTe } from "../components/NoiBat";
 import { ChonLoc } from "../components/ChonLoc";
 import { NhapExcelPhieuCk } from "../components/NhapExcelPhieuCk";
 import { GoiYNvCongTyKhac, XacNhanNvKhacCongTy, type GoiY } from "../components/GoiYNvCongTyKhac";
@@ -584,19 +584,20 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                 <th style={{ width: "10%", textAlign: "right" }}>{t("Giá trị")}</th>
                 <th style={{ width: "11%", textAlign: "center" }}>{t("Trạng thái")}</th>
                 <th style={{ width: "11%" }}>{t("Ngày")}</th>
+                <th>{t("Ghi chú")}</th>
               </tr>
             </thead>
             <tbody>
               {rows === null && (
                 <tr>
-                  <td colSpan={9} className="task-empty">
+                  <td colSpan={10} className="task-empty">
                     {t("Đang tải…")}
                   </td>
                 </tr>
               )}
               {rows !== null && rows.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="task-empty">
+                  <td colSpan={10} className="task-empty">
                     {t("Không có phiếu nào khớp bộ lọc.")}
                   </td>
                 </tr>
@@ -639,6 +640,9 @@ export function ChuyenKhoScreen({ tabs }: { tabs?: ReactNode }) {
                   </td>
                   <td data-label={t("Ngày")}>
                     <NgayCho ngay={p.created_at} dangCho={CK_DANG_CHO.has(p.trang_thai)} />
+                  </td>
+                  <td data-label={t("Ghi chú")}>
+                    <GhiChuO text={p.ghi_chu} />
                   </td>
                 </tr>
               ))}

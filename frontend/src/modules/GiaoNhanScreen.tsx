@@ -22,7 +22,7 @@ import { LOAI_GIAO_NHAN, LOAI_KHO, isHcns, laKhoPhatChung, laKhoTon, nvThuocCt, 
 import { GoiYNvCongTyKhac, XacNhanNvKhacCongTy, type GoiY } from "../components/GoiYNvCongTyKhac";
 import type { LoaiKho } from "../types";
 import { PhanTrang, useTrangKhach } from "../components/PhanTrang";
-import { LoaiChip, NgayCho } from "../components/NoiBat";
+import { GhiChuO, LoaiChip, NgayCho } from "../components/NoiBat";
 import { ChonLoc } from "../components/ChonLoc";
 
 interface NhanVienRow {
@@ -47,6 +47,7 @@ interface CcdcRow {
   kho_id: number | null;
 }
 interface PhieuRow {
+  ghi_chu: string | null;
   id: string;
   ma_phieu: string | null;
   loai_phieu: string;
@@ -256,19 +257,20 @@ export function GiaoNhanScreen() {
                 <th>{t("Tài sản")}</th>
                 <th style={{ width: "12%" }}>{t("Ngày lập")}</th>
                 <th style={{ width: "12%", textAlign: "center" }}>{t("Xác nhận")}</th>
+                <th>{t("Ghi chú")}</th>
               </tr>
             </thead>
             <tbody>
               {phieus === null && (
                 <tr>
-                  <td colSpan={7} className="task-empty">
+                  <td colSpan={8} className="task-empty">
                     {t("Đang tải…")}
                   </td>
                 </tr>
               )}
               {phieus !== null && hienThi.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="task-empty">
+                  <td colSpan={8} className="task-empty">
                     {t("Không có phiếu nào")} {thang ? t("trong tháng {tenThang}", { tenThang }) : ""}.
                   </td>
                 </tr>
@@ -307,6 +309,9 @@ export function GiaoNhanScreen() {
                       ) : (
                         <StatusBadge label={tre ? t("Quá 48 giờ") : t("Chờ xác nhận")} tone={tre ? "danger" : "warning"} />
                       )}
+                    </td>
+                    <td data-label={t("Ghi chú")}>
+                      <GhiChuO text={p.ghi_chu} />
                     </td>
                   </tr>
                 );

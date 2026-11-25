@@ -146,6 +146,17 @@ export function SoTon({ so, dvt, nguongThap, chuSo = 2 }: { so: number; dvt?: st
 }
 
 /** Gia tri tien: dam, so lon (>= 10 trieu) to dam hon; null -> "-". */
+/** Ghi chu nguoi lap trong bang: cat 2 dong, re chuot xem du; trong -> "-". */
+export function GhiChuO({ text }: { text?: string | null }) {
+  const s = text?.trim();
+  if (!s) return <span className="muted">-</span>;
+  return (
+    <span className="nb-ghi-chu" title={s}>
+      {s}
+    </span>
+  );
+}
+
 export function TienTe({ so }: { so: number | null | undefined }) {
   if (so == null) return <span className="muted">-</span>;
   return <span className={`nb-tien${Math.abs(so) >= 10_000_000 ? " nb-tien-lon" : ""}`}>{fmtSo(so)}</span>;

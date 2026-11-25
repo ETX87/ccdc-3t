@@ -2,7 +2,8 @@ import { t } from "../lib/i18n";
 import { NvLink } from "../components/LienKet";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeftRight, CalendarDays, ChevronDown, Laptop, Plus, UserCheck } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, CalendarDays, ChevronDown, Download, Laptop, Plus, UserCheck } from "lucide-react";
+import { exportRowsToExcel } from "../lib/exportExcel";
 import { api } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { Modal } from "../components/Modal";
@@ -85,6 +86,23 @@ function tuDen(p: PhieuRow): [ReactNode, ReactNode] {
   return [p.tu_kho_ten, p.den_kho_ten];
 }
 
+/** Tu / den dang chu (xuat Excel). */
+function tuDenChu(p: PhieuRow): [string, string] {
+  const giu = p.nhan_vien_ten ?? "";
+  if (p.loai_phieu === "Cap phat") return [p.tu_kho_ten ?? "", giu];
+  if (p.loai_phieu === "Thu hoi") return [giu, p.den_kho_ten ?? ""];
+  if (p.loai_phieu === "Dieu chuyen") return [giu, p.nhan_vien_nhan_moi_ten ?? ""];
+  return [p.tu_kho_ten ?? "", p.den_kho_ten ?? ""];
+}
+
+/** Nhan trang thai xac nhan / duyet (giong cot "Xac nhan" cua bang). */
+function trangThaiChu(p: PhieuRow): string {
+  if (p.trang_thai_duyet === "Cho ke toan duyet") return t("Chờ kế toán duyệt");
+  if (p.trang_thai_duyet === "Ke toan tu choi") return t("Kế toán từ chối");
+  if (p.da_xac_nhan) return t("Đã xác nhận");
+  return quaHan(p.ngay_lap) ? t("Quá 48 giờ") : t("Chờ xác nhận");
+}
+
 const quaHan = (ngay: string) => Date.now() + 7 * 3600e3 - Date.parse(`${ngay.replace(" ", "T")}Z`) > 48 * 3600e3;
 
 // Giao nhan TAI SAN CO DINH (cap phat / thu hoi / dieu chuyen / chuyen kho). Quyen that kiem o server
@@ -140,6 +158,31 @@ export function GiaoNhanScreen() {
   const tGn = useTrangKhach(hienThi, [tabXn]);
   const soTs = (phieus ?? []).reduce((s, p) => s + p.so_luong_ccdc, 0);
   const choQuaHan = choXacNhan.filter((p) => quaHan(p.ngay_lap)).length;
+  // Xuat dung cac dong dang loc (thang + loai + tab xac nhan) - danh sach da tai du ve may, khong phan trang server.
+  async function xuatExcel() {
+    if (!hienThi.length) return;
+    await exportRowsToExcel(
+      hienThi.map((p) => {
+        const [tu, den] = tuDenChu(p);
+        return {
+          ma_phieu: p.ma_phieu ?? p.id,
+          loai: p.trang_thai_duyet ? t("Chuyển công ty") : (LOAI_GIAO_NHAN[p.loai_phieu] ?? p.loai_phieu),
+          tu,
+          den,
+          so_ts: p.so_luong_ccdc,
+          tai_san: p.tom_tat ?? "",
+          nguoi_lap: p.nguoi_lap,
+          ngay_lap: p.ngay_lap,
+          xac_nhan: trangThaiChu(p),
+          ghi_chu: p.ghi_chu ?? "",
+        };
+      }),
+      `Giao_nhan_TSCD_${thang || homNayVN()}.xlsx`,
+      "Giao nhan TSCD",
+      { ma_phieu: t("Mã phiếu"), loai: t("Loại"), tu: t("Từ"), den: t("Đến"), so_ts: t("Số TS"), tai_san: t("Tài sản"), nguoi_lap: t("Người lập"), ngay_lap: t("Ngày lập"), xac_nhan: t("Xác nhận"), ghi_chu: t("Ghi chú") },
+    );
+  }
+
   const tenThang = thang ? `${thang.slice(5)}/${thang.slice(0, 4)}` : t("mọi thời điểm");
 
   if (!user) return null;
@@ -166,9 +209,14 @@ export function GiaoNhanScreen() {
           </>
         }
         actions={
-          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-            <Plus size={15} /> {t("Lập phiếu giao nhận")}
-          </button>
+          <>
+            <button className="btn btn-outline" onClick={xuatExcel} disabled={!hienThi.length}>
+              <Download size={14} /> {t("Xuất Excel")}
+            </button>
+            <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+              <Plus size={15} /> {t("Lập phiếu giao nhận")}
+            </button>
+          </>
         }
         capNhatLuc={capNhatLuc}
         onRefresh={load}

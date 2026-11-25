@@ -294,6 +294,8 @@ khoản Google THẬT do Admin kết nối (thẻ "Lưu trữ hóa đơn…" ở
   dòng, rê chuột xem đủ) ở cột cuối các bảng: phiếu tiêu hao (ChuyenKhoScreen), danh mục TSCĐ (DanhMucCcdcScreen), phiếu giao nhận
   TSCĐ (GiaoNhanScreen), lịch sử trong hồ sơ vật tư (ChiTietVatTu). Xuất Excel của phiếu tiêu hao, danh mục TSCĐ, lịch sử vật tư
   đều có cột Ghi chú. Bảng mới hiển thị phiếu / tài sản có `ghi_chu` → thêm cột này + cột Excel tương ứng.
+  Màn Cấp phát & điều chuyển TSCĐ có nút "Xuất Excel" (2026-11-25, v1.009): xuất các dòng đang lọc (tháng + loại + tab xác nhận) —
+  Mã phiếu, Loại, Từ, Đến, Số TS, Tài sản, Người lập, Ngày lập, Xác nhận, Ghi chú (`tuDenChu` / `trangThaiChu` trong GiaoNhanScreen).
 
 ## Menu 2 lớp + hồ sơ nhân viên + bảng kiểu Excel (2026-11-12)
 

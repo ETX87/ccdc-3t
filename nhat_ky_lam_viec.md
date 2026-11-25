@@ -3,6 +3,14 @@
 > Mỗi đợt làm việc 1 mục, **mới nhất ở trên**: ngày, phiên bản, yêu cầu, đã làm gì, kiểm thử gì, việc còn dở. Chỉ ghi thêm, không xoá mục cũ.
 > Không ghi tài khoản, mật khẩu, khoá hay mô tả lỗ hổng bảo mật vào file này (repo có thể công khai).
 
+## 25/11/2026 — v1.009: Nút Xuất Excel ở Cấp phát & điều chuyển TSCĐ
+
+**Yêu cầu:** "Thêm nút Xuất" (tiếp theo v1.008 — màn giao nhận TSCĐ chưa có nút tải danh sách).
+
+**Đã làm:** nút "Xuất Excel" cạnh "Lập phiếu giao nhận": xuất đúng các phiếu đang hiện theo bộ lọc tháng / loại phiếu / tab xác nhận, cột Mã phiếu, Loại, Từ, Đến, Số TS, Tài sản, Người lập, Ngày lập, Xác nhận, Ghi chú. Không có phiếu → nút mờ.
+
+**Kiểm thử:** typecheck + kiểm i18n 0 lỗi mới; local tháng 10/2026: file `Giao_nhan_TSCD_2026-10.xlsx` 2 phiếu, đủ 10 cột, ghi chú đúng.
+
 ## 25/11/2026 — v1.008: Cột Ghi chú trong các bảng phiếu / tài sản
 
 **Yêu cầu (nguyên văn):** "trong danh sách import tiêu hao hoặc tài sản đều có ghi chú => bổ sung các cột ghi chú này trong các table liên qua, tương tự khi tải file danh sách về cũng phải có cột ghi chú".
